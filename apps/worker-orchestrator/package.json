@@ -11,13 +11,14 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@sovereign/core": "workspace:*",
-    "@sovereign/config": "workspace:*",
-    "@sovereign/db": "workspace:*",
     "@sovereign/agents": "workspace:*",
+    "@sovereign/config": "workspace:*",
+    "@sovereign/core": "workspace:*",
+    "@sovereign/db": "workspace:*",
+    "@temporalio/activity": "1.11.6",
     "@temporalio/client": "1.11.6",
-    "@temporalio/worker": "1.11.6",
-    "@temporalio/activity": "1.11.6"
+    "@temporalio/testing": "1.11.6",
+    "@temporalio/worker": "1.11.6"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

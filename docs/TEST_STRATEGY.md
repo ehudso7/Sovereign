@@ -53,6 +53,18 @@
 - **Location**: `infra/scripts/load-tests/`
 - **Targets**: SLO thresholds defined in PRD
 
+### Workflow Tests
+- **Scope**: Temporal workflow signal behavior, state transitions, completion lifecycle
+- **Runner**: Vitest + `@temporalio/testing` (`TestWorkflowEnvironment.createTimeSkipping()`)
+- **Location**: `apps/worker-orchestrator/src/__tests__/`
+- **Approach**: Real Temporal test server with mocked activities. Verifies:
+  - Run starts and completes normally
+  - Pause signal pauses, resume signal resumes
+  - Cancel signal cancels from running and paused states
+  - Invalid/late signals do not corrupt terminal states
+  - Status query returns correct state
+- **Speed**: < 60 seconds for full suite (downloads test server on first run)
+
 ### Chaos Tests
 - **Scope**: Worker restart during runs, DB failover, network partition
 - **Approach**: Kill workers mid-run, verify recovery

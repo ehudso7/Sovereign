@@ -200,10 +200,17 @@ Start a new run for a published agent version.
 - Creates run in "queued" status, dispatches to Temporal workflow.
 - Returns 201 with run data.
 
-### GET /api/v1/runs
-List runs for the current org. Filterable by `?agentId=`, `?status=`, `?projectId=`.
+### GET /api/v1/agents/:agentId/runs
+List runs for a specific agent. Returns only runs belonging to the specified agent within the current org.
 - Auth: Bearer token required
 - Permission: `run:read` (all roles)
+- Returns 404 if agent does not exist or does not belong to the org.
+
+### GET /api/v1/runs
+List runs for the current org (all agents). Filterable by `?agentId=`, `?status=`, `?projectId=`.
+- Auth: Bearer token required
+- Permission: `run:read` (all roles)
+- Note: For per-agent listing, prefer `GET /api/v1/agents/:agentId/runs`. This endpoint provides org-wide listing with optional filters.
 
 ### GET /api/v1/runs/:runId
 Get run details by ID.
@@ -242,7 +249,7 @@ States: queued → starting → running → completed/failed
 - **Published versions only**: Runs can only be created for agents with a published version.
 - **Draft/archived rejection**: Agents in draft or archived status cannot be executed.
 - **Durable execution**: Runs are persisted via Temporal workflows and survive worker restarts.
-- **Execution providers**: "local" (deterministic dev/CI) or "openai" (production via Responses API).
+- **Execution providers**: "local" (deterministic dev/CI) or "openai" (production via OpenAI Responses API — `POST /v1/responses`).
 - **Audit trail**: All state transitions emit audit events.
 
 ### GET /api/v1/runs/:runId/steps

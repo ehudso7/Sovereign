@@ -14,6 +14,9 @@ importers:
       '@temporalio/client':
         specifier: 1.11.6
         version: 1.11.6
+      '@temporalio/testing':
+        specifier: 1.11.6
+        version: 1.11.6(tslib@2.8.1)
       '@temporalio/worker':
         specifier: 1.11.6
         version: 1.11.6(tslib@2.8.1)
@@ -194,6 +197,9 @@ importers:
       '@temporalio/client':
         specifier: 1.11.6
         version: 1.11.6
+      '@temporalio/testing':
+        specifier: 1.11.6
+        version: 1.11.6(tslib@2.8.1)
       '@temporalio/worker':
         specifier: 1.11.6
         version: 1.11.6(tslib@2.8.1)
@@ -1358,6 +1364,9 @@ packages:
 
   '@temporalio/proto@1.11.6':
     resolution: {integrity: sha512-N9qnyNabiY2LySft4fBrMCBNRoxbmADMdpP9+CX8RSVCHVLlf32FzkTUTFwZX1dOU+g2JsYrUzHFEBOPBpD8dQ==}
+
+  '@temporalio/testing@1.11.6':
+    resolution: {integrity: sha512-Vsxd7d6cO2CbjyLDezWUdaQUb0uXRZbUb7i7O4ALZ64yXX8FdYTn3IYmihNunjD1Eb3I1zu8yv+DhA9TMJce6w==}
 
   '@temporalio/worker@1.11.6':
     resolution: {integrity: sha512-Y8ccZBN0c4KLe06DfWbw1Is11y2ENuN+oQvrl9Tw66OGCRLE1Kk08m59iQrWiehiXYzW1DRQG4IHlMjv0Tl8Rg==}
@@ -3342,6 +3351,23 @@ snapshots:
     dependencies:
       long: 5.3.2
       protobufjs: 7.5.4
+
+  '@temporalio/testing@1.11.6(tslib@2.8.1)':
+    dependencies:
+      '@temporalio/activity': 1.11.6
+      '@temporalio/client': 1.11.6
+      '@temporalio/common': 1.11.6
+      '@temporalio/core-bridge': 1.11.6
+      '@temporalio/proto': 1.11.6
+      '@temporalio/worker': 1.11.6(tslib@2.8.1)
+      '@temporalio/workflow': 1.11.6
+      abort-controller: 3.0.0
+    transitivePeerDependencies:
+      - '@swc/helpers'
+      - esbuild
+      - tslib
+      - uglify-js
+      - webpack-cli
 
   '@temporalio/worker@1.11.6(tslib@2.8.1)':
     dependencies:

@@ -127,27 +127,31 @@ async function executeWithOpenAI(params: ExecuteAgentParams): Promise<ExecuteAge
 
   const startTime = Date.now();
 
-  const messages = [
-    { role: "system", content: params.instructions },
-    ...(params.goals.length > 0
-      ? [{ role: "system", content: `Goals:\n${params.goals.map((g, i) => `${i + 1}. ${g}`).join("\n")}` }]
-      : []),
-    { role: "user", content: JSON.stringify(params.input) },
-  ];
+  // Build input for the Responses API
+  const inputParts: string[] = [];
+  if (params.goals.length > 0) {
+    inputParts.push(`Goals:\n${params.goals.map((g, i) => `${i + 1}. ${g}`).join("\n")}`);
+  }
+  inputParts.push(JSON.stringify(params.input));
+
+  const requestBody: Record<string, unknown> = {
+    model: params.modelConfig.model ?? "gpt-4o",
+    instructions: params.instructions,
+    input: inputParts.join("\n\n"),
+    temperature: params.modelConfig.temperature ?? 0.7,
+    ...(params.modelConfig.maxTokens !== undefined && {
+      max_output_tokens: params.modelConfig.maxTokens,
+    }),
+  };
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: params.modelConfig.model ?? "gpt-4o",
-        messages,
-        temperature: params.modelConfig.temperature ?? 0.7,
-        max_tokens: params.modelConfig.maxTokens ?? 4096,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     const latencyMs = Date.now() - startTime;
@@ -158,22 +162,36 @@ async function executeWithOpenAI(params: ExecuteAgentParams): Promise<ExecuteAge
         output: {},
         tokenUsage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
         steps: [],
-        error: { code: "PROVIDER_ERROR", message: `OpenAI API error: ${response.status} ${errorBody}` },
+        error: { code: "PROVIDER_ERROR", message: `OpenAI Responses API error: ${response.status} ${errorBody}` },
       };
     }
 
     const data = await response.json() as {
-      choices: Array<{ message: { content: string } }>;
-      usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+      id: string;
+      model: string;
+      status: string;
+      output: Array<{ type: string; content?: Array<{ type: string; text?: string }> }>;
+      usage?: { input_tokens: number; output_tokens: number; total_tokens: number };
     };
 
-    const content = data.choices?.[0]?.message?.content ?? "";
-    const usage = data.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+    // Extract text from Responses API output array
+    let content = "";
+    for (const item of data.output) {
+      if (item.type === "message" && item.content) {
+        for (const part of item.content) {
+          if (part.type === "output_text" && part.text) {
+            content += part.text;
+          }
+        }
+      }
+    }
+
+    const usage = data.usage ?? { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
 
     const output = { response: content };
     const tokenUsage = {
-      inputTokens: usage.prompt_tokens,
-      outputTokens: usage.completion_tokens,
+      inputTokens: usage.input_tokens,
+      outputTokens: usage.output_tokens,
       totalTokens: usage.total_tokens,
     };
 
@@ -183,12 +201,14 @@ async function executeWithOpenAI(params: ExecuteAgentParams): Promise<ExecuteAge
       steps: [
         {
           type: "llm_call",
-          input: { messages },
+          input: { instructions: params.instructions, model: params.modelConfig.model ?? "gpt-4o" },
           output,
           tokenUsage,
           providerMetadata: {
             provider: "openai",
-            model: params.modelConfig.model ?? "gpt-4o",
+            api: "responses",
+            model: data.model,
+            responseId: data.id,
           },
           latencyMs,
         },

@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// OpenAI execution provider — production provider using chat completions API
+// OpenAI execution provider — production provider using Responses API
 // ---------------------------------------------------------------------------
 
 import type {
@@ -10,26 +10,31 @@ import type {
 } from "../execution-provider.js";
 
 /**
- * Shape of the OpenAI chat completions response (subset of fields we need).
+ * Shape of the OpenAI Responses API response (subset of fields we need).
+ * See: https://platform.openai.com/docs/api-reference/responses
  */
-interface OpenAIChatCompletionResponse {
+interface OpenAIResponseOutput {
+  type: string;
+  text?: string;
+  content?: Array<{ type: string; text?: string }>;
+}
+
+interface OpenAIResponsesResponse {
   id: string;
   object: string;
-  created: number;
+  created_at: number;
   model: string;
-  choices: Array<{
-    index: number;
-    message: {
-      role: string;
-      content: string | null;
-    };
-    finish_reason: string;
-  }>;
+  status: string;
+  output: OpenAIResponseOutput[];
   usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
+    input_tokens: number;
+    output_tokens: number;
     total_tokens: number;
   };
+  error?: {
+    code: string;
+    message: string;
+  } | null;
 }
 
 interface OpenAIErrorResponse {
@@ -40,11 +45,11 @@ interface OpenAIErrorResponse {
   };
 }
 
-const OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
+const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 
 /**
  * OpenAI execution provider.
- * Calls the OpenAI Chat Completions API using native fetch().
+ * Calls the OpenAI Responses API using native fetch().
  */
 export class OpenAIExecutionProvider implements ExecutionProvider {
   readonly name = "openai" as const;
@@ -58,39 +63,31 @@ export class OpenAIExecutionProvider implements ExecutionProvider {
   async execute(params: ExecutionParams): Promise<ExecutionResult> {
     const startTime = Date.now();
 
-    const messages: Array<{ role: string; content: string }> = [];
+    // Build the input string for the Responses API
+    const inputParts: string[] = [];
 
-    // Map instructions to system message
-    if (params.instructions.length > 0) {
-      messages.push({ role: "system", content: params.instructions });
-    }
-
-    // If goals are provided, append them to the system context
     if (params.goals.length > 0) {
-      messages.push({
-        role: "system",
-        content: `Goals:\n${params.goals.map((g, i) => `${i + 1}. ${g}`).join("\n")}`,
-      });
+      inputParts.push(`Goals:\n${params.goals.map((g, i) => `${i + 1}. ${g}`).join("\n")}`);
     }
 
-    // Map input to user message
     const userContent = Object.keys(params.input).length > 0
       ? JSON.stringify(params.input)
       : "Execute the instructions provided.";
-    messages.push({ role: "user", content: userContent });
+    inputParts.push(userContent);
 
-    const requestBody = {
+    const requestBody: Record<string, unknown> = {
       model: params.modelConfig.model,
-      messages,
+      instructions: params.instructions.length > 0 ? params.instructions : undefined,
+      input: inputParts.join("\n\n"),
       temperature: params.modelConfig.temperature ?? 0.7,
       ...(params.modelConfig.maxTokens !== undefined && {
-        max_tokens: params.modelConfig.maxTokens,
+        max_output_tokens: params.modelConfig.maxTokens,
       }),
     };
 
     let response: Response;
     try {
-      response = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+      response = await fetch(OPENAI_RESPONSES_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -105,10 +102,10 @@ export class OpenAIExecutionProvider implements ExecutionProvider {
 
       const errorStep: ExecutionStep = {
         type: "llm_call",
-        input: { messages, model: params.modelConfig.model },
+        input: { model: params.modelConfig.model, instructions: params.instructions },
         output: {},
         latencyMs,
-        providerMetadata: { provider: "openai", error: errorMessage },
+        providerMetadata: { provider: "openai", api: "responses", error: errorMessage },
       };
 
       return {
@@ -137,11 +134,12 @@ export class OpenAIExecutionProvider implements ExecutionProvider {
 
       const errorStep: ExecutionStep = {
         type: "llm_call",
-        input: { messages, model: params.modelConfig.model },
+        input: { model: params.modelConfig.model, instructions: params.instructions },
         output: {},
         latencyMs,
         providerMetadata: {
           provider: "openai",
+          api: "responses",
           statusCode: response.status,
           error: errorMessage,
         },
@@ -155,26 +153,35 @@ export class OpenAIExecutionProvider implements ExecutionProvider {
       };
     }
 
-    const data = (await response.json()) as OpenAIChatCompletionResponse;
+    const data = (await response.json()) as OpenAIResponsesResponse;
 
-    const choice = data.choices[0];
-    const assistantContent = choice?.message?.content ?? "";
+    // Extract text from the Responses API output array
+    let assistantContent = "";
+    for (const item of data.output) {
+      if (item.type === "message" && item.content) {
+        for (const part of item.content) {
+          if (part.type === "output_text" && part.text) {
+            assistantContent += part.text;
+          }
+        }
+      }
+    }
 
-    const inputTokens = data.usage?.prompt_tokens ?? 0;
-    const outputTokens = data.usage?.completion_tokens ?? 0;
+    const inputTokens = data.usage?.input_tokens ?? 0;
+    const outputTokens = data.usage?.output_tokens ?? 0;
     const totalTokens = data.usage?.total_tokens ?? inputTokens + outputTokens;
 
     const step: ExecutionStep = {
       type: "llm_call",
       input: {
-        messages,
         model: params.modelConfig.model,
+        instructions: params.instructions,
         temperature: params.modelConfig.temperature ?? 0.7,
       },
       output: {
         role: "assistant",
         content: assistantContent,
-        finishReason: choice?.finish_reason ?? "unknown",
+        status: data.status,
       },
       tokenUsage: {
         inputTokens,
@@ -183,9 +190,10 @@ export class OpenAIExecutionProvider implements ExecutionProvider {
       },
       providerMetadata: {
         provider: "openai",
+        api: "responses",
         model: data.model,
-        completionId: data.id,
-        created: data.created,
+        responseId: data.id,
+        createdAt: data.created_at,
       },
       latencyMs,
     };
@@ -194,7 +202,7 @@ export class OpenAIExecutionProvider implements ExecutionProvider {
       output: {
         response: assistantContent,
         model: data.model,
-        finishReason: choice?.finish_reason ?? "unknown",
+        status: data.status,
       },
       steps: [step],
       tokenUsage: {

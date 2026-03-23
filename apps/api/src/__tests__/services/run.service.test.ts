@@ -251,6 +251,28 @@ describe("RunService", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // listRunsForAgent
+  // ---------------------------------------------------------------------------
+
+  describe("listRunsForAgent", () => {
+    it("lists runs scoped to a specific agent", async () => {
+      await runService.createRun(publishedAgentId, orgId, ownerId);
+      await runService.createRun(publishedAgentId, orgId, ownerId);
+
+      const result = await runService.listRunsForAgent(publishedAgentId, orgId);
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value.length).toBe(2);
+    });
+
+    it("returns NOT_FOUND for non-existent agent", async () => {
+      const fakeAgentId = "00000000-0000-0000-0000-000000000099" as AgentId;
+      const result = await runService.listRunsForAgent(fakeAgentId, orgId);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.code).toBe("NOT_FOUND");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // pauseRun
   // ---------------------------------------------------------------------------
 

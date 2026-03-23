@@ -155,6 +155,8 @@ export interface RunService {
     filters?: { agentId?: AgentId; status?: RunStatus; projectId?: ProjectId },
   ): Promise<Result<Run[]>>;
 
+  listRunsForAgent(agentId: AgentId, orgId: OrgId): Promise<Result<Run[]>>;
+
   getRunSteps(runId: RunId, orgId: OrgId): Promise<Result<RunStep[]>>;
 
   pauseRun(runId: RunId, orgId: OrgId, actorId: UserId): Promise<Result<Run>>;

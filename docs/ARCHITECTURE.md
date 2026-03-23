@@ -63,6 +63,7 @@ SOVEREIGN is a multi-tenant agent operating system built as a monorepo with clea
 ### apps/worker-orchestrator — Temporal Worker
 - **Tech**: Node.js, Temporal SDK, TypeScript
 - **Responsibility**: Execute agent workflows, manage run state machines
+- **AI Runtime**: OpenAI Responses API (`POST /v1/responses`) for production; local deterministic provider for dev/CI
 - **Data**: Temporal persistence + app database for results
 - **Deployment**: Containerized, horizontally scalable
 

@@ -158,7 +158,7 @@
 #### Execution Engine
 - [x] Execution provider abstraction (ExecutionProvider interface)
 - [x] Local/dev provider (deterministic, no external calls)
-- [x] OpenAI provider (production wiring via chat completions API)
+- [x] OpenAI provider (production wiring via Responses API — POST /v1/responses)
 - [x] Temporal workflow definition (runAgentWorkflow)
 - [x] Temporal activities (startRun, markRunning, executeAgent, recordRunSteps, completeRun, failRun)
 - [x] Worker-orchestrator Temporal worker setup
@@ -166,7 +166,8 @@
 
 #### API Routes
 - [x] POST /api/v1/agents/:agentId/runs (create run)
-- [x] GET /api/v1/runs (list runs with filters)
+- [x] GET /api/v1/agents/:agentId/runs (list runs for a specific agent)
+- [x] GET /api/v1/runs (list all org runs with agentId/status/projectId filters)
 - [x] GET /api/v1/runs/:runId (get run detail)
 - [x] GET /api/v1/runs/:runId/steps (get run steps)
 - [x] POST /api/v1/runs/:runId/pause
@@ -190,15 +191,43 @@
 
 #### Tests
 - [x] State machine unit tests
-- [x] Run service unit tests
+- [x] Run service unit tests (including listRunsForAgent)
 - [x] Permission enforcement tests
 - [x] PostgreSQL integration tests (run CRUD, steps, state transitions, tenant isolation, audit)
+- [x] Temporal workflow signal tests (start/complete, pause/resume, cancel, cancel-from-paused, terminal-state-safety, status-query)
 
 #### Docs
 - [x] docs/API_SPEC.md updated with run endpoint docs and behavior rules
 - [x] docs/SECURITY.md updated with run permission matrix
 - [x] docs/ROADMAP.md Phase 5 status: Complete
 - [x] TASKS.md updated
+
+### Phase 5 Remediation ✅
+
+#### A. OpenAI Provider Correction
+- [x] Replaced Chat Completions API (POST /v1/chat/completions) with Responses API (POST /v1/responses)
+- [x] Updated packages/agents/src/providers/openai-provider.ts — full rewrite for Responses API response shape
+- [x] Updated apps/worker-orchestrator/src/activities/run-activities.ts — executeWithOpenAI() uses Responses API
+- [x] Preserved structured output capture, usage capture, provider metadata, and error mapping
+- [x] Local/dev provider unchanged
+
+#### B. API Contract Correction
+- [x] Added GET /api/v1/agents/:agentId/runs (per-agent runs listing)
+- [x] Preserved GET /api/v1/runs (org-wide listing with optional filters)
+- [x] Added listRunsForAgent to RunService interface and PgRunService implementation
+- [x] Added listRunsForAgent unit tests (2 tests)
+- [x] Documented both endpoints in docs/API_SPEC.md
+
+#### C. Workflow Verification
+- [x] Installed @temporalio/testing@1.11.6
+- [x] Created apps/worker-orchestrator/src/__tests__/run-workflow.test.ts (6 tests)
+- [x] Tests verify: start/complete, pause/resume, cancel, cancel-from-paused, terminal-state-safety, status-query
+
+#### D. Docs Updates
+- [x] TASKS.md — remediation section added, Phase 5 tasks corrected
+- [x] docs/API_SPEC.md — per-agent runs endpoint documented, Responses API noted
+- [x] docs/ARCHITECTURE.md — AI Runtime detail added to worker-orchestrator section
+- [x] docs/TEST_STRATEGY.md — Workflow Tests section added
 
 ### Phase 6–14
 _See ROADMAP.md for full phase details._

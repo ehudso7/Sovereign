@@ -139,6 +139,25 @@ export class PgRunService implements RunService {
   }
 
   // ---------------------------------------------------------------------------
+  // listRunsForAgent
+  // ---------------------------------------------------------------------------
+
+  async listRunsForAgent(agentId: AgentId, orgId: OrgId): Promise<Result<Run[]>> {
+    try {
+      const agent = await this.agentRepo.getById(agentId, orgId);
+      if (!agent) {
+        return err(AppError.notFound("Agent", agentId));
+      }
+      const runs = await this.runRepo.listForAgent(agentId, orgId);
+      return ok(runs);
+    } catch (e) {
+      return err(
+        AppError.internal(e instanceof Error ? e.message : "Failed to list runs for agent"),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // getRunSteps
   // ---------------------------------------------------------------------------
 

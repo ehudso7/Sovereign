@@ -70,7 +70,30 @@ export async function runRoutes(server: FastifyInstance): Promise<void> {
     },
   );
 
-  // GET /api/v1/runs — list runs for the org
+  // GET /api/v1/agents/:agentId/runs — list runs for a specific agent
+  server.get<{ Params: { agentId: string } }>(
+    "/api/v1/agents/:agentId/runs",
+    { preHandler: [authenticate, requirePermission("run:read")] },
+    async (request, reply) => {
+      const services = getServices();
+      const runService = services.runForOrg(request.session!.orgId);
+      const result = await runService.listRunsForAgent(
+        toAgentId(request.params.agentId),
+        request.session!.orgId,
+      );
+
+      if (!result.ok) {
+        return reply.status(result.error.statusCode).send({
+          error: { code: result.error.code, message: result.error.message },
+          meta: meta(request.id),
+        });
+      }
+
+      return reply.status(200).send({ data: result.value, meta: meta(request.id) });
+    },
+  );
+
+  // GET /api/v1/runs — list runs for the org (all agents, filterable by agentId/status/projectId)
   server.get("/api/v1/runs", { preHandler: [authenticate, requirePermission("run:read")] }, async (request, reply) => {
     const query = listRunsQuerySchema.safeParse(request.query);
     if (!query.success) {
