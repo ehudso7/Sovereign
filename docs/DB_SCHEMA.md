@@ -454,6 +454,21 @@ Enforcement values: enforce, audit, disabled
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | NOT NULL, DEFAULT now() |
 
+## Infrastructure Tables
+
+### schema_migrations
+| Column | Type | Constraints |
+|--------|------|-------------|
+| version | varchar(255) | PK |
+| applied_at | timestamptz | NOT NULL, DEFAULT now() |
+
+## Row-Level Security
+
+RLS is enabled on org-scoped tables as defense in depth:
+- `memberships`, `invitations`, `projects`, `audit_events`, `sessions`
+- Policies use `current_setting('app.current_org_id', true)::uuid`
+- `FORCE ROW LEVEL SECURITY` is enabled so policies apply even to table owners
+
 ## Indexes
 
 Key indexes (beyond PKs and FKs):

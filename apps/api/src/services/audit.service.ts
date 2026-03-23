@@ -1,30 +1,18 @@
 // ---------------------------------------------------------------------------
-// Audit service — emits audit events for auth-sensitive actions
+// Audit service — backed by AuditRepo
 // ---------------------------------------------------------------------------
 
 import type { AuditEmitter, EmitAuditEventInput, AuditEvent, AuditQueryParams, OrgId } from "@sovereign/core";
-import { auditStore } from "../store/memory-store.js";
+import type { AuditRepo } from "@sovereign/db";
 
-export class InMemoryAuditEmitter implements AuditEmitter {
+export class PgAuditEmitter implements AuditEmitter {
+  constructor(private readonly repo: AuditRepo) {}
+
   async emit(input: EmitAuditEventInput): Promise<void> {
-    auditStore.emit(input);
+    await this.repo.emit(input);
   }
 
   async query(orgId: OrgId, params?: AuditQueryParams): Promise<readonly AuditEvent[]> {
-    return auditStore.query(orgId, params);
+    return this.repo.query(orgId, params);
   }
-}
-
-let _emitter: AuditEmitter | null = null;
-
-export function initAuditEmitter(emitter?: AuditEmitter): AuditEmitter {
-  _emitter = emitter ?? new InMemoryAuditEmitter();
-  return _emitter;
-}
-
-export function getAuditEmitter(): AuditEmitter {
-  if (!_emitter) {
-    _emitter = new InMemoryAuditEmitter();
-  }
-  return _emitter;
 }

@@ -25,8 +25,9 @@ export async function projectRoutes(server: FastifyInstance): Promise<void> {
   // GET /api/v1/projects
   server.get("/api/v1/projects", { preHandler: [authenticate] }, async (request, reply) => {
     const services = getServices();
+    const projectService = services.projectsForOrg(request.session!.orgId);
     const query = request.query as Record<string, string>;
-    const result = await services.projects.listForOrg(request.session!.orgId, {
+    const result = await projectService.listForOrg(request.session!.orgId, {
       limit: query.limit ? parseInt(query.limit, 10) : undefined,
       cursor: query.cursor,
     });
@@ -64,7 +65,8 @@ export async function projectRoutes(server: FastifyInstance): Promise<void> {
       }
 
       const services = getServices();
-      const result = await services.projects.create(
+      const projectService = services.projectsForOrg(request.session!.orgId);
+      const result = await projectService.create(
         {
           orgId: request.session!.orgId,
           name: body.data.name,
@@ -94,7 +96,8 @@ export async function projectRoutes(server: FastifyInstance): Promise<void> {
     { preHandler: [authenticate] },
     async (request, reply) => {
       const services = getServices();
-      const result = await services.projects.getById(
+      const projectService = services.projectsForOrg(request.session!.orgId);
+      const result = await projectService.getById(
         toProjectId(request.params.projectId),
         request.session!.orgId,
       );
@@ -127,7 +130,8 @@ export async function projectRoutes(server: FastifyInstance): Promise<void> {
       }
 
       const services = getServices();
-      const result = await services.projects.update(
+      const projectService = services.projectsForOrg(request.session!.orgId);
+      const result = await projectService.update(
         toProjectId(request.params.projectId),
         request.session!.orgId,
         body.data,
@@ -153,7 +157,8 @@ export async function projectRoutes(server: FastifyInstance): Promise<void> {
     { preHandler: [authenticate, requirePermission("project:delete")] },
     async (request, reply) => {
       const services = getServices();
-      const result = await services.projects.delete(
+      const projectService = services.projectsForOrg(request.session!.orgId);
+      const result = await projectService.delete(
         toProjectId(request.params.projectId),
         request.session!.orgId,
       );

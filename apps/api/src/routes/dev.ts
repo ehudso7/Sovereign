@@ -74,21 +74,4 @@ export async function devRoutes(server: FastifyInstance): Promise<void> {
       meta: { request_id: request.id, timestamp: new Date().toISOString() },
     });
   });
-
-  // GET /api/v1/dev/store-state — inspect in-memory store (dev only)
-  server.get("/api/v1/dev/store-state", async (request, reply) => {
-    const { getState } = await import("../store/memory-store.js");
-    const s = getState();
-    return reply.status(200).send({
-      data: {
-        users: s.users.size,
-        organizations: s.organizations.size,
-        memberships: s.memberships.size,
-        sessions: s.sessions.size,
-        projects: s.projects.size,
-        auditEvents: s.auditEvents.length,
-      },
-      meta: { request_id: request.id, timestamp: new Date().toISOString() },
-    });
-  });
 }

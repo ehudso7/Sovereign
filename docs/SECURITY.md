@@ -67,11 +67,17 @@ Role management rules:
 - **Backups**: Encrypted with separate backup keys
 
 ### Tenant Isolation
-- `org_id` required on every database table
-- All queries filtered by authenticated org_id
-- Database-level row security policies as defense in depth
+- `org_id` required on every org-scoped database table
+- All queries filtered by authenticated org_id at the repository layer
+- **Row-Level Security (RLS)** enabled on org-scoped tables as defense in depth:
+  - `memberships`, `invitations`, `projects`, `audit_events`, `sessions`
+  - RLS policies use `app.current_org_id` PostgreSQL session variable
+  - `SET LOCAL app.current_org_id = $1` is set in transactions via `TenantDb`
+  - `FORCE ROW LEVEL SECURITY` enabled so policies apply even to table owners
+  - Application-layer authorization remains the primary enforcement; RLS is defense in depth
 - Object storage keys prefixed by org_id
 - No shared state between tenants
+- Tenant context is passed explicitly via `TenantDb.orgId` and repository constructor parameters
 
 ### Secret Management
 - Secrets stored encrypted in `connector_credentials`

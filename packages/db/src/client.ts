@@ -1,21 +1,20 @@
+// ---------------------------------------------------------------------------
+// Real PostgreSQL database client with connection pooling and tenant scoping
+// ---------------------------------------------------------------------------
+
+import { Pool, type PoolClient, type PoolConfig, type QueryResult } from "pg";
 import type { OrgId } from "@sovereign/core";
 
 // ---------------------------------------------------------------------------
-// Database client configuration
+// Configuration
 // ---------------------------------------------------------------------------
 
 export interface DatabaseConfig {
-  /** Primary connection URL (e.g. postgres://user:pass@host:5432/dbname) */
   url: string;
-  /** Read-replica URL, falls back to `url` when not set. */
   readUrl?: string;
-  /** Maximum connections in the pool. Defaults to 10. */
   maxConnections?: number;
-  /** Idle timeout in milliseconds. Defaults to 30_000. */
   idleTimeoutMs?: number;
-  /** Connection timeout in milliseconds. Defaults to 5_000. */
   connectionTimeoutMs?: number;
-  /** Enable query logging in development. Defaults to false. */
   debug?: boolean;
 }
 
@@ -23,75 +22,215 @@ export interface DatabaseConfig {
 // Tenant-scoped query context
 // ---------------------------------------------------------------------------
 
-/**
- * A scoped database handle restricted to a single organisation's data.
- * Concrete adapters (Drizzle, Prisma, Kysley, etc.) will extend this.
- */
 export interface TenantDb {
   readonly orgId: OrgId;
-  /** Execute a raw parameterised query. Use with caution. */
-  execute<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
-  /** Begin a transaction, yielding a child TenantDb scoped to that tx. */
+  query<T = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[],
+  ): Promise<T[]>;
+  queryOne<T = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[],
+  ): Promise<T | null>;
+  execute(sql: string, params?: unknown[]): Promise<number>;
   transaction<T>(fn: (tx: TenantDb) => Promise<T>): Promise<T>;
-  /** Release any held resources. */
-  destroy(): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
-// Client factory stub
+// Unscoped query context (for user lookups, migrations, etc.)
 // ---------------------------------------------------------------------------
 
-/**
- * Global database client singleton.
- * Replace this stub with a real adapter (e.g. `drizzle(pool)`) once a
- * concrete driver is chosen.
- */
+export interface UnscopedDb {
+  query<T = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[],
+  ): Promise<T[]>;
+  queryOne<T = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[],
+  ): Promise<T | null>;
+  execute(sql: string, params?: unknown[]): Promise<number>;
+  transaction<T>(fn: (tx: UnscopedDb) => Promise<T>): Promise<T>;
+}
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+function buildPoolConfig(config: DatabaseConfig): PoolConfig {
+  return {
+    connectionString: config.url,
+    max: config.maxConnections ?? 10,
+    idleTimeoutMillis: config.idleTimeoutMs ?? 30_000,
+    connectionTimeoutMillis: config.connectionTimeoutMs ?? 5_000,
+  };
+}
+
+class PgTenantDb implements TenantDb {
+  constructor(
+    readonly orgId: OrgId,
+    private readonly client: PoolClient | Pool,
+    private readonly debug: boolean,
+  ) {}
+
+  async query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]> {
+    if (this.debug) {
+      // eslint-disable-next-line no-console
+      console.warn("[DB]", sql, params);
+    }
+    const result: QueryResult = await this.client.query(sql, params);
+    return result.rows as T[];
+  }
+
+  async queryOne<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T | null> {
+    const rows = await this.query<T>(sql, params);
+    return rows[0] ?? null;
+  }
+
+  async execute(sql: string, params?: unknown[]): Promise<number> {
+    if (this.debug) {
+      // eslint-disable-next-line no-console
+      console.warn("[DB]", sql, params);
+    }
+    const result: QueryResult = await this.client.query(sql, params);
+    return result.rowCount ?? 0;
+  }
+
+  async transaction<T>(fn: (tx: TenantDb) => Promise<T>): Promise<T> {
+    if (this.client instanceof Pool) {
+      const poolClient = await this.client.connect();
+      try {
+        await poolClient.query("BEGIN");
+        await poolClient.query("SET LOCAL app.current_org_id = $1", [this.orgId]);
+        const txDb = new PgTenantDb(this.orgId, poolClient, this.debug);
+        const result = await fn(txDb);
+        await poolClient.query("COMMIT");
+        return result;
+      } catch (e) {
+        await poolClient.query("ROLLBACK");
+        throw e;
+      } finally {
+        poolClient.release();
+      }
+    } else {
+      // Already inside a transaction (client is a PoolClient)
+      await this.client.query("SAVEPOINT sp");
+      try {
+        const result = await fn(this);
+        await this.client.query("RELEASE SAVEPOINT sp");
+        return result;
+      } catch (e) {
+        await this.client.query("ROLLBACK TO SAVEPOINT sp");
+        throw e;
+      }
+    }
+  }
+}
+
+class PgUnscopedDb implements UnscopedDb {
+  constructor(
+    private readonly client: PoolClient | Pool,
+    private readonly debug: boolean,
+  ) {}
+
+  async query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]> {
+    if (this.debug) {
+      // eslint-disable-next-line no-console
+      console.warn("[DB]", sql, params);
+    }
+    const result: QueryResult = await this.client.query(sql, params);
+    return result.rows as T[];
+  }
+
+  async queryOne<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T | null> {
+    const rows = await this.query<T>(sql, params);
+    return rows[0] ?? null;
+  }
+
+  async execute(sql: string, params?: unknown[]): Promise<number> {
+    if (this.debug) {
+      // eslint-disable-next-line no-console
+      console.warn("[DB]", sql, params);
+    }
+    const result: QueryResult = await this.client.query(sql, params);
+    return result.rowCount ?? 0;
+  }
+
+  async transaction<T>(fn: (tx: UnscopedDb) => Promise<T>): Promise<T> {
+    if (this.client instanceof Pool) {
+      const poolClient = await this.client.connect();
+      try {
+        await poolClient.query("BEGIN");
+        const txDb = new PgUnscopedDb(poolClient, this.debug);
+        const result = await fn(txDb);
+        await poolClient.query("COMMIT");
+        return result;
+      } catch (e) {
+        await poolClient.query("ROLLBACK");
+        throw e;
+      } finally {
+        poolClient.release();
+      }
+    } else {
+      await this.client.query("SAVEPOINT sp");
+      try {
+        const result = await fn(this);
+        await this.client.query("RELEASE SAVEPOINT sp");
+        return result;
+      } catch (e) {
+        await this.client.query("ROLLBACK TO SAVEPOINT sp");
+        throw e;
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Database client
+// ---------------------------------------------------------------------------
+
 export class DatabaseClient {
-  private readonly config: Required<
-    Pick<DatabaseConfig, "url" | "maxConnections" | "idleTimeoutMs" | "connectionTimeoutMs" | "debug">
-  > &
-    Pick<DatabaseConfig, "readUrl">;
+  private readonly pool: Pool;
+  private readonly debug: boolean;
 
   constructor(config: DatabaseConfig) {
-    this.config = {
-      url: config.url,
-      readUrl: config.readUrl,
-      maxConnections: config.maxConnections ?? 10,
-      idleTimeoutMs: config.idleTimeoutMs ?? 30_000,
-      connectionTimeoutMs: config.connectionTimeoutMs ?? 5_000,
-      debug: config.debug ?? false,
-    };
+    this.pool = new Pool(buildPoolConfig(config));
+    this.debug = config.debug ?? false;
   }
 
-  /**
-   * Return a tenant-scoped db handle.
-   * The implementation will set a `app.current_org_id` session variable
-   * (or equivalent) before each statement to enforce row-level security.
-   */
-  forTenant(_orgId: OrgId): TenantDb {
-    throw new Error(
-      "DatabaseClient.forTenant() is a stub – wire up a real adapter."
-    );
+  forTenant(orgId: OrgId): TenantDb {
+    return new PgTenantDb(orgId, this.pool, this.debug);
   }
 
-  getConfig() {
-    return this.config;
+  unscoped(): UnscopedDb {
+    return new PgUnscopedDb(this.pool, this.debug);
   }
 
   async healthCheck(): Promise<{ ok: boolean; latencyMs: number }> {
-    throw new Error(
-      "DatabaseClient.healthCheck() is a stub – wire up a real adapter."
-    );
+    const start = Date.now();
+    try {
+      await this.pool.query("SELECT 1");
+      return { ok: true, latencyMs: Date.now() - start };
+    } catch {
+      return { ok: false, latencyMs: Date.now() - start };
+    }
   }
 
   async destroy(): Promise<void> {
-    // no-op in stub
+    await this.pool.end();
+  }
+
+  getPool(): Pool {
+    return this.pool;
   }
 }
 
+// ---------------------------------------------------------------------------
+// Singleton
+// ---------------------------------------------------------------------------
+
 let _client: DatabaseClient | null = null;
 
-/** Initialise (or return the existing) singleton client. */
 export function initDb(config: DatabaseConfig): DatabaseClient {
   if (!_client) {
     _client = new DatabaseClient(config);
@@ -99,12 +238,13 @@ export function initDb(config: DatabaseConfig): DatabaseClient {
   return _client;
 }
 
-/** Return the already-initialised client, throwing if not set up yet. */
 export function getDb(): DatabaseClient {
   if (!_client) {
-    throw new Error(
-      "Database client has not been initialised. Call initDb() first."
-    );
+    throw new Error("Database client has not been initialised. Call initDb() first.");
   }
   return _client;
+}
+
+export function resetDbClient(): void {
+  _client = null;
 }

@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Auth service — session management and authentication
+// Auth service — session management backed by SessionRepo
 // ---------------------------------------------------------------------------
 
 import { createHash, randomBytes } from "node:crypto";
@@ -18,9 +18,9 @@ import type {
   OrgId,
   UserId,
   Result,
+  AuditEmitter,
 } from "@sovereign/core";
-import { userStore, sessionStore, membershipStore } from "../store/memory-store.js";
-import { getAuditEmitter } from "./audit.service.js";
+import type { UserRepo, MembershipRepo, SessionRepo } from "@sovereign/db";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -30,10 +30,16 @@ function generateToken(): string {
   return randomBytes(32).toString("hex");
 }
 
-export class LocalAuthService implements AuthService {
+export class PgAuthService implements AuthService {
   private readonly config: AuthConfig;
 
-  constructor(config: AuthConfig) {
+  constructor(
+    config: AuthConfig,
+    private readonly userRepo: UserRepo,
+    private readonly membershipRepo: MembershipRepo,
+    private readonly sessionRepo: SessionRepo,
+    private readonly audit: AuditEmitter,
+  ) {
     this.config = config;
   }
 
@@ -42,14 +48,10 @@ export class LocalAuthService implements AuthService {
   }
 
   async signIn(email: string, _password?: string): Promise<Result<AuthResult>> {
-    // In local mode, find or create user by email
-    const user = userStore.getByEmail(email);
-    if (!user) {
-      return err(AppError.unauthorized("User not found"));
-    }
+    const user = await this.userRepo.getByEmail(email);
+    if (!user) return err(AppError.unauthorized("User not found"));
 
-    // Find the user's first membership to determine org context
-    const memberships = membershipStore.listForUser(user.id);
+    const memberships = await this.membershipRepo.listForUser(user.id);
     if (memberships.length === 0) {
       return err(AppError.unauthorized("User has no organization memberships"));
     }
@@ -59,7 +61,7 @@ export class LocalAuthService implements AuthService {
     const tokenHash = hashToken(token);
     const expiresAt = new Date(Date.now() + this.config.sessionTtlMs).toISOString();
 
-    const session = sessionStore.create({
+    const session = await this.sessionRepo.create({
       userId: user.id,
       orgId: membership.orgId,
       role: membership.role,
@@ -67,8 +69,7 @@ export class LocalAuthService implements AuthService {
       expiresAt,
     });
 
-    const audit = getAuditEmitter();
-    await audit.emit({
+    await this.audit.emit({
       orgId: membership.orgId,
       actorId: user.id,
       actorType: "user",
@@ -90,13 +91,10 @@ export class LocalAuthService implements AuthService {
   }
 
   async signOut(sessionId: SessionId): Promise<Result<void>> {
-    const session = sessionStore.getById(sessionId);
-    if (!session) {
-      return err(AppError.notFound("Session", sessionId));
-    }
+    const session = await this.sessionRepo.getById(sessionId);
+    if (!session) return err(AppError.notFound("Session", sessionId));
 
-    const audit = getAuditEmitter();
-    await audit.emit({
+    await this.audit.emit({
       orgId: session.orgId,
       actorId: session.userId,
       actorType: "user",
@@ -105,20 +103,18 @@ export class LocalAuthService implements AuthService {
       resourceId: session.id,
     });
 
-    sessionStore.delete(sessionId);
+    await this.sessionRepo.delete(sessionId);
     return ok(undefined);
   }
 
   async validateSession(token: string): Promise<Result<Session>> {
     const tokenHash = hashToken(token);
-    const session = sessionStore.getByTokenHash(tokenHash);
+    const session = await this.sessionRepo.getByTokenHash(tokenHash);
 
-    if (!session) {
-      return err(AppError.unauthorized("Invalid session token"));
-    }
+    if (!session) return err(AppError.unauthorized("Invalid session token"));
 
     if (new Date(session.expiresAt).getTime() < Date.now()) {
-      sessionStore.delete(session.id);
+      await this.sessionRepo.delete(session.id);
       return err(AppError.unauthorized("Session expired"));
     }
 
@@ -126,18 +122,15 @@ export class LocalAuthService implements AuthService {
   }
 
   async listSessions(orgId: OrgId, userId: UserId): Promise<Result<readonly Session[]>> {
-    const sessions = sessionStore.listForUser(orgId, userId);
+    const sessions = await this.sessionRepo.listForUser(orgId, userId);
     return ok(sessions);
   }
 
   async revokeSession(sessionId: SessionId, actorId: UserId): Promise<Result<void>> {
-    const session = sessionStore.getById(sessionId);
-    if (!session) {
-      return err(AppError.notFound("Session", sessionId));
-    }
+    const session = await this.sessionRepo.getById(sessionId);
+    if (!session) return err(AppError.notFound("Session", sessionId));
 
-    const audit = getAuditEmitter();
-    await audit.emit({
+    await this.audit.emit({
       orgId: session.orgId,
       actorId,
       actorType: "user",
@@ -146,30 +139,22 @@ export class LocalAuthService implements AuthService {
       resourceId: session.id,
     });
 
-    sessionStore.delete(sessionId);
+    await this.sessionRepo.delete(sessionId);
     return ok(undefined);
   }
 
-  /**
-   * Sign in to a specific org context. Used after initial sign-in
-   * when user needs to switch org context.
-   */
   async signInToOrg(userId: UserId, orgId: OrgId, ipAddress?: string, userAgent?: string): Promise<Result<AuthResult>> {
-    const user = userStore.getById(userId);
-    if (!user) {
-      return err(AppError.unauthorized("User not found"));
-    }
+    const user = await this.userRepo.getById(userId);
+    if (!user) return err(AppError.unauthorized("User not found"));
 
-    const membership = membershipStore.getForUser(orgId, userId);
-    if (!membership) {
-      return err(AppError.forbidden("Not a member of this organization"));
-    }
+    const membership = await this.membershipRepo.getForUser(orgId, userId);
+    if (!membership) return err(AppError.forbidden("Not a member of this organization"));
 
     const token = generateToken();
     const tokenHash = hashToken(token);
     const expiresAt = new Date(Date.now() + this.config.sessionTtlMs).toISOString();
 
-    const session = sessionStore.create({
+    const session = await this.sessionRepo.create({
       userId,
       orgId,
       role: membership.role,
@@ -179,8 +164,7 @@ export class LocalAuthService implements AuthService {
       userAgent,
     });
 
-    const audit = getAuditEmitter();
-    await audit.emit({
+    await this.audit.emit({
       orgId,
       actorId: userId,
       actorType: "user",

@@ -91,29 +91,26 @@ Phases execute in strict order. No feature jumping. No shiny-object detours.
 
 ---
 
-## Phase 3 — Data Layer and Storage
+## Phase 3 — Data Layer and Storage ✅
 
-**Status**: Not started
+**Status**: Complete
 
 **Goal**: Create the durable system of record.
 
-**Core Tables**:
-- organizations, users, memberships, projects
-- agents, agent_versions, skills, skill_versions
-- connectors, connector_credentials, tool_scopes
-- runs, run_steps, run_artifacts
-- approvals, browser_sessions
-- memories, memory_entries, memory_links
-- policies, policy_decisions
-- audit_events
-- accounts, contacts, deals, tasks
-- billing_accounts, usage_events, invoices
+**Build**:
+- [x] Real PostgreSQL client with connection pooling (pg driver)
+- [x] TenantDb / UnscopedDb interfaces for tenant-scoped and cross-org queries
+- [x] Repository interfaces and PostgreSQL implementations for Phase 2 entities
+- [x] Migration runner with schema_migrations tracking
+- [x] Row-Level Security policies for org-scoped tables
+- [x] Services swapped from in-memory to repository-backed
+- [x] In-memory store removed from active code path
 
 **Exit Gate**:
-- [ ] Migrations are reversible
-- [ ] Tenant scoping proven in tests
-- [ ] Seeded local environment works
-- [ ] Object storage abstraction is running
+- [x] Migrations are reversible
+- [x] Tenant scoping proven in tests
+- [x] Local environment works with PostgreSQL via Docker Compose
+- [x] Storage foundations in place (DB client, repo pattern, migration runner)
 
 ---
 

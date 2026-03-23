@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { initDb } from "@sovereign/db";
 import { initServices } from "./services/index.js";
 import { healthRoutes } from "./routes/health.js";
 import { authRoutes } from "./routes/auth.js";
@@ -12,8 +13,16 @@ import type { AuthConfig } from "@sovereign/core";
 const server = Fastify({ logger: true });
 
 // ---------------------------------------------------------------------------
-// Initialize services
+// Initialize database and services
 // ---------------------------------------------------------------------------
+
+const databaseUrl = process.env.DATABASE_URL ?? "postgresql://sovereign:sovereign_dev@localhost:5432/sovereign";
+
+const db = initDb({
+  url: databaseUrl,
+  maxConnections: parseInt(process.env.DB_MAX_CONNECTIONS ?? "10", 10),
+  debug: process.env.DB_DEBUG === "true",
+});
 
 const authMode = (process.env.AUTH_MODE ?? "local") as "local" | "workos";
 const authConfig: AuthConfig = {
@@ -30,7 +39,7 @@ const authConfig: AuthConfig = {
     : {}),
 };
 
-initServices(authConfig);
+initServices(authConfig, db);
 
 // ---------------------------------------------------------------------------
 // Register routes
@@ -56,6 +65,14 @@ const start = async () => {
   const port = parseInt(process.env.PORT || "3002", 10);
   const host = process.env.HOST || "0.0.0.0";
 
+  // Health check the database
+  const health = await db.healthCheck();
+  if (!health.ok) {
+    server.log.error("Database health check failed — is PostgreSQL running?");
+  } else {
+    server.log.info(`Database connected (${health.latencyMs}ms)`);
+  }
+
   try {
     await server.listen({ port, host });
     server.log.info(`API server running on ${host}:${port} (auth: ${authMode})`);
@@ -67,6 +84,7 @@ const start = async () => {
 
 const shutdown = async () => {
   await server.close();
+  await db.destroy();
   process.exit(0);
 };
 

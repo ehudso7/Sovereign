@@ -1,16 +1,17 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { toOrgId, toUserId } from "@sovereign/core";
-import { InMemoryAuditEmitter } from "../../services/audit.service.js";
-import { resetStore } from "../../store/memory-store.js";
+import { PgAuditEmitter } from "../../services/audit.service.js";
+import { TestAuditRepo } from "../helpers/test-repos.js";
 
 describe("AuditService", () => {
-  let emitter: InMemoryAuditEmitter;
   const orgId = toOrgId("test-org-1");
   const userId = toUserId("test-user-1");
+  let repo: TestAuditRepo;
+  let emitter: PgAuditEmitter;
 
   beforeEach(() => {
-    resetStore();
-    emitter = new InMemoryAuditEmitter();
+    repo = new TestAuditRepo(orgId);
+    emitter = new PgAuditEmitter(repo);
   });
 
   it("emits and queries audit events", async () => {
@@ -60,6 +61,8 @@ describe("AuditService", () => {
 
   it("isolates events by org", async () => {
     const otherOrgId = toOrgId("other-org");
+    const otherRepo = new TestAuditRepo(otherOrgId);
+    const otherEmitter = new PgAuditEmitter(otherRepo);
 
     await emitter.emit({
       orgId,
@@ -69,7 +72,7 @@ describe("AuditService", () => {
       resourceType: "session",
     });
 
-    await emitter.emit({
+    await otherEmitter.emit({
       orgId: otherOrgId,
       actorId: userId,
       actorType: "user",
@@ -81,7 +84,7 @@ describe("AuditService", () => {
     expect(events.length).toBe(1);
     expect(events[0]!.orgId).toBe(orgId);
 
-    const otherEvents = await emitter.query(otherOrgId);
+    const otherEvents = await otherEmitter.query(otherOrgId);
     expect(otherEvents.length).toBe(1);
     expect(otherEvents[0]!.orgId).toBe(otherOrgId);
   });
