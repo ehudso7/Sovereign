@@ -61,7 +61,14 @@ export type AuditAction =
   | "browser.session_closed"
   | "browser.action_blocked"
   | "browser.downloaded"
-  | "browser.uploaded";
+  | "browser.uploaded"
+  | "memory.created"
+  | "memory.updated"
+  | "memory.redacted"
+  | "memory.expired"
+  | "memory.deleted"
+  | "memory.promoted"
+  | "memory.retrieved_for_run";
 
 // ---------------------------------------------------------------------------
 // Audit actor types

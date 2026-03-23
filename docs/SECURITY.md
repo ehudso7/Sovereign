@@ -171,12 +171,17 @@ Role management rules:
 - Browser state machine enforces terminal states (closed, failed) — no resurrection possible
 - Artifact keys stored in session metadata, actual artifacts stored in org-scoped S3 paths
 
-### Memory Security
-- Memory writes require provenance (source run + step)
-- Memory reads scoped to org/project/agent/user
-- Cross-tenant memory access impossible
-- Admin review and redaction capability
-- Expiration policies enforced
+### Memory Security (Phase 8 — implemented)
+- Every memory write is attributable (createdBy, sourceRunId, sourceAgentId)
+- Memory reads scoped to org via RLS + repo-level org_id filtering
+- Cross-tenant memory access impossible — proven in integration tests
+- Redaction replaces content with [REDACTED] marker, preserves audit trail
+- Redacted/expired/deleted memories excluded from runtime retrieval
+- memory:redact permission required for redaction (org_owner, org_admin only)
+- memory:delete permission required for soft-delete (org_owner, org_admin only)
+- Content deduplication via SHA-256 hash prevents duplicate entries
+- Runtime memory read/write gated by published agent version MemoryConfig
+- Memory-disabled agents/runs never read or write memory
 
 ## API Security
 

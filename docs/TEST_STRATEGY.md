@@ -100,6 +100,22 @@
 - **Location**: `apps/api/src/__tests__/routes/browser-session-routes.test.ts`
 - **Coverage**: Create, get, list, takeover/release, close, audit events, policy gating, tenant isolation
 
+### Memory Engine Integration Tests
+- **Scope**: Memory CRUD, search, dedup, status transitions, tenant isolation, links, audit
+- **Runner**: Vitest with real PostgreSQL
+- **Location**: `packages/db/src/__tests__/integration/memory-engine.test.ts`
+
+### Memory Service Tests
+- **Scope**: Service-level logic with in-memory repos
+- **Runner**: Vitest
+- **Location**: `apps/api/src/__tests__/services/memory.service.test.ts`
+- **Coverage**: Create, get, list, search, update, redact, expire, delete, promote, retrieveForRun, writeEpisodicFromRun, dedup
+
+### Memory Permission Tests
+- **Scope**: Permission matrix for memory:read, memory:write, memory:review, memory:redact, memory:delete
+- **Runner**: Vitest
+- **Location**: `apps/api/src/__tests__/services/memory-permissions.test.ts`
+
 ### Chaos Tests
 - **Scope**: Worker restart during runs, DB failover, network partition
 - **Approach**: Kill workers mid-run, verify recovery

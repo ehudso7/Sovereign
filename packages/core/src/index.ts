@@ -19,6 +19,8 @@ export type {
   ConnectorInstallId,
   SkillInstallId,
   BrowserSessionId,
+  MemoryId,
+  MemoryLinkId,
   TenantContext,
   Ok,
   Err,
@@ -47,6 +49,8 @@ export {
   toConnectorInstallId,
   toSkillInstallId,
   toBrowserSessionId,
+  toMemoryId,
+  toMemoryLinkId,
   // Result helpers
   ok,
   err,
@@ -148,6 +152,15 @@ export type {
   CreateBrowserSessionInput,
   BrowserAction,
   BrowserActionResult,
+  MemoryScopeType,
+  MemoryKind,
+  MemoryStatus,
+  Memory,
+  CreateMemoryInput,
+  UpdateMemoryInput,
+  MemoryLinkType,
+  MemoryLink,
+  CreateMemoryLinkInput,
 } from "./entities.js";
 
 export { RISKY_BROWSER_ACTIONS } from "./entities.js";

@@ -2,8 +2,8 @@
 // Temporal activities for run execution
 // ---------------------------------------------------------------------------
 
-import { initDb, PgRunRepo, PgRunStepRepo, PgAuditRepo, PgConnectorInstallRepo, PgConnectorCredentialRepo } from "@sovereign/db";
-import type { OrgId, ISODateString } from "@sovereign/core";
+import { initDb, PgRunRepo, PgRunStepRepo, PgAuditRepo, PgConnectorInstallRepo, PgConnectorCredentialRepo, PgMemoryRepo, PgMemoryLinkRepo } from "@sovereign/db";
+import type { OrgId, ISODateString, MemoryConfig, Memory } from "@sovereign/core";
 import { toRunId, toISODateString, decryptSecret } from "@sovereign/core";
 import { executeTool, listToolsForConnector } from "@sovereign/gateway-mcp";
 
@@ -506,4 +506,141 @@ export async function markRunning(params: StartRunParams): Promise<void> {
     params.orgId as OrgId,
     "running",
   );
+}
+
+// ---------------------------------------------------------------------------
+// Activity: Retrieve memories for a run (Phase 8)
+// ---------------------------------------------------------------------------
+
+export interface RetrieveMemoriesParams {
+  runId: string;
+  orgId: string;
+  agentId: string;
+  memoryConfig: MemoryConfig | null;
+}
+
+export interface RetrieveMemoriesResult {
+  memories: Array<{ id: string; kind: string; title: string; summary: string; content: string }>;
+  count: number;
+}
+
+export async function retrieveMemories(params: RetrieveMemoriesParams): Promise<RetrieveMemoriesResult> {
+  if (!params.memoryConfig || params.memoryConfig.mode === "none") {
+    return { memories: [], count: 0 };
+  }
+
+  if (params.memoryConfig.readEnabled === false) {
+    return { memories: [], count: 0 };
+  }
+
+  const db = getDb();
+  const tenantDb = db.forTenant(params.orgId as OrgId);
+  const memoryRepo = new PgMemoryRepo(tenantDb);
+  const auditRepo = new PgAuditRepo(tenantDb);
+
+  const maxResults = params.memoryConfig.maxRetrievalCount ?? 10;
+  const scopeType = (params.memoryConfig.allowedScopes && params.memoryConfig.allowedScopes.length > 0)
+    ? params.memoryConfig.allowedScopes[0]
+    : "agent";
+
+  const allMemories = await memoryRepo.listForOrg(params.orgId as OrgId, {
+    scopeType,
+    scopeId: params.agentId,
+    status: "active",
+  });
+
+  // Filter by allowed kinds
+  const allowedKinds = params.memoryConfig.allowedKinds ?? params.memoryConfig.lanes;
+  let filtered: Memory[] = allMemories;
+  if (allowedKinds && allowedKinds.length > 0) {
+    const kindSet = new Set(allowedKinds);
+    filtered = allMemories.filter((m) => kindSet.has(m.kind));
+  }
+
+  const result = filtered.slice(0, maxResults);
+
+  if (result.length > 0) {
+    await auditRepo.emit({
+      orgId: params.orgId as OrgId,
+      actorType: "system",
+      action: "memory.retrieved_for_run",
+      resourceType: "memory",
+      resourceId: params.runId,
+      metadata: { count: result.length, runId: params.runId, agentId: params.agentId },
+    });
+  }
+
+  return {
+    memories: result.map((m) => ({
+      id: m.id,
+      kind: m.kind,
+      title: m.title,
+      summary: m.summary,
+      content: m.content,
+    })),
+    count: result.length,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Activity: Write episodic memory from run outcome (Phase 8)
+// ---------------------------------------------------------------------------
+
+export interface WriteEpisodicMemoryParams {
+  runId: string;
+  orgId: string;
+  agentId: string;
+  triggeredBy: string;
+  memoryConfig: MemoryConfig | null;
+  runOutput: Record<string, unknown>;
+}
+
+export async function writeEpisodicMemory(params: WriteEpisodicMemoryParams): Promise<void> {
+  if (!params.memoryConfig || params.memoryConfig.mode === "none") return;
+  if (params.memoryConfig.writeEnabled === false) return;
+  if (params.memoryConfig.autoWriteEpisodic === false) return;
+
+  const db = getDb();
+  const tenantDb = db.forTenant(params.orgId as OrgId);
+  const memoryRepo = new PgMemoryRepo(tenantDb);
+  const memoryLinkRepo = new PgMemoryLinkRepo(tenantDb);
+  const auditRepo = new PgAuditRepo(tenantDb);
+
+  const summary = `Run completed for agent ${params.agentId.slice(0, 8)}`;
+  const content = JSON.stringify(params.runOutput, null, 2).slice(0, 10000);
+
+  try {
+    const memory = await memoryRepo.create({
+      orgId: params.orgId as OrgId,
+      scopeType: "agent",
+      scopeId: params.agentId,
+      kind: "episodic",
+      title: `Run ${params.runId.slice(0, 8)} episode`,
+      summary,
+      content,
+      sourceRunId: params.runId,
+      sourceAgentId: params.agentId,
+      createdBy: params.triggeredBy as import("@sovereign/core").UserId,
+    });
+
+    await memoryLinkRepo.create({
+      orgId: params.orgId as OrgId,
+      memoryId: memory.id,
+      linkedEntityType: "run",
+      linkedEntityId: params.runId,
+      linkType: "source_run",
+      metadata: { agentId: params.agentId },
+    });
+
+    await auditRepo.emit({
+      orgId: params.orgId as OrgId,
+      actorType: "system",
+      action: "memory.created",
+      resourceType: "memory",
+      resourceId: memory.id,
+      metadata: { kind: "episodic", sourceRunId: params.runId },
+    });
+  } catch {
+    // Memory write failure should not fail the run
+  }
 }

@@ -37,6 +37,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link href="/browser-sessions" className="text-gray-600 hover:text-gray-900">
                 Browser
               </Link>
+              <Link href="/memories" className="text-gray-600 hover:text-gray-900">
+                Memory
+              </Link>
               <Link href="/settings/members" className="text-gray-600 hover:text-gray-900">
                 Members
               </Link>

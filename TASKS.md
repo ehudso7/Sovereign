@@ -425,5 +425,51 @@
 - [x] browser-provider.test.ts — action execution with mock context
 - [x] session-manager.test.ts — session lifecycle management
 
-### Phase 8–14
+### Phase 8 — Memory Engine ✅
+
+#### A. Data Model
+- [x] MemoryId, MemoryLinkId branded types
+- [x] Memory, MemoryLink, MemoryScopeType, MemoryKind, MemoryStatus entities
+- [x] MemoryConfig expanded (readEnabled, writeEnabled, allowedScopes, allowedKinds, maxRetrievalCount, autoWriteEpisodic)
+- [x] Migration 007_phase8_memory.sql (memories, memory_links, RLS, indexes)
+- [x] PgMemoryRepo, PgMemoryLinkRepo implementations
+
+#### B. Memory Kinds and Lifecycle
+- [x] semantic, episodic, procedural kinds
+- [x] active, redacted, expired, deleted statuses
+- [x] Promote episodic → procedural (creates new procedural, expires original)
+- [x] SHA-256 content hash deduplication
+
+#### C. Retrieval
+- [x] Scope-aware + kind + status filtering
+- [x] Text search via ILIKE on title/summary/content
+- [x] Excludes non-active from runtime retrieval
+
+#### D. Runtime Integration
+- [x] retrieveMemories + writeEpisodicMemory activities
+- [x] Workflow injects memories into agent instructions pre-execution
+- [x] Workflow writes episodic memory post-completion when configured
+
+#### E. Governance
+- [x] Redact (replaces content, marks redacted)
+- [x] Expire, Delete (soft), Promote
+- [x] All audited and permission-gated
+
+#### F. API (10 endpoints)
+- [x] POST/GET /api/v1/memories, GET /api/v1/memories/search
+- [x] GET/PATCH /api/v1/memories/:id
+- [x] POST .../redact, .../expire, .../delete, .../promote
+- [x] GET .../links
+
+#### G. Permissions
+- [x] memory:read (all), memory:write (owner/admin/member)
+- [x] memory:review (owner/admin/security_admin)
+- [x] memory:redact + memory:delete (owner/admin)
+
+#### H. Testing
+- [x] memory.service.test.ts — 20 tests
+- [x] memory-permissions.test.ts — 6 tests
+- [x] memory-engine.test.ts — PostgreSQL integration
+
+### Phase 9–14
 _See ROADMAP.md for full phase details._

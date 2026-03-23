@@ -2,7 +2,7 @@
 // In-memory repository implementations for unit tests
 // ---------------------------------------------------------------------------
 
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 
 import type {
   OrgId,
@@ -51,6 +51,16 @@ import type {
   BrowserSession,
   BrowserSessionStatus,
   CreateBrowserSessionInput,
+  Memory,
+  MemoryKind,
+  MemoryScopeType,
+  MemoryStatus,
+  CreateMemoryInput,
+  UpdateMemoryInput,
+  MemoryLink,
+  CreateMemoryLinkInput,
+  MemoryId,
+  MemoryLinkId,
 } from "@sovereign/core";
 
 import {
@@ -70,6 +80,8 @@ import {
   toSkillId,
   toSkillInstallId,
   toBrowserSessionId,
+  toMemoryId,
+  toMemoryLinkId,
 } from "@sovereign/core";
 
 import type {
@@ -90,6 +102,8 @@ import type {
   SkillRepo,
   SkillInstallRepo,
   BrowserSessionRepo,
+  MemoryRepo,
+  MemoryLinkRepo,
 } from "@sovereign/db";
 
 // ---------------------------------------------------------------------------
@@ -1458,6 +1472,159 @@ export class TestBrowserSessionRepo implements BrowserSessionRepo {
   }
 }
 
+// ---------------------------------------------------------------------------
+// TestMemoryRepo
+// ---------------------------------------------------------------------------
+
+function hashContent(content: string): string {
+  return createHash("sha256").update(content).digest("hex");
+}
+
+export class TestMemoryRepo implements MemoryRepo {
+  private readonly store = new Map<string, Memory>();
+
+  async create(input: CreateMemoryInput): Promise<Memory> {
+    const memory: Memory = {
+      id: toMemoryId(randomUUID()),
+      orgId: input.orgId,
+      scopeType: input.scopeType,
+      scopeId: input.scopeId,
+      kind: input.kind,
+      status: "active",
+      title: input.title,
+      summary: input.summary ?? "",
+      content: input.content,
+      contentHash: hashContent(input.content),
+      metadata: input.metadata ?? {},
+      sourceRunId: input.sourceRunId ?? null,
+      sourceAgentId: input.sourceAgentId ?? null,
+      createdBy: input.createdBy,
+      updatedBy: input.createdBy,
+      expiresAt: input.expiresAt ? toISODateString(input.expiresAt) : null,
+      redactedAt: null,
+      lastAccessedAt: null,
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    this.store.set(memory.id, memory);
+    return memory;
+  }
+
+  async getById(id: MemoryId, orgId: OrgId): Promise<Memory | null> {
+    const m = this.store.get(id);
+    return m && m.orgId === orgId ? m : null;
+  }
+
+  async listForOrg(orgId: OrgId, filters?: { scopeType?: MemoryScopeType; scopeId?: string; kind?: MemoryKind; status?: MemoryStatus }): Promise<Memory[]> {
+    return [...this.store.values()].filter((m) => {
+      if (m.orgId !== orgId) return false;
+      if (filters?.scopeType && m.scopeType !== filters.scopeType) return false;
+      if (filters?.scopeId && m.scopeId !== filters.scopeId) return false;
+      if (filters?.kind && m.kind !== filters.kind) return false;
+      if (filters?.status && m.status !== filters.status) return false;
+      return true;
+    });
+  }
+
+  async search(orgId: OrgId, query: string, filters?: { scopeType?: MemoryScopeType; scopeId?: string; kind?: MemoryKind; maxResults?: number }): Promise<Memory[]> {
+    const q = query.toLowerCase();
+    const results = [...this.store.values()].filter((m) => {
+      if (m.orgId !== orgId) return false;
+      if (m.status !== "active") return false;
+      if (filters?.scopeType && m.scopeType !== filters.scopeType) return false;
+      if (filters?.scopeId && m.scopeId !== filters.scopeId) return false;
+      if (filters?.kind && m.kind !== filters.kind) return false;
+      if (q && !m.title.toLowerCase().includes(q) && !m.summary.toLowerCase().includes(q) && !m.content.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    return results.slice(0, filters?.maxResults ?? 50);
+  }
+
+  async update(id: MemoryId, orgId: OrgId, input: UpdateMemoryInput): Promise<Memory | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return null;
+    const updated: Memory = {
+      ...existing,
+      title: input.title ?? existing.title,
+      summary: input.summary ?? existing.summary,
+      content: input.content ?? existing.content,
+      contentHash: input.content ? hashContent(input.content) : existing.contentHash,
+      metadata: input.metadata ?? existing.metadata,
+      updatedBy: input.updatedBy,
+      updatedAt: now(),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async updateStatus(id: MemoryId, orgId: OrgId, status: MemoryStatus, extras?: { redactedAt?: ISODateString; expiresAt?: ISODateString; content?: string; contentHash?: string }): Promise<Memory | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return null;
+    const updated: Memory = {
+      ...existing,
+      status,
+      redactedAt: extras?.redactedAt ?? existing.redactedAt,
+      expiresAt: extras?.expiresAt ?? existing.expiresAt,
+      content: extras?.content ?? existing.content,
+      contentHash: extras?.contentHash ?? existing.contentHash,
+      updatedAt: now(),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async getByContentHash(orgId: OrgId, contentHash: string): Promise<Memory | null> {
+    return [...this.store.values()].find((m) => m.orgId === orgId && m.contentHash === contentHash && m.status === "active") ?? null;
+  }
+
+  async delete(id: MemoryId, orgId: OrgId): Promise<boolean> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return false;
+    return this.store.delete(id);
+  }
+
+  reset(): void { this.store.clear(); }
+}
+
+// ---------------------------------------------------------------------------
+// TestMemoryLinkRepo
+// ---------------------------------------------------------------------------
+
+export class TestMemoryLinkRepo implements MemoryLinkRepo {
+  private readonly store = new Map<string, MemoryLink>();
+
+  async create(input: CreateMemoryLinkInput): Promise<MemoryLink> {
+    const link: MemoryLink = {
+      id: toMemoryLinkId(randomUUID()),
+      orgId: input.orgId,
+      memoryId: input.memoryId,
+      linkedEntityType: input.linkedEntityType,
+      linkedEntityId: input.linkedEntityId,
+      linkType: input.linkType,
+      metadata: input.metadata ?? {},
+      createdAt: now(),
+    };
+    this.store.set(link.id, link);
+    return link;
+  }
+
+  async listForMemory(memoryId: MemoryId, orgId: OrgId): Promise<MemoryLink[]> {
+    return [...this.store.values()].filter((l) => l.memoryId === memoryId && l.orgId === orgId);
+  }
+
+  async listForEntity(entityType: string, entityId: string, orgId: OrgId): Promise<MemoryLink[]> {
+    return [...this.store.values()].filter((l) => l.linkedEntityType === entityType && l.linkedEntityId === entityId && l.orgId === orgId);
+  }
+
+  async delete(id: MemoryLinkId, orgId: OrgId): Promise<boolean> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return false;
+    return this.store.delete(id);
+  }
+
+  reset(): void { this.store.clear(); }
+}
+
 export interface TestRepos {
   users: TestUserRepo;
   orgs: TestOrgRepo;
@@ -1476,6 +1643,8 @@ export interface TestRepos {
   skills: TestSkillRepo;
   skillInstalls: TestSkillInstallRepo;
   browserSessions: TestBrowserSessionRepo;
+  memories: TestMemoryRepo;
+  memoryLinks: TestMemoryLinkRepo;
 }
 
 /**
@@ -1499,6 +1668,8 @@ export function createTestRepos(): TestRepos {
   const skills = new TestSkillRepo();
   const skillInstalls = new TestSkillInstallRepo();
   const browserSessions = new TestBrowserSessionRepo();
+  const memories = new TestMemoryRepo();
+  const memoryLinks = new TestMemoryLinkRepo();
 
   // Wire cross-repo references
   memberships._setUserRepo(users);
@@ -1522,6 +1693,8 @@ export function createTestRepos(): TestRepos {
     skills,
     skillInstalls,
     browserSessions,
+    memories,
+    memoryLinks,
   };
 }
 
@@ -1546,4 +1719,6 @@ export function resetAllRepos(repos: TestRepos): void {
   repos.skills.reset();
   repos.skillInstalls.reset();
   repos.browserSessions.reset();
+  repos.memories.reset();
+  repos.memoryLinks.reset();
 }

@@ -15,7 +15,7 @@ import type {
   AuthConfig,
   OrgId,
 } from "@sovereign/core";
-import { PgBrowserSessionRepo } from "@sovereign/db";
+import { PgBrowserSessionRepo, PgMemoryRepo, PgMemoryLinkRepo } from "@sovereign/db";
 import {
   type DatabaseClient,
   PgUserRepo,
@@ -47,6 +47,7 @@ import { PgRunService } from "./run.service.js";
 import { PgConnectorService } from "./connector.service.js";
 import { PgSkillService } from "./skill.service.js";
 import { PgBrowserSessionService } from "./browser-session.service.js";
+import { PgMemoryService } from "./memory.service.js";
 import { BUILTIN_CONNECTORS, BUILTIN_SKILLS } from "@sovereign/gateway-mcp";
 
 export interface ServiceRegistry {
@@ -72,6 +73,8 @@ export interface ServiceRegistry {
   skillForOrg: (orgId: OrgId) => PgSkillService;
   /** Get a browser session service scoped to a specific org */
   browserSessionForOrg: (orgId: OrgId) => PgBrowserSessionService;
+  /** Get a memory service scoped to a specific org */
+  memoryForOrg: (orgId: OrgId) => PgMemoryService;
 }
 
 let _registry: ServiceRegistry | null = null;
@@ -198,6 +201,16 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     return new PgBrowserSessionService(sessionRepo, runRepo, auditEmitter);
   };
 
+  // Factory for org-scoped memory service
+  const memoryForOrg = (orgId: OrgId): PgMemoryService => {
+    const tenantDb = db.forTenant(orgId);
+    const memoryRepo = new PgMemoryRepo(tenantDb);
+    const memoryLinkRepo = new PgMemoryLinkRepo(tenantDb);
+    const auditRepo = new PgAuditRepo(tenantDb);
+    const auditEmitter = new PgAuditEmitter(auditRepo);
+    return new PgMemoryService(memoryRepo, memoryLinkRepo, auditEmitter);
+  };
+
   // Default audit emitter uses unscoped DB for cross-org operations (like org.created)
   // Services that need org-scoped audit will use auditForOrg
   const defaultAuditRepo = new PgAuditRepo(db.forTenant("00000000-0000-0000-0000-000000000000" as OrgId));
@@ -236,6 +249,7 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     connectorForOrg,
     skillForOrg,
     browserSessionForOrg,
+    memoryForOrg,
   };
 
   // Seed catalog asynchronously (non-blocking, log errors)

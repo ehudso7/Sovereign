@@ -14,6 +14,8 @@ import type {
   SkillId,
   SkillInstallId,
   BrowserSessionId,
+  MemoryId,
+  MemoryLinkId,
   ISODateString,
 } from "./types.js";
 import type { MembershipId, InvitationId, OrgRole } from "./auth.js";
@@ -211,6 +213,12 @@ export interface ApprovalRuleConfig {
 export interface MemoryConfig {
   readonly mode: "none" | "session" | "persistent";
   readonly lanes?: readonly string[];
+  readonly readEnabled?: boolean;
+  readonly writeEnabled?: boolean;
+  readonly allowedScopes?: readonly MemoryScopeType[];
+  readonly allowedKinds?: readonly MemoryKind[];
+  readonly maxRetrievalCount?: number;
+  readonly autoWriteEpisodic?: boolean;
 }
 
 export interface ScheduleConfig {
@@ -497,4 +505,80 @@ export interface BrowserActionResult {
   readonly artifactKey?: string;
   readonly error?: string;
   readonly latencyMs: number;
+}
+
+// ---------------------------------------------------------------------------
+// Memory (Phase 8)
+// ---------------------------------------------------------------------------
+
+export type MemoryScopeType = "org" | "project" | "agent" | "user";
+export type MemoryKind = "semantic" | "episodic" | "procedural";
+export type MemoryStatus = "active" | "redacted" | "expired" | "deleted";
+
+export interface Memory {
+  readonly id: MemoryId;
+  readonly orgId: OrgId;
+  readonly scopeType: MemoryScopeType;
+  readonly scopeId: string;
+  readonly kind: MemoryKind;
+  readonly status: MemoryStatus;
+  readonly title: string;
+  readonly summary: string;
+  readonly content: string;
+  readonly contentHash: string;
+  readonly metadata: Record<string, unknown>;
+  readonly sourceRunId: string | null;
+  readonly sourceAgentId: string | null;
+  readonly createdBy: UserId;
+  readonly updatedBy: UserId;
+  readonly expiresAt: ISODateString | null;
+  readonly redactedAt: ISODateString | null;
+  readonly lastAccessedAt: ISODateString | null;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+export interface CreateMemoryInput {
+  readonly orgId: OrgId;
+  readonly scopeType: MemoryScopeType;
+  readonly scopeId: string;
+  readonly kind: MemoryKind;
+  readonly title: string;
+  readonly summary: string;
+  readonly content: string;
+  readonly metadata?: Record<string, unknown>;
+  readonly sourceRunId?: string;
+  readonly sourceAgentId?: string;
+  readonly createdBy: UserId;
+  readonly expiresAt?: string;
+}
+
+export interface UpdateMemoryInput {
+  readonly title?: string;
+  readonly summary?: string;
+  readonly content?: string;
+  readonly metadata?: Record<string, unknown>;
+  readonly updatedBy: UserId;
+}
+
+export type MemoryLinkType = "source_run" | "source_step" | "source_agent" | "promoted_from" | "related";
+
+export interface MemoryLink {
+  readonly id: MemoryLinkId;
+  readonly orgId: OrgId;
+  readonly memoryId: MemoryId;
+  readonly linkedEntityType: string;
+  readonly linkedEntityId: string;
+  readonly linkType: MemoryLinkType;
+  readonly metadata: Record<string, unknown>;
+  readonly createdAt: ISODateString;
+}
+
+export interface CreateMemoryLinkInput {
+  readonly orgId: OrgId;
+  readonly memoryId: MemoryId;
+  readonly linkedEntityType: string;
+  readonly linkedEntityId: string;
+  readonly linkType: MemoryLinkType;
+  readonly metadata?: Record<string, unknown>;
 }

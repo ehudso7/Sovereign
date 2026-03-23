@@ -48,6 +48,16 @@ import type {
   SkillInstall,
   BrowserSession,
   CreateBrowserSessionInput,
+  MemoryId,
+  MemoryLinkId,
+  MemoryKind,
+  MemoryScopeType,
+  MemoryStatus,
+  Memory,
+  CreateMemoryInput,
+  UpdateMemoryInput,
+  MemoryLink,
+  CreateMemoryLinkInput,
   ISODateString,
 } from "@sovereign/core";
 
@@ -398,4 +408,45 @@ export interface BrowserSessionRepo {
     endedAt?: ISODateString;
   }): Promise<BrowserSession | null>;
   delete(id: BrowserSessionId, orgId: OrgId): Promise<boolean>;
+}
+
+// ---------------------------------------------------------------------------
+// Memory Repo (Phase 8) — org-scoped
+// ---------------------------------------------------------------------------
+
+export interface MemoryRepo {
+  create(input: CreateMemoryInput): Promise<Memory>;
+  getById(id: MemoryId, orgId: OrgId): Promise<Memory | null>;
+  listForOrg(orgId: OrgId, filters?: {
+    scopeType?: MemoryScopeType;
+    scopeId?: string;
+    kind?: MemoryKind;
+    status?: MemoryStatus;
+  }): Promise<Memory[]>;
+  search(orgId: OrgId, query: string, filters?: {
+    scopeType?: MemoryScopeType;
+    scopeId?: string;
+    kind?: MemoryKind;
+    maxResults?: number;
+  }): Promise<Memory[]>;
+  update(id: MemoryId, orgId: OrgId, input: UpdateMemoryInput): Promise<Memory | null>;
+  updateStatus(id: MemoryId, orgId: OrgId, status: MemoryStatus, extras?: {
+    redactedAt?: ISODateString;
+    expiresAt?: ISODateString;
+    content?: string;
+    contentHash?: string;
+  }): Promise<Memory | null>;
+  getByContentHash(orgId: OrgId, contentHash: string): Promise<Memory | null>;
+  delete(id: MemoryId, orgId: OrgId): Promise<boolean>;
+}
+
+// ---------------------------------------------------------------------------
+// Memory Link Repo (Phase 8) — org-scoped
+// ---------------------------------------------------------------------------
+
+export interface MemoryLinkRepo {
+  create(input: CreateMemoryLinkInput): Promise<MemoryLink>;
+  listForMemory(memoryId: MemoryId, orgId: OrgId): Promise<MemoryLink[]>;
+  listForEntity(entityType: string, entityId: string, orgId: OrgId): Promise<MemoryLink[]>;
+  delete(id: MemoryLinkId, orgId: OrgId): Promise<boolean>;
 }

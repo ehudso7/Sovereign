@@ -29,6 +29,8 @@ export type {
   SkillRepo,
   SkillInstallRepo,
   BrowserSessionRepo,
+  MemoryRepo,
+  MemoryLinkRepo,
 } from "./repositories/index.js";
 
 export {
@@ -49,4 +51,6 @@ export {
   PgSkillRepo,
   PgSkillInstallRepo,
   PgBrowserSessionRepo,
+  PgMemoryRepo,
+  PgMemoryLinkRepo,
 } from "./repositories/index.js";

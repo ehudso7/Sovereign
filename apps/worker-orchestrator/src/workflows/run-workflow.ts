@@ -21,6 +21,9 @@ import type {
   FailRunParams,
   ExecuteToolCallParams,
   ExecuteToolCallResult,
+  RetrieveMemoriesParams,
+  RetrieveMemoriesResult,
+  WriteEpisodicMemoryParams,
 } from "../activities/run-activities.js";
 
 // ---------------------------------------------------------------------------
@@ -35,6 +38,8 @@ const activities = proxyActivities<{
   completeRun: (params: CompleteRunParams) => Promise<void>;
   failRun: (params: FailRunParams) => Promise<void>;
   executeToolCall: (params: ExecuteToolCallParams) => Promise<ExecuteToolCallResult>;
+  retrieveMemories: (params: RetrieveMemoriesParams) => Promise<RetrieveMemoriesResult>;
+  writeEpisodicMemory: (params: WriteEpisodicMemoryParams) => Promise<void>;
 }>({
   startToCloseTimeout: "5 minutes",
   retry: {
@@ -60,11 +65,14 @@ export const statusQuery = defineQuery<string>("status");
 export interface RunWorkflowInput {
   runId: string;
   orgId: string;
+  agentId?: string;
+  triggeredBy?: string;
   instructions: string;
   modelConfig: { provider: string; model: string; temperature?: number; maxTokens?: number };
   input: Record<string, unknown>;
   goals: readonly string[];
   executionProvider: string;
+  memoryConfig?: { mode: string; lanes?: readonly string[]; readEnabled?: boolean; writeEnabled?: boolean; allowedScopes?: readonly string[]; allowedKinds?: readonly string[]; maxRetrievalCount?: number; autoWriteEpisodic?: boolean } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -130,11 +138,27 @@ export async function runAgentWorkflow(params: RunWorkflowInput): Promise<void> 
       }
     }
 
+    // 2.5. Retrieve memories if configured (Phase 8)
+    let memoryContext = "";
+    if (params.memoryConfig && params.memoryConfig.mode !== "none" && params.memoryConfig.readEnabled !== false) {
+      const memResult = await activities.retrieveMemories({
+        runId: params.runId,
+        orgId: params.orgId,
+        agentId: params.agentId ?? "",
+        memoryConfig: params.memoryConfig as RetrieveMemoriesParams["memoryConfig"],
+      });
+      if (memResult.count > 0) {
+        memoryContext = "\n\n--- Retrieved Memories ---\n" +
+          memResult.memories.map((m) => `[${m.kind}] ${m.title}: ${m.summary || m.content.slice(0, 200)}`).join("\n") +
+          "\n--- End Memories ---\n";
+      }
+    }
+
     // 3. Execute agent
     const result = await activities.executeAgent({
       runId: params.runId,
       orgId: params.orgId,
-      instructions: params.instructions,
+      instructions: params.instructions + memoryContext,
       modelConfig: params.modelConfig,
       input: params.input,
       goals: params.goals,
@@ -164,6 +188,18 @@ export async function runAgentWorkflow(params: RunWorkflowInput): Promise<void> 
         output: result.output,
         tokenUsage: result.tokenUsage,
       });
+
+      // 6. Write episodic memory if configured (Phase 8)
+      if (params.memoryConfig && params.memoryConfig.mode !== "none") {
+        await activities.writeEpisodicMemory({
+          runId: params.runId,
+          orgId: params.orgId,
+          agentId: params.agentId ?? "",
+          triggeredBy: params.triggeredBy ?? "",
+          memoryConfig: params.memoryConfig as WriteEpisodicMemoryParams["memoryConfig"],
+          runOutput: result.output,
+        });
+      }
     }
 
     currentStatus = result.error ? "failed" : "completed";

@@ -297,7 +297,7 @@ Indexes: org_id, (org_id, run_id), status, (org_id, status)
 
 RLS: tenant-scoped via org_id = app.current_org_id
 
-## Memory Tables
+## Memory Tables (Phase 8 — implemented)
 
 ### memories
 | Column | Type | Constraints |
@@ -306,37 +306,45 @@ RLS: tenant-scoped via org_id = app.current_org_id
 | org_id | uuid | FK → organizations, NOT NULL |
 | scope_type | varchar(50) | NOT NULL |
 | scope_id | uuid | NOT NULL |
-| lane | varchar(50) | NOT NULL |
+| kind | varchar(50) | NOT NULL |
+| status | varchar(50) | NOT NULL, DEFAULT 'active' |
+| title | varchar(500) | NOT NULL |
+| summary | text | NOT NULL, DEFAULT '' |
+| content | text | NOT NULL |
+| content_hash | varchar(128) | NOT NULL |
+| metadata | jsonb | NOT NULL, DEFAULT '{}' |
+| source_run_id | uuid | FK → runs |
+| source_agent_id | uuid | FK → agents |
+| created_by | uuid | FK → users, NOT NULL |
+| updated_by | uuid | FK → users, NOT NULL |
+| expires_at | timestamptz | |
+| redacted_at | timestamptz | |
+| last_accessed_at | timestamptz | |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | NOT NULL, DEFAULT now() |
 
-Lane values: semantic, episodic, procedural
+Kind values: semantic, episodic, procedural
 Scope types: org, project, agent, user
+Status values: active, redacted, expired, deleted
 
-### memory_entries
-| Column | Type | Constraints |
-|--------|------|-------------|
-| id | uuid | PK |
-| org_id | uuid | FK → organizations, NOT NULL |
-| memory_id | uuid | FK → memories, NOT NULL |
-| content | text | NOT NULL |
-| embedding | vector(1536) | |
-| relevance_score | float | |
-| source_run_id | uuid | FK → runs |
-| source_step_id | uuid | FK → run_steps |
-| expires_at | timestamptz | |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
+Indexes: org_id, (org_id, scope_type, scope_id), (org_id, kind), (org_id, status), (org_id, content_hash), source_run_id
+RLS: tenant-scoped via org_id = app.current_org_id
 
 ### memory_links
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | uuid | PK |
 | org_id | uuid | FK → organizations, NOT NULL |
-| from_entry_id | uuid | FK → memory_entries, NOT NULL |
-| to_entry_id | uuid | FK → memory_entries, NOT NULL |
+| memory_id | uuid | FK → memories, NOT NULL |
+| linked_entity_type | varchar(100) | NOT NULL |
+| linked_entity_id | uuid | NOT NULL |
 | link_type | varchar(50) | NOT NULL |
-| strength | float | DEFAULT 1.0 |
+| metadata | jsonb | NOT NULL, DEFAULT '{}' |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
+
+Link types: source_run, source_step, source_agent, promoted_from, related
+Indexes: org_id, memory_id, (linked_entity_type, linked_entity_id)
+RLS: tenant-scoped via org_id = app.current_org_id
 
 ## Policy Tables
 

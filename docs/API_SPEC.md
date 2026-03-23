@@ -361,19 +361,38 @@ Uninstall a skill.
 - Auth: Bearer token required
 - Permission: `skill:uninstall` (org_owner, org_admin)
 
-## Memory Endpoints
+## Memory Endpoints (Phase 8 — implemented)
 
-### GET /api/v1/memory
-Query memory entries (by scope, lane, search).
+### POST /api/v1/memories
+Create a new memory. Auth: memory:write.
+Body: `{ scopeType, scopeId, kind, title, summary, content, metadata?, sourceRunId?, sourceAgentId?, expiresAt? }`
 
-### GET /api/v1/memory/:entryId
-Get a specific memory entry.
+### GET /api/v1/memories
+List memories. Auth: memory:read. Query: `?scopeType=&scopeId=&kind=&status=`
 
-### DELETE /api/v1/memory/:entryId
-Delete/redact a memory entry.
+### GET /api/v1/memories/search
+Search memories by text. Auth: memory:read. Query: `?q=&scopeType=&scopeId=&kind=&maxResults=`
 
-### GET /api/v1/memory/admin
-Admin view of memory (for review/redaction).
+### GET /api/v1/memories/:memoryId
+Get memory detail. Auth: memory:read.
+
+### PATCH /api/v1/memories/:memoryId
+Update memory. Auth: memory:write. Body: `{ title?, summary?, content?, metadata? }`
+
+### POST /api/v1/memories/:memoryId/redact
+Redact memory content. Auth: memory:redact.
+
+### POST /api/v1/memories/:memoryId/expire
+Expire memory. Auth: memory:redact.
+
+### POST /api/v1/memories/:memoryId/delete
+Soft-delete memory. Auth: memory:delete.
+
+### POST /api/v1/memories/:memoryId/promote
+Promote episodic → procedural. Auth: memory:write.
+
+### GET /api/v1/memories/:memoryId/links
+Get memory links. Auth: memory:read.
 
 ## Policy Endpoints
 
