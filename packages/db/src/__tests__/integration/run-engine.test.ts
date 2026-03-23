@@ -794,8 +794,8 @@ describe("Run audit event persistence (PostgreSQL)", () => {
       actorType: "user",
       action: "run.created",
       resourceType: "run",
-      resourceId: "test-run-id",
-      metadata: { triggerType: "manual", agentId: "test-agent-id" },
+      resourceId: "00000000-0000-0000-0000-000000000099",
+      metadata: { triggerType: "manual", agentId: "00000000-0000-0000-0000-000000000098" },
     });
 
     expect(event.id).toBeTruthy();
@@ -803,8 +803,8 @@ describe("Run audit event persistence (PostgreSQL)", () => {
 
     const events = await auditRepo.query(orgId, { action: "run.created" });
     expect(events.length).toBe(1);
-    expect(events[0]!.resourceId).toBe("test-run-id");
-    expect(events[0]!.metadata).toEqual({ triggerType: "manual", agentId: "test-agent-id" });
+    expect(events[0]!.resourceId).toBe("00000000-0000-0000-0000-000000000099");
+    expect(events[0]!.metadata).toEqual({ triggerType: "manual", agentId: "00000000-0000-0000-0000-000000000098" });
   });
 
   it("persists all run lifecycle audit events", async () => {
@@ -829,7 +829,7 @@ describe("Run audit event persistence (PostgreSQL)", () => {
         actorType: "user",
         action,
         resourceType: "run",
-        resourceId: "run-lifecycle-id",
+        resourceId: "00000000-0000-0000-0000-000000000097",
         metadata: {},
       });
     }

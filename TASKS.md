@@ -229,5 +229,25 @@
 - [x] docs/ARCHITECTURE.md — AI Runtime detail added to worker-orchestrator section
 - [x] docs/TEST_STRATEGY.md — Workflow Tests section added
 
+### Phase 5 Final Verification ✅
+
+#### A. Build Repair
+- [x] Fixed /runs page SSR prerender error (wrapped useSearchParams in Suspense boundary)
+- [x] Fixed @sovereign/db build to copy SQL migration files to dist/ for runtime migration runner
+- [x] Full build: 16/16 tasks passing
+
+#### B. Integration Test Fixes
+- [x] Fixed migration count assertion (2 → 4 migrations after Phase 4+5)
+- [x] Fixed audit event tests: replaced non-UUID resourceId strings with proper UUIDs
+- [x] Fixed agent version listing test: corrected sort-order assertion (ascending, not descending)
+- [x] All 5 integration suites pass: 88/88 tests
+
+#### C. Final Totals
+- [x] Lint: 20/20
+- [x] Typecheck: 20/20
+- [x] Build: 16/16
+- [x] Unit tests: 166 (core: 47, api: 113, worker-orchestrator: 6)
+- [x] Integration tests: 88 (migrations: 8, repositories: 28, agent-studio: 16, rls: 17, run-engine: 19)
+
 ### Phase 6–14
 _See ROADMAP.md for full phase details._

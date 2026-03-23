@@ -1,8 +1,8 @@
 "use client";
 
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
 import Link from "next/link";
@@ -39,7 +39,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export default function RunsListPage() {
+function RunsListContent() {
   const { user, token, isLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -142,5 +142,13 @@ export default function RunsListPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+export default function RunsListPage() {
+  return (
+    <Suspense fallback={<p className="text-gray-400">Loading runs...</p>}>
+      <RunsListContent />
+    </Suspense>
   );
 }

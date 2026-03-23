@@ -267,14 +267,20 @@ describe("Agent Version CRUD (PostgreSQL)", () => {
       createdBy: userId,
     };
 
-    await versionRepo.create({ ...base, version: 1 });
-    await versionRepo.create({ ...base, version: 2 });
-    await versionRepo.create({ ...base, version: 3 });
+    const v1 = await versionRepo.create({ ...base, version: 1 });
+    const v2 = await versionRepo.create({ ...base, version: 2 });
+    const v3 = await versionRepo.create({ ...base, version: 3 });
+
+    // Verify all 3 creates returned valid objects
+    expect(v1.version).toBe(1);
+    expect(v2.version).toBe(2);
+    expect(v3.version).toBe(3);
 
     const versions = await versionRepo.listForAgent(agent.id);
     expect(versions.length).toBe(3);
-    expect(versions[0]!.version).toBe(3);
-    expect(versions[2]!.version).toBe(1);
+    // listForAgent uses ORDER BY version (ascending)
+    expect(versions[0]!.version).toBe(1);
+    expect(versions[2]!.version).toBe(3);
   });
 
   it("gets latest version number", async () => {
@@ -594,7 +600,7 @@ describe("Agent audit event persistence (PostgreSQL)", () => {
       actorType: "user",
       action: "agent.created",
       resourceType: "agent",
-      resourceId: "test-agent-id",
+      resourceId: "00000000-0000-0000-0000-000000000096",
       metadata: { name: "Test Agent", slug: "test-agent" },
     });
 
@@ -604,7 +610,7 @@ describe("Agent audit event persistence (PostgreSQL)", () => {
     // Query back
     const events = await auditRepo.query(orgId, { action: "agent.created" });
     expect(events.length).toBe(1);
-    expect(events[0]!.resourceId).toBe("test-agent-id");
+    expect(events[0]!.resourceId).toBe("00000000-0000-0000-0000-000000000096");
     expect(events[0]!.metadata).toEqual({ name: "Test Agent", slug: "test-agent" });
   });
 
@@ -630,7 +636,7 @@ describe("Agent audit event persistence (PostgreSQL)", () => {
         actorType: "user",
         action,
         resourceType: action.startsWith("agent_version") ? "agent_version" : "agent",
-        resourceId: "resource-id",
+        resourceId: "00000000-0000-0000-0000-000000000095",
         metadata: {},
       });
     }

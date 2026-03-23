@@ -6,7 +6,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r src/migrations dist/migrations",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
