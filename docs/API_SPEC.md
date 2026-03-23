@@ -403,19 +403,44 @@ Query audit events (filterable by resource, actor, action, time range).
 ### GET /api/v1/audit/:eventId
 Get audit event details.
 
-## Browser Session Endpoints
+## Browser Session Endpoints (Phase 7 — implemented)
+
+### POST /api/v1/browser-sessions
+Create a new browser session linked to a run.
+- Auth: browser:control
+- Body: `{ runId: uuid, browserType?: "chromium" | "firefox" | "webkit" }`
+- Response: 201 `{ data: BrowserSession }`
 
 ### GET /api/v1/browser-sessions
-List browser sessions.
+List browser sessions for the org.
+- Auth: browser:read
+- Query: `?runId=uuid&status=string`
+- Response: 200 `{ data: BrowserSession[] }`
 
 ### GET /api/v1/browser-sessions/:sessionId
 Get browser session details.
+- Auth: browser:read
+- Response: 200 `{ data: BrowserSession }`
 
-### GET /api/v1/browser-sessions/:sessionId/recording
-Get session recording.
+### GET /api/v1/browser-sessions/:sessionId/artifacts
+List artifact keys for a browser session.
+- Auth: browser:read
+- Response: 200 `{ data: string[] }`
 
 ### POST /api/v1/browser-sessions/:sessionId/takeover
-Request live takeover of a browser session.
+Request human takeover of a browser session. Transitions active → human_control.
+- Auth: browser:takeover
+- Response: 200 `{ data: BrowserSession }`
+
+### POST /api/v1/browser-sessions/:sessionId/release
+Release human takeover. Transitions human_control → active.
+- Auth: browser:takeover
+- Response: 200 `{ data: BrowserSession }`
+
+### POST /api/v1/browser-sessions/:sessionId/close
+Close a browser session. Transitions through closing → closed.
+- Auth: browser:control
+- Response: 200 `{ data: BrowserSession }`
 
 ## CRM Endpoints
 

@@ -15,6 +15,7 @@ import type {
   AuthConfig,
   OrgId,
 } from "@sovereign/core";
+import { PgBrowserSessionRepo } from "@sovereign/db";
 import {
   type DatabaseClient,
   PgUserRepo,
@@ -45,6 +46,7 @@ import { PgAgentStudioService } from "./agent-studio.service.js";
 import { PgRunService } from "./run.service.js";
 import { PgConnectorService } from "./connector.service.js";
 import { PgSkillService } from "./skill.service.js";
+import { PgBrowserSessionService } from "./browser-session.service.js";
 import { BUILTIN_CONNECTORS, BUILTIN_SKILLS } from "@sovereign/gateway-mcp";
 
 export interface ServiceRegistry {
@@ -68,6 +70,8 @@ export interface ServiceRegistry {
   connectorForOrg: (orgId: OrgId) => PgConnectorService;
   /** Get a skill service scoped to a specific org */
   skillForOrg: (orgId: OrgId) => PgSkillService;
+  /** Get a browser session service scoped to a specific org */
+  browserSessionForOrg: (orgId: OrgId) => PgBrowserSessionService;
 }
 
 let _registry: ServiceRegistry | null = null;
@@ -184,6 +188,16 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     return new PgSkillService(skillRepo, installRepo, auditEmitter);
   };
 
+  // Factory for org-scoped browser session service
+  const browserSessionForOrg = (orgId: OrgId): PgBrowserSessionService => {
+    const tenantDb = db.forTenant(orgId);
+    const sessionRepo = new PgBrowserSessionRepo(tenantDb);
+    const runRepo = new PgRunRepo(tenantDb);
+    const auditRepo = new PgAuditRepo(tenantDb);
+    const auditEmitter = new PgAuditEmitter(auditRepo);
+    return new PgBrowserSessionService(sessionRepo, runRepo, auditEmitter);
+  };
+
   // Default audit emitter uses unscoped DB for cross-org operations (like org.created)
   // Services that need org-scoped audit will use auditForOrg
   const defaultAuditRepo = new PgAuditRepo(db.forTenant("00000000-0000-0000-0000-000000000000" as OrgId));
@@ -221,6 +235,7 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     runForOrg,
     connectorForOrg,
     skillForOrg,
+    browserSessionForOrg,
   };
 
   // Seed catalog asynchronously (non-blocking, log errors)

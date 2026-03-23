@@ -89,7 +89,10 @@ export type Permission =
   | "connector:revoke"
   | "skill:read"
   | "skill:install"
-  | "skill:uninstall";
+  | "skill:uninstall"
+  | "browser:read"
+  | "browser:control"
+  | "browser:takeover";
 
 const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   org_owner: [
@@ -121,6 +124,9 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "skill:read",
     "skill:install",
     "skill:uninstall",
+    "browser:read",
+    "browser:control",
+    "browser:takeover",
   ],
   org_admin: [
     "org:read",
@@ -147,6 +153,9 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "skill:read",
     "skill:install",
     "skill:uninstall",
+    "browser:read",
+    "browser:control",
+    "browser:takeover",
   ],
   org_member: [
     "org:read",
@@ -156,6 +165,7 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "run:create",
     "connector:read",
     "skill:read",
+    "browser:read",
   ],
   org_billing_admin: [
     "org:read",
@@ -165,6 +175,7 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "run:read",
     "connector:read",
     "skill:read",
+    "browser:read",
   ],
   org_security_admin: [
     "org:read",
@@ -175,6 +186,7 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "run:read",
     "connector:read",
     "skill:read",
+    "browser:read",
   ],
 };
 

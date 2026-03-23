@@ -13,6 +13,7 @@ import type {
   ConnectorInstallId,
   SkillId,
   SkillInstallId,
+  BrowserSessionId,
   ISODateString,
 } from "./types.js";
 import type { MembershipId, InvitationId, OrgRole } from "./auth.js";
@@ -417,4 +418,83 @@ export interface SkillInstall {
   readonly installedBy: UserId;
   readonly createdAt: ISODateString;
   readonly updatedAt: ISODateString;
+}
+
+// ---------------------------------------------------------------------------
+// Browser Session (Phase 7)
+// ---------------------------------------------------------------------------
+
+export type BrowserSessionStatus =
+  | "provisioning"
+  | "ready"
+  | "active"
+  | "takeover_requested"
+  | "human_control"
+  | "closing"
+  | "closed"
+  | "failed";
+
+export type BrowserActionType =
+  | "navigate"
+  | "click"
+  | "type"
+  | "select"
+  | "wait_for_selector"
+  | "extract_text"
+  | "screenshot"
+  | "upload_file"
+  | "download_file";
+
+/** Actions considered risky and requiring policy gate checks. */
+export const RISKY_BROWSER_ACTIONS: readonly BrowserActionType[] = [
+  "upload_file",
+  "download_file",
+];
+
+export interface BrowserSession {
+  readonly id: BrowserSessionId;
+  readonly orgId: OrgId;
+  readonly runId: RunId;
+  readonly agentId: AgentId;
+  readonly status: BrowserSessionStatus;
+  readonly browserType: string;
+  readonly currentUrl: string | null;
+  readonly humanTakeover: boolean;
+  readonly takeoverBy: UserId | null;
+  readonly sessionRef: string | null;
+  readonly artifactKeys: readonly string[];
+  readonly metadata: Record<string, unknown>;
+  readonly createdBy: UserId;
+  readonly startedAt: ISODateString | null;
+  readonly lastActivityAt: ISODateString | null;
+  readonly endedAt: ISODateString | null;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+export interface CreateBrowserSessionInput {
+  readonly orgId: OrgId;
+  readonly runId: RunId;
+  readonly agentId: AgentId;
+  readonly browserType?: string;
+  readonly createdBy: UserId;
+}
+
+export interface BrowserAction {
+  readonly type: BrowserActionType;
+  readonly selector?: string;
+  readonly value?: string;
+  readonly url?: string;
+  readonly filePath?: string;
+  readonly timeout?: number;
+}
+
+export interface BrowserActionResult {
+  readonly success: boolean;
+  readonly actionType: BrowserActionType;
+  readonly output: Record<string, unknown>;
+  readonly screenshotKey?: string;
+  readonly artifactKey?: string;
+  readonly error?: string;
+  readonly latencyMs: number;
 }

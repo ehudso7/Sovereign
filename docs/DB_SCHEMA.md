@@ -269,19 +269,33 @@ Status values: queued, running, paused, waiting_approval, completed, failed, can
 | reason | text | |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
-### browser_sessions
+### browser_sessions (Phase 7 — implemented)
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | uuid | PK |
 | org_id | uuid | FK → organizations, NOT NULL |
 | run_id | uuid | FK → runs, NOT NULL |
-| status | varchar(50) | NOT NULL, DEFAULT 'initializing' |
-| browser_type | varchar(50) | DEFAULT 'chromium' |
-| recording_key | text | |
-| screenshots | jsonb | DEFAULT '[]' |
+| agent_id | uuid | FK → agents, NOT NULL |
+| status | varchar(50) | NOT NULL, DEFAULT 'provisioning' |
+| browser_type | varchar(50) | NOT NULL, DEFAULT 'chromium' |
+| current_url | text | |
+| human_takeover | boolean | NOT NULL, DEFAULT FALSE |
+| takeover_by | uuid | FK → users |
+| session_ref | text | |
+| artifact_keys | jsonb | NOT NULL, DEFAULT '[]' |
+| metadata | jsonb | NOT NULL, DEFAULT '{}' |
+| created_by | uuid | FK → users, NOT NULL |
 | started_at | timestamptz | |
+| last_activity_at | timestamptz | |
 | ended_at | timestamptz | |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | NOT NULL, DEFAULT now() |
+
+Status values: provisioning, ready, active, takeover_requested, human_control, closing, closed, failed
+
+Indexes: org_id, (org_id, run_id), status, (org_id, status)
+
+RLS: tenant-scoped via org_id = app.current_org_id
 
 ## Memory Tables
 

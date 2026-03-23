@@ -12,7 +12,9 @@
   },
   "dependencies": {
     "@sovereign/core": "workspace:*",
-    "@sovereign/config": "workspace:*"
+    "@sovereign/db": "workspace:*",
+    "@sovereign/config": "workspace:*",
+    "playwright": "^1.49.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

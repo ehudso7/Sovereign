@@ -27,10 +27,12 @@ export type SkillId = Brand<string, "SkillId">;
 export type SkillVersionId = Brand<string, "SkillVersionId">;
 export type ConnectorInstallId = Brand<string, "ConnectorInstallId">;
 export type SkillInstallId = Brand<string, "SkillInstallId">;
+export type BrowserSessionId = Brand<string, "BrowserSessionId">;
 export const toSkillId = (id: string): SkillId => id as SkillId;
 export const toSkillVersionId = (id: string): SkillVersionId => id as SkillVersionId;
 export const toConnectorInstallId = (id: string): ConnectorInstallId => id as ConnectorInstallId;
 export const toSkillInstallId = (id: string): SkillInstallId => id as SkillInstallId;
+export const toBrowserSessionId = (id: string): BrowserSessionId => id as BrowserSessionId;
 
 // ---------------------------------------------------------------------------
 // Tenant context – threaded through every request
