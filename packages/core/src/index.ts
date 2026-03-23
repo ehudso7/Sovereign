@@ -10,6 +10,7 @@ export type {
   UserId,
   ProjectId,
   AgentId,
+  AgentVersionId,
   RunId,
   ConnectorId,
   PolicyId,
@@ -32,6 +33,7 @@ export {
   toUserId,
   toProjectId,
   toAgentId,
+  toAgentVersionId,
   toRunId,
   toConnectorId,
   toPolicyId,
@@ -98,6 +100,19 @@ export type {
   Project,
   CreateProjectInput,
   UpdateProjectInput,
+  Agent,
+  AgentStatus,
+  AgentVersion,
+  CreateAgentInput,
+  UpdateAgentInput,
+  CreateAgentVersionInput,
+  UpdateAgentVersionInput,
+  ToolConfig,
+  BudgetConfig,
+  ApprovalRuleConfig,
+  MemoryConfig,
+  ScheduleConfig,
+  ModelConfig,
 } from "./entities.js";
 
 // ---------------------------------------------------------------------------
@@ -127,4 +142,5 @@ export type {
   MembershipService,
   InvitationService,
   ProjectService,
+  AgentStudioService,
 } from "./services.js";

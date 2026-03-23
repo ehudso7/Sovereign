@@ -9,6 +9,7 @@ import type {
   MembershipService,
   InvitationService,
   ProjectService,
+  AgentStudioService,
   AuditEmitter,
   AuthConfig,
   OrgId,
@@ -22,6 +23,8 @@ import {
   PgSessionRepo,
   PgProjectRepo,
   PgAuditRepo,
+  PgAgentRepo,
+  PgAgentVersionRepo,
 } from "@sovereign/db";
 import { PgAuthService } from "./auth.service.js";
 import { PgUserService } from "./user.service.js";
@@ -30,6 +33,7 @@ import { PgMembershipService } from "./membership.service.js";
 import { PgInvitationService } from "./invitation.service.js";
 import { PgProjectService } from "./project.service.js";
 import { PgAuditEmitter } from "./audit.service.js";
+import { PgAgentStudioService } from "./agent-studio.service.js";
 
 export interface ServiceRegistry {
   auth: AuthService & { signInToOrg: PgAuthService["signInToOrg"] };
@@ -38,11 +42,14 @@ export interface ServiceRegistry {
   memberships: MembershipService;
   invitations: InvitationService;
   projects: ProjectService;
+  agentStudio: AgentStudioService;
   audit: AuditEmitter;
   /** Get a project service scoped to a specific org */
   projectsForOrg: (orgId: OrgId) => ProjectService;
   /** Get an audit emitter scoped to a specific org */
   auditForOrg: (orgId: OrgId) => AuditEmitter;
+  /** Get an agent studio service scoped to a specific org */
+  agentStudioForOrg: (orgId: OrgId) => AgentStudioService;
 }
 
 let _registry: ServiceRegistry | null = null;
@@ -70,6 +77,16 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     const tenantDb = db.forTenant(orgId);
     const auditRepo = new PgAuditRepo(tenantDb);
     return new PgAuditEmitter(auditRepo);
+  };
+
+  // Factory for org-scoped agent studio service
+  const agentStudioForOrg = (orgId: OrgId): AgentStudioService => {
+    const tenantDb = db.forTenant(orgId);
+    const agentRepo = new PgAgentRepo(tenantDb);
+    const versionRepo = new PgAgentVersionRepo(tenantDb);
+    const auditRepo = new PgAuditRepo(tenantDb);
+    const auditEmitter = new PgAuditEmitter(auditRepo);
+    return new PgAgentStudioService(agentRepo, versionRepo, auditEmitter);
   };
 
   // Default audit emitter uses unscoped DB for cross-org operations (like org.created)
@@ -101,9 +118,11 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
       new PgProjectRepo(db.forTenant("00000000-0000-0000-0000-000000000000" as OrgId)),
       defaultAudit,
     ),
+    agentStudio: agentStudioForOrg("00000000-0000-0000-0000-000000000000" as OrgId),
     audit: routingAudit,
     projectsForOrg,
     auditForOrg,
+    agentStudioForOrg,
   };
 
   return _registry;

@@ -18,6 +18,8 @@ export const toOrgId = (id: string): OrgId => id as OrgId;
 export const toUserId = (id: string): UserId => id as UserId;
 export const toProjectId = (id: string): ProjectId => id as ProjectId;
 export const toAgentId = (id: string): AgentId => id as AgentId;
+export type AgentVersionId = Brand<string, "AgentVersionId">;
+export const toAgentVersionId = (id: string): AgentVersionId => id as AgentVersionId;
 export const toRunId = (id: string): RunId => id as RunId;
 export const toConnectorId = (id: string): ConnectorId => id as ConnectorId;
 export const toPolicyId = (id: string): PolicyId => id as PolicyId;

@@ -8,14 +8,25 @@ import type {
   ProjectId,
   SessionId,
   MembershipId,
+  AgentId,
+  AgentVersionId,
 
   OrgRole,
+  AgentStatus,
   User,
   Organization,
   Membership,
   Invitation,
   Session,
   Project,
+  Agent,
+  AgentVersion,
+  ToolConfig,
+  BudgetConfig,
+  ApprovalRuleConfig,
+  MemoryConfig,
+  ScheduleConfig,
+  ModelConfig,
   AuditEvent,
   EmitAuditEventInput,
   AuditQueryParams,
@@ -149,4 +160,63 @@ export interface ProjectRepo {
 export interface AuditRepo {
   emit(input: EmitAuditEventInput): Promise<AuditEvent>;
   query(orgId: OrgId, params?: AuditQueryParams): Promise<AuditEvent[]>;
+}
+
+// ---------------------------------------------------------------------------
+// Agent repository (Phase 4, tenant-scoped)
+// ---------------------------------------------------------------------------
+
+export interface AgentRepo {
+  create(input: {
+    orgId: OrgId;
+    projectId: ProjectId;
+    name: string;
+    slug: string;
+    description?: string;
+    createdBy: UserId;
+  }): Promise<Agent>;
+  getById(id: AgentId, orgId: OrgId): Promise<Agent | null>;
+  getBySlug(projectId: ProjectId, slug: string): Promise<Agent | null>;
+  listForOrg(orgId: OrgId, filters?: { projectId?: ProjectId; status?: AgentStatus }): Promise<Agent[]>;
+  update(id: AgentId, orgId: OrgId, input: { name?: string; description?: string }): Promise<Agent | null>;
+  updateStatus(id: AgentId, orgId: OrgId, status: AgentStatus): Promise<Agent | null>;
+  delete(id: AgentId, orgId: OrgId): Promise<boolean>;
+}
+
+// ---------------------------------------------------------------------------
+// Agent version repository (Phase 4, tenant-scoped)
+// ---------------------------------------------------------------------------
+
+export interface AgentVersionRepo {
+  create(input: {
+    orgId: OrgId;
+    agentId: AgentId;
+    version: number;
+    goals: readonly string[];
+    instructions: string;
+    tools: readonly ToolConfig[];
+    budget: BudgetConfig | null;
+    approvalRules: readonly ApprovalRuleConfig[];
+    memoryConfig: MemoryConfig | null;
+    schedule: ScheduleConfig | null;
+    modelConfig: ModelConfig;
+    createdBy: UserId;
+  }): Promise<AgentVersion>;
+  getById(id: AgentVersionId, orgId: OrgId): Promise<AgentVersion | null>;
+  getByVersion(agentId: AgentId, version: number): Promise<AgentVersion | null>;
+  listForAgent(agentId: AgentId): Promise<AgentVersion[]>;
+  getLatestVersion(agentId: AgentId): Promise<number>;
+  getPublished(agentId: AgentId): Promise<AgentVersion | null>;
+  update(id: AgentVersionId, orgId: OrgId, input: {
+    goals?: readonly string[];
+    instructions?: string;
+    tools?: readonly ToolConfig[];
+    budget?: BudgetConfig | null;
+    approvalRules?: readonly ApprovalRuleConfig[];
+    memoryConfig?: MemoryConfig | null;
+    schedule?: ScheduleConfig | null;
+    modelConfig?: ModelConfig;
+  }): Promise<AgentVersion | null>;
+  publish(id: AgentVersionId, orgId: OrgId): Promise<AgentVersion | null>;
+  unpublishAll(agentId: AgentId): Promise<number>;
 }

@@ -7,6 +7,7 @@ import { orgRoutes } from "./routes/orgs.js";
 import { memberRoutes } from "./routes/members.js";
 import { invitationRoutes } from "./routes/invitations.js";
 import { projectRoutes } from "./routes/projects.js";
+import { agentRoutes } from "./routes/agents.js";
 import { devRoutes } from "./routes/dev.js";
 import type { AuthConfig } from "@sovereign/core";
 
@@ -51,6 +52,7 @@ server.register(orgRoutes);
 server.register(memberRoutes);
 server.register(invitationRoutes);
 server.register(projectRoutes);
+server.register(agentRoutes);
 
 // Dev-only routes
 if (process.env.NODE_ENV !== "production") {

@@ -6,6 +6,8 @@ import type {
   OrgId,
   UserId,
   ProjectId,
+  AgentId,
+  AgentVersionId,
   ISODateString,
 } from "./types.js";
 import type { MembershipId, InvitationId, OrgRole } from "./auth.js";
@@ -125,4 +127,120 @@ export interface UpdateProjectInput {
   readonly slug?: string;
   readonly description?: string;
   readonly settings?: Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
+// Agent (Phase 4)
+// ---------------------------------------------------------------------------
+
+export type AgentStatus = "draft" | "published" | "archived";
+
+export interface Agent {
+  readonly id: AgentId;
+  readonly orgId: OrgId;
+  readonly projectId: ProjectId;
+  readonly name: string;
+  readonly slug: string;
+  readonly description?: string;
+  readonly status: AgentStatus;
+  readonly createdBy: UserId;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+export interface CreateAgentInput {
+  readonly orgId: OrgId;
+  readonly projectId: ProjectId;
+  readonly name: string;
+  readonly slug: string;
+  readonly description?: string;
+}
+
+export interface UpdateAgentInput {
+  readonly name?: string;
+  readonly description?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Agent Version (Phase 4)
+// ---------------------------------------------------------------------------
+
+export interface AgentVersion {
+  readonly id: AgentVersionId;
+  readonly orgId: OrgId;
+  readonly agentId: AgentId;
+  readonly version: number;
+  readonly goals: readonly string[];
+  readonly instructions: string;
+  readonly tools: readonly ToolConfig[];
+  readonly budget: BudgetConfig | null;
+  readonly approvalRules: readonly ApprovalRuleConfig[];
+  readonly memoryConfig: MemoryConfig | null;
+  readonly schedule: ScheduleConfig | null;
+  readonly modelConfig: ModelConfig;
+  readonly published: boolean;
+  readonly publishedAt?: ISODateString;
+  readonly createdBy: UserId;
+  readonly createdAt: ISODateString;
+}
+
+export interface ToolConfig {
+  readonly name: string;
+  readonly connectorId?: string;
+  readonly parameters?: Record<string, unknown>;
+}
+
+export interface BudgetConfig {
+  readonly maxTokens?: number;
+  readonly maxCostCents?: number;
+  readonly maxRunsPerDay?: number;
+}
+
+export interface ApprovalRuleConfig {
+  readonly action: string;
+  readonly requireApproval: boolean;
+  readonly approverRoles?: readonly string[];
+}
+
+export interface MemoryConfig {
+  readonly mode: "none" | "session" | "persistent";
+  readonly lanes?: readonly string[];
+}
+
+export interface ScheduleConfig {
+  readonly enabled: boolean;
+  readonly cron?: string;
+  readonly timezone?: string;
+}
+
+export interface ModelConfig {
+  readonly provider: string;
+  readonly model: string;
+  readonly temperature?: number;
+  readonly maxTokens?: number;
+  readonly topP?: number;
+}
+
+export interface CreateAgentVersionInput {
+  readonly agentId: AgentId;
+  readonly orgId: OrgId;
+  readonly goals?: readonly string[];
+  readonly instructions?: string;
+  readonly tools?: readonly ToolConfig[];
+  readonly budget?: BudgetConfig | null;
+  readonly approvalRules?: readonly ApprovalRuleConfig[];
+  readonly memoryConfig?: MemoryConfig | null;
+  readonly schedule?: ScheduleConfig | null;
+  readonly modelConfig?: ModelConfig;
+}
+
+export interface UpdateAgentVersionInput {
+  readonly goals?: readonly string[];
+  readonly instructions?: string;
+  readonly tools?: readonly ToolConfig[];
+  readonly budget?: BudgetConfig | null;
+  readonly approvalRules?: readonly ApprovalRuleConfig[];
+  readonly memoryConfig?: MemoryConfig | null;
+  readonly schedule?: ScheduleConfig | null;
+  readonly modelConfig?: ModelConfig;
 }

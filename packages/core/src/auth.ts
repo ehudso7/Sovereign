@@ -73,7 +73,12 @@ export type Permission =
   | "project:create"
   | "project:read"
   | "project:update"
-  | "project:delete";
+  | "project:delete"
+  | "agent:create"
+  | "agent:read"
+  | "agent:update"
+  | "agent:publish"
+  | "agent:archive";
 
 const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   org_owner: [
@@ -89,6 +94,11 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "project:read",
     "project:update",
     "project:delete",
+    "agent:create",
+    "agent:read",
+    "agent:update",
+    "agent:publish",
+    "agent:archive",
   ],
   org_admin: [
     "org:read",
@@ -99,21 +109,29 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "project:read",
     "project:update",
     "project:delete",
+    "agent:create",
+    "agent:read",
+    "agent:update",
+    "agent:publish",
+    "agent:archive",
   ],
   org_member: [
     "org:read",
     "project:read",
+    "agent:read",
   ],
   org_billing_admin: [
     "org:read",
     "org:manage_billing",
     "project:read",
+    "agent:read",
   ],
   org_security_admin: [
     "org:read",
     "org:manage_security",
     "org:view_audit",
     "project:read",
+    "agent:read",
   ],
 };
 

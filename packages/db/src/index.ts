@@ -19,6 +19,8 @@ export type {
   SessionRepo,
   ProjectRepo,
   AuditRepo,
+  AgentRepo,
+  AgentVersionRepo,
 } from "./repositories/index.js";
 
 export {
@@ -29,4 +31,6 @@ export {
   PgSessionRepo,
   PgProjectRepo,
   PgAuditRepo,
+  PgAgentRepo,
+  PgAgentVersionRepo,
 } from "./repositories/index.js";

@@ -6,6 +6,8 @@ export type {
   SessionRepo,
   ProjectRepo,
   AuditRepo,
+  AgentRepo,
+  AgentVersionRepo,
 } from "./types.js";
 
 export { PgUserRepo } from "./pg-user.repo.js";
@@ -15,3 +17,5 @@ export { PgInvitationRepo } from "./pg-invitation.repo.js";
 export { PgSessionRepo } from "./pg-session.repo.js";
 export { PgProjectRepo } from "./pg-project.repo.js";
 export { PgAuditRepo } from "./pg-audit.repo.js";
+export { PgAgentRepo } from "./pg-agent.repo.js";
+export { PgAgentVersionRepo } from "./pg-agent-version.repo.js";

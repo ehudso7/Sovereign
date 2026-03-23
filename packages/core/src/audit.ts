@@ -32,7 +32,14 @@ export type AuditAction =
   | "invitation.accepted"
   | "project.created"
   | "project.updated"
-  | "project.deleted";
+  | "project.deleted"
+  | "agent.created"
+  | "agent.updated"
+  | "agent.archived"
+  | "agent_version.created"
+  | "agent_version.updated"
+  | "agent_version.published"
+  | "agent.unpublished";
 
 // ---------------------------------------------------------------------------
 // Audit actor types

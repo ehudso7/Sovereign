@@ -2,7 +2,7 @@
 // Service interfaces for Phase 2 — Identity, Orgs, Tenancy
 // ---------------------------------------------------------------------------
 
-import type { OrgId, UserId, ProjectId, Result, PaginatedResult, PaginationParams } from "./types.js";
+import type { OrgId, UserId, ProjectId, AgentId, AgentVersionId, Result, PaginatedResult, PaginationParams } from "./types.js";
 import type { SessionId, OrgRole, Session, AuthConfig, AuthResult } from "./auth.js";
 import type {
   User,
@@ -17,6 +17,13 @@ import type {
   Project,
   CreateProjectInput,
   UpdateProjectInput,
+  Agent,
+  AgentStatus,
+  AgentVersion,
+  CreateAgentInput,
+  UpdateAgentInput,
+  CreateAgentVersionInput,
+  UpdateAgentVersionInput,
 } from "./entities.js";
 // ---------------------------------------------------------------------------
 // Auth service
@@ -99,4 +106,27 @@ export interface ProjectService {
   update(projectId: ProjectId, orgId: OrgId, input: UpdateProjectInput): Promise<Result<Project>>;
   listForOrg(orgId: OrgId, pagination?: PaginationParams): Promise<Result<PaginatedResult<Project>>>;
   delete(projectId: ProjectId, orgId: OrgId): Promise<Result<void>>;
+}
+
+// ---------------------------------------------------------------------------
+// Agent Studio service (Phase 4)
+// ---------------------------------------------------------------------------
+
+export interface AgentStudioService {
+  // Agent CRUD
+  createAgent(input: CreateAgentInput, createdBy: UserId): Promise<Result<Agent>>;
+  getAgent(id: AgentId, orgId: OrgId): Promise<Result<Agent>>;
+  listAgents(orgId: OrgId, filters?: { projectId?: ProjectId; status?: AgentStatus }): Promise<Result<Agent[]>>;
+  updateAgent(id: AgentId, orgId: OrgId, input: UpdateAgentInput): Promise<Result<Agent>>;
+  archiveAgent(id: AgentId, orgId: OrgId): Promise<Result<Agent>>;
+
+  // Version management
+  createVersion(input: CreateAgentVersionInput, createdBy: UserId): Promise<Result<AgentVersion>>;
+  getVersion(id: AgentVersionId, orgId: OrgId): Promise<Result<AgentVersion>>;
+  listVersions(agentId: AgentId, orgId: OrgId): Promise<Result<AgentVersion[]>>;
+  updateVersion(id: AgentVersionId, orgId: OrgId, input: UpdateAgentVersionInput): Promise<Result<AgentVersion>>;
+
+  // Publish/unpublish
+  publishVersion(agentId: AgentId, versionId: AgentVersionId, orgId: OrgId): Promise<Result<AgentVersion>>;
+  unpublishAgent(agentId: AgentId, orgId: OrgId): Promise<Result<Agent>>;
 }
