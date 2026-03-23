@@ -15,6 +15,8 @@ import type {
   ConnectorInstallId,
   SkillId,
   BrowserSessionId,
+  AlertRuleId,
+  AlertEventId,
 
   OrgRole,
   AgentStatus,
@@ -58,6 +60,8 @@ import type {
   UpdateMemoryInput,
   MemoryLink,
   CreateMemoryLinkInput,
+  AlertRule,
+  AlertEvent,
   ISODateString,
 } from "@sovereign/core";
 
@@ -449,4 +453,48 @@ export interface MemoryLinkRepo {
   listForMemory(memoryId: MemoryId, orgId: OrgId): Promise<MemoryLink[]>;
   listForEntity(entityType: string, entityId: string, orgId: OrgId): Promise<MemoryLink[]>;
   delete(id: MemoryLinkId, orgId: OrgId): Promise<boolean>;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 9 — Alert repositories
+// ---------------------------------------------------------------------------
+
+export interface AlertRuleRepo {
+  create(input: {
+    orgId: OrgId;
+    name: string;
+    description?: string;
+    conditionType: string;
+    thresholdMinutes?: number;
+    enabled?: boolean;
+    createdBy: UserId;
+  }): Promise<AlertRule>;
+  getById(id: AlertRuleId, orgId: OrgId): Promise<AlertRule | null>;
+  listForOrg(orgId: OrgId, filters?: { conditionType?: string; enabled?: boolean }): Promise<AlertRule[]>;
+  update(id: AlertRuleId, orgId: OrgId, input: { name?: string; description?: string; thresholdMinutes?: number; enabled?: boolean }): Promise<AlertRule | null>;
+  delete(id: AlertRuleId, orgId: OrgId): Promise<boolean>;
+}
+
+export interface AlertEventRepo {
+  create(input: {
+    orgId: OrgId;
+    alertRuleId?: string;
+    severity: string;
+    title: string;
+    message?: string;
+    conditionType: string;
+    resourceType: string;
+    resourceId?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<AlertEvent>;
+  getById(id: AlertEventId, orgId: OrgId): Promise<AlertEvent | null>;
+  listForOrg(orgId: OrgId, filters?: {
+    status?: string;
+    severity?: string;
+    conditionType?: string;
+    limit?: number;
+  }): Promise<AlertEvent[]>;
+  acknowledge(id: AlertEventId, orgId: OrgId, userId: UserId): Promise<AlertEvent | null>;
+  resolve(id: AlertEventId, orgId: OrgId): Promise<AlertEvent | null>;
+  countByStatus(orgId: OrgId): Promise<Record<string, number>>;
 }

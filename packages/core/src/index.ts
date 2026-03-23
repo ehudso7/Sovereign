@@ -21,6 +21,8 @@ export type {
   BrowserSessionId,
   MemoryId,
   MemoryLinkId,
+  AlertRuleId,
+  AlertEventId,
   TenantContext,
   Ok,
   Err,
@@ -51,6 +53,8 @@ export {
   toBrowserSessionId,
   toMemoryId,
   toMemoryLinkId,
+  toAlertRuleId,
+  toAlertEventId,
   // Result helpers
   ok,
   err,
@@ -161,6 +165,11 @@ export type {
   MemoryLinkType,
   MemoryLink,
   CreateMemoryLinkInput,
+  AlertConditionType,
+  AlertSeverity,
+  AlertStatus,
+  AlertRule,
+  AlertEvent,
 } from "./entities.js";
 
 export { RISKY_BROWSER_ACTIONS } from "./entities.js";

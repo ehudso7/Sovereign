@@ -16,6 +16,8 @@ import type {
   BrowserSessionId,
   MemoryId,
   MemoryLinkId,
+  AlertRuleId,
+  AlertEventId,
   ISODateString,
 } from "./types.js";
 import type { MembershipId, InvitationId, OrgRole } from "./auth.js";
@@ -581,4 +583,44 @@ export interface CreateMemoryLinkInput {
   readonly linkedEntityId: string;
   readonly linkType: MemoryLinkType;
   readonly metadata?: Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 9 — Alert entities
+// ---------------------------------------------------------------------------
+
+export type AlertConditionType = "run_failed" | "run_stuck" | "browser_failed" | "connector_failed";
+export type AlertSeverity = "info" | "warning" | "critical";
+export type AlertStatus = "open" | "acknowledged" | "resolved";
+
+export interface AlertRule {
+  readonly id: AlertRuleId;
+  readonly orgId: OrgId;
+  readonly name: string;
+  readonly description: string;
+  readonly conditionType: AlertConditionType;
+  readonly thresholdMinutes: number | null;
+  readonly enabled: boolean;
+  readonly createdBy: UserId;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+export interface AlertEvent {
+  readonly id: AlertEventId;
+  readonly orgId: OrgId;
+  readonly alertRuleId: AlertRuleId | null;
+  readonly severity: AlertSeverity;
+  readonly title: string;
+  readonly message: string;
+  readonly conditionType: AlertConditionType;
+  readonly resourceType: string;
+  readonly resourceId: string | null;
+  readonly status: AlertStatus;
+  readonly acknowledgedBy: UserId | null;
+  readonly acknowledgedAt: ISODateString | null;
+  readonly resolvedAt: ISODateString | null;
+  readonly metadata: Record<string, unknown>;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
 }

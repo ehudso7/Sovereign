@@ -31,6 +31,8 @@ export type {
   BrowserSessionRepo,
   MemoryRepo,
   MemoryLinkRepo,
+  AlertRuleRepo,
+  AlertEventRepo,
 } from "./repositories/index.js";
 
 export {
@@ -53,4 +55,6 @@ export {
   PgBrowserSessionRepo,
   PgMemoryRepo,
   PgMemoryLinkRepo,
+  PgAlertRuleRepo,
+  PgAlertEventRepo,
 } from "./repositories/index.js";

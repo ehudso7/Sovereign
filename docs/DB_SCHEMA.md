@@ -346,6 +346,50 @@ Link types: source_run, source_step, source_agent, promoted_from, related
 Indexes: org_id, memory_id, (linked_entity_type, linked_entity_id)
 RLS: tenant-scoped via org_id = app.current_org_id
 
+## Alert Tables (Phase 9 — implemented)
+
+### alert_rules
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PK |
+| org_id | uuid | FK → organizations, NOT NULL |
+| name | varchar(255) | NOT NULL |
+| description | text | NOT NULL, DEFAULT '' |
+| condition_type | varchar(50) | NOT NULL |
+| threshold_minutes | integer | |
+| enabled | boolean | NOT NULL, DEFAULT true |
+| created_by | uuid | FK → users, NOT NULL |
+| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | NOT NULL, DEFAULT now() |
+
+Condition types: run_failed, run_stuck, browser_failed, connector_failed
+RLS: tenant-scoped via org_id = app.current_org_id
+
+### alert_events
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PK |
+| org_id | uuid | FK → organizations, NOT NULL |
+| alert_rule_id | uuid | FK → alert_rules |
+| severity | varchar(50) | NOT NULL, DEFAULT 'warning' |
+| title | varchar(500) | NOT NULL |
+| message | text | NOT NULL, DEFAULT '' |
+| condition_type | varchar(50) | NOT NULL |
+| resource_type | varchar(100) | NOT NULL |
+| resource_id | uuid | |
+| status | varchar(50) | NOT NULL, DEFAULT 'open' |
+| acknowledged_by | uuid | FK → users |
+| acknowledged_at | timestamptz | |
+| resolved_at | timestamptz | |
+| metadata | jsonb | NOT NULL, DEFAULT '{}' |
+| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | NOT NULL, DEFAULT now() |
+
+Severity values: info, warning, critical
+Status values: open, acknowledged, resolved
+Indexes: (org_id, status), (org_id, created_at), (org_id, condition_type)
+RLS: tenant-scoped via org_id = app.current_org_id
+
 ## Policy Tables
 
 ### policies

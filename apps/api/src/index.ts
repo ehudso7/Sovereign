@@ -13,6 +13,7 @@ import { connectorRoutes } from "./routes/connectors.js";
 import { skillRoutes } from "./routes/skills.js";
 import { browserSessionRoutes } from "./routes/browser-sessions.js";
 import { memoryRoutes } from "./routes/memories.js";
+import { missionControlRoutes } from "./routes/mission-control.js";
 import { devRoutes } from "./routes/dev.js";
 import type { AuthConfig } from "@sovereign/core";
 
@@ -63,6 +64,7 @@ server.register(connectorRoutes);
 server.register(skillRoutes);
 server.register(browserSessionRoutes);
 server.register(memoryRoutes);
+server.register(missionControlRoutes);
 
 // Dev-only routes
 if (process.env.NODE_ENV !== "production") {

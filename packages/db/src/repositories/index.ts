@@ -18,6 +18,8 @@ export type {
   BrowserSessionRepo,
   MemoryRepo,
   MemoryLinkRepo,
+  AlertRuleRepo,
+  AlertEventRepo,
 } from "./types.js";
 
 export { PgUserRepo } from "./pg-user.repo.js";
@@ -39,3 +41,4 @@ export { PgSkillInstallRepo } from "./pg-skill-install.repo.js";
 export { PgBrowserSessionRepo } from "./pg-browser-session.repo.js";
 export { PgMemoryRepo } from "./pg-memory.repo.js";
 export { PgMemoryLinkRepo } from "./pg-memory-link.repo.js";
+export { PgAlertRuleRepo, PgAlertEventRepo } from "./pg-alert.repo.js";

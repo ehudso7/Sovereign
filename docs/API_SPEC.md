@@ -394,6 +394,40 @@ Promote episodic → procedural. Auth: memory:write.
 ### GET /api/v1/memories/:memoryId/links
 Get memory links. Auth: memory:read.
 
+## Mission Control Endpoints (Phase 9 — implemented)
+
+### GET /api/v1/mission-control/overview
+Get overview metrics (run counts, avg queue wait, avg duration, failure rate, token usage, cost, tool/browser/memory counts, open alerts, recent failures).
+- Auth: observability:read
+
+### GET /api/v1/mission-control/runs
+List runs with filters. Query: `?status=&agentId=&projectId=&dateFrom=&dateTo=&limit=`
+- Auth: observability:read
+
+### GET /api/v1/mission-control/runs/:runId
+Get run detail with steps, browser sessions, tool usage, memory usage, timeline, timing.
+- Auth: observability:read
+
+### GET /api/v1/mission-control/runs/:runId/timeline
+Get ordered step timeline for a run.
+- Auth: observability:read
+
+### GET /api/v1/mission-control/runs/:runId/steps
+Get steps for a run.
+- Auth: observability:read
+
+### GET /api/v1/mission-control/runs/:runId/linked-browser-sessions
+Get browser sessions linked to a run.
+- Auth: observability:read
+
+### GET /api/v1/mission-control/alerts
+List alerts. Query: `?status=&severity=&conditionType=&limit=`
+- Auth: observability:read
+
+### POST /api/v1/mission-control/alerts/:alertId/acknowledge
+Acknowledge an open alert.
+- Auth: observability:alerts
+
 ## Policy Endpoints
 
 ### GET /api/v1/policies

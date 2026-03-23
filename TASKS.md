@@ -527,5 +527,48 @@ Grand total: 576 tests (420 unit + 156 integration)
 - [x] Lint, typecheck, build pass
 - [x] No Phase 9 work done
 
-### Phase 9–14
+### Phase 9 — Observability and Mission Control ✅
+
+#### A. Data Model
+- [x] alert_rules and alert_events tables (008_phase9_alerts.sql)
+- [x] AlertRule, AlertEvent entities in @sovereign/core
+- [x] AlertRuleId, AlertEventId branded types
+- [x] PgAlertRuleRepo, PgAlertEventRepo implementations
+- [x] RLS policies on both tables
+
+#### B. Mission Control Service
+- [x] MissionControlService with overview metrics, run filtering, run detail, timeline, browser/tool/memory linkage, alerting
+- [x] Alert generation: run_failed, run_stuck, browser_failed conditions
+- [x] Alert acknowledge with audit trail
+
+#### C. API Endpoints (8 endpoints)
+- [x] GET /api/v1/mission-control/overview
+- [x] GET /api/v1/mission-control/runs
+- [x] GET /api/v1/mission-control/runs/:runId
+- [x] GET /api/v1/mission-control/runs/:runId/timeline
+- [x] GET /api/v1/mission-control/runs/:runId/steps
+- [x] GET /api/v1/mission-control/runs/:runId/linked-browser-sessions
+- [x] GET /api/v1/mission-control/alerts
+- [x] POST /api/v1/mission-control/alerts/:alertId/acknowledge
+
+#### D. Permission Model
+- [x] observability:read (all roles)
+- [x] observability:alerts (org_owner, org_admin, org_security_admin)
+
+#### E. Web UI
+- [x] Mission Control overview page (/mission-control)
+- [x] Runs list with status filter (/mission-control/runs)
+- [x] Run detail with timeline, tool/browser/memory linkage (/mission-control/runs/:runId)
+- [x] Alerts list with acknowledge (/mission-control/alerts)
+- [x] "Mission Control" nav link in AppShell
+
+#### F. Testing
+- [x] mission-control-routes.test.ts — 30 tests
+- [x] TestAlertRuleRepo, TestAlertEventRepo in-memory repos
+- [x] Permission enforcement tests for observability:read and observability:alerts
+
+#### G. Docs
+- [x] TASKS.md, API_SPEC.md, SECURITY.md, DB_SCHEMA.md, TEST_STRATEGY.md updated
+
+### Phase 10–14
 _See ROADMAP.md for full phase details._

@@ -128,6 +128,12 @@
 - **Location**: `packages/db/src/__tests__/integration/memory-engine.test.ts` (runtime behavior section)
 - **Coverage**: Active-only retrieval, redacted/expired/deleted exclusion, kind filtering, episodic write with attribution, source_run link persistence, write→retrieve round-trip, cross-tenant runtime isolation
 
+### Mission Control Route Tests
+- **Scope**: Service-level contract tests for all 8 mission control endpoints
+- **Runner**: Vitest with in-memory test repos
+- **Location**: `apps/api/src/__tests__/routes/mission-control-routes.test.ts`
+- **Coverage**: Overview metrics (status counts, failure rate, token aggregation, alert count, recent failures), run listing with filters, run detail with steps/tool/memory linkage, timeline ordering, linked browser sessions, alert listing/filtering/acknowledgment, alert generation (run_failed, deduplication), org scoping, permission enforcement
+
 ### Chaos Tests
 - **Scope**: Worker restart during runs, DB failover, network partition
 - **Approach**: Kill workers mid-run, verify recovery

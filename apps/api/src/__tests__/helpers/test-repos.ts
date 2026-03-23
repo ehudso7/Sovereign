@@ -61,6 +61,13 @@ import type {
   CreateMemoryLinkInput,
   MemoryId,
   MemoryLinkId,
+  AlertRule,
+  AlertEvent,
+  AlertRuleId,
+  AlertEventId,
+  AlertConditionType,
+  AlertSeverity,
+  AlertStatus,
 } from "@sovereign/core";
 
 import {
@@ -82,6 +89,8 @@ import {
   toBrowserSessionId,
   toMemoryId,
   toMemoryLinkId,
+  toAlertRuleId,
+  toAlertEventId,
 } from "@sovereign/core";
 
 import type {
@@ -104,6 +113,8 @@ import type {
   BrowserSessionRepo,
   MemoryRepo,
   MemoryLinkRepo,
+  AlertRuleRepo,
+  AlertEventRepo,
 } from "@sovereign/db";
 
 // ---------------------------------------------------------------------------
@@ -1625,6 +1636,174 @@ export class TestMemoryLinkRepo implements MemoryLinkRepo {
   reset(): void { this.store.clear(); }
 }
 
+// ---------------------------------------------------------------------------
+// TestAlertRuleRepo
+// ---------------------------------------------------------------------------
+
+export class TestAlertRuleRepo implements AlertRuleRepo {
+  private readonly store = new Map<string, AlertRule>();
+
+  async create(input: {
+    orgId: OrgId;
+    name: string;
+    description?: string;
+    conditionType: string;
+    thresholdMinutes?: number;
+    enabled?: boolean;
+    createdBy: UserId;
+  }): Promise<AlertRule> {
+    const ts = now();
+    const rule: AlertRule = {
+      id: toAlertRuleId(randomUUID()),
+      orgId: input.orgId,
+      name: input.name,
+      description: input.description ?? "",
+      conditionType: input.conditionType as AlertConditionType,
+      thresholdMinutes: input.thresholdMinutes ?? null,
+      enabled: input.enabled ?? true,
+      createdBy: input.createdBy,
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.store.set(rule.id, rule);
+    return rule;
+  }
+
+  async getById(id: AlertRuleId, orgId: OrgId): Promise<AlertRule | null> {
+    const r = this.store.get(id);
+    return r && r.orgId === orgId ? r : null;
+  }
+
+  async listForOrg(orgId: OrgId, filters?: { conditionType?: string; enabled?: boolean }): Promise<AlertRule[]> {
+    return [...this.store.values()].filter((r) => {
+      if (r.orgId !== orgId) return false;
+      if (filters?.conditionType !== undefined && r.conditionType !== filters.conditionType) return false;
+      if (filters?.enabled !== undefined && r.enabled !== filters.enabled) return false;
+      return true;
+    });
+  }
+
+  async update(id: AlertRuleId, orgId: OrgId, input: { name?: string; description?: string; thresholdMinutes?: number; enabled?: boolean }): Promise<AlertRule | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return null;
+    const updated: AlertRule = {
+      ...existing,
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.thresholdMinutes !== undefined ? { thresholdMinutes: input.thresholdMinutes } : {}),
+      ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+      updatedAt: now(),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async delete(id: AlertRuleId, orgId: OrgId): Promise<boolean> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return false;
+    return this.store.delete(id);
+  }
+
+  reset(): void { this.store.clear(); }
+}
+
+// ---------------------------------------------------------------------------
+// TestAlertEventRepo
+// ---------------------------------------------------------------------------
+
+export class TestAlertEventRepo implements AlertEventRepo {
+  private readonly store = new Map<string, AlertEvent>();
+
+  async create(input: {
+    orgId: OrgId;
+    alertRuleId?: string;
+    severity: string;
+    title: string;
+    message?: string;
+    conditionType: string;
+    resourceType: string;
+    resourceId?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<AlertEvent> {
+    const ts = now();
+    const event: AlertEvent = {
+      id: toAlertEventId(randomUUID()),
+      orgId: input.orgId,
+      alertRuleId: input.alertRuleId ? toAlertRuleId(input.alertRuleId) : null,
+      severity: input.severity as AlertSeverity,
+      title: input.title,
+      message: input.message ?? "",
+      conditionType: input.conditionType as AlertConditionType,
+      resourceType: input.resourceType,
+      resourceId: input.resourceId ?? null,
+      status: "open" as AlertStatus,
+      acknowledgedBy: null,
+      acknowledgedAt: null,
+      resolvedAt: null,
+      metadata: input.metadata ?? {},
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.store.set(event.id, event);
+    return event;
+  }
+
+  async getById(id: AlertEventId, orgId: OrgId): Promise<AlertEvent | null> {
+    const e = this.store.get(id);
+    return e && e.orgId === orgId ? e : null;
+  }
+
+  async listForOrg(orgId: OrgId, filters?: { status?: string; severity?: string; conditionType?: string; limit?: number }): Promise<AlertEvent[]> {
+    const results = [...this.store.values()].filter((e) => {
+      if (e.orgId !== orgId) return false;
+      if (filters?.status !== undefined && e.status !== filters.status) return false;
+      if (filters?.severity !== undefined && e.severity !== filters.severity) return false;
+      if (filters?.conditionType !== undefined && e.conditionType !== filters.conditionType) return false;
+      return true;
+    });
+    if (filters?.limit !== undefined) return results.slice(0, filters.limit);
+    return results;
+  }
+
+  async acknowledge(id: AlertEventId, orgId: OrgId, userId: UserId): Promise<AlertEvent | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return null;
+    const updated: AlertEvent = {
+      ...existing,
+      status: "acknowledged" as AlertStatus,
+      acknowledgedBy: userId,
+      acknowledgedAt: now(),
+      updatedAt: now(),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async resolve(id: AlertEventId, orgId: OrgId): Promise<AlertEvent | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return null;
+    const updated: AlertEvent = {
+      ...existing,
+      status: "resolved" as AlertStatus,
+      resolvedAt: now(),
+      updatedAt: now(),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async countByStatus(orgId: OrgId): Promise<Record<string, number>> {
+    const counts: Record<string, number> = {};
+    for (const e of this.store.values()) {
+      if (e.orgId !== orgId) continue;
+      counts[e.status] = (counts[e.status] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  reset(): void { this.store.clear(); }
+}
+
 export interface TestRepos {
   users: TestUserRepo;
   orgs: TestOrgRepo;
@@ -1645,6 +1824,8 @@ export interface TestRepos {
   browserSessions: TestBrowserSessionRepo;
   memories: TestMemoryRepo;
   memoryLinks: TestMemoryLinkRepo;
+  alertRules: TestAlertRuleRepo;
+  alertEvents: TestAlertEventRepo;
 }
 
 /**
@@ -1670,6 +1851,8 @@ export function createTestRepos(): TestRepos {
   const browserSessions = new TestBrowserSessionRepo();
   const memories = new TestMemoryRepo();
   const memoryLinks = new TestMemoryLinkRepo();
+  const alertRules = new TestAlertRuleRepo();
+  const alertEvents = new TestAlertEventRepo();
 
   // Wire cross-repo references
   memberships._setUserRepo(users);
@@ -1695,6 +1878,8 @@ export function createTestRepos(): TestRepos {
     browserSessions,
     memories,
     memoryLinks,
+    alertRules,
+    alertEvents,
   };
 }
 
@@ -1721,4 +1906,6 @@ export function resetAllRepos(repos: TestRepos): void {
   repos.browserSessions.reset();
   repos.memories.reset();
   repos.memoryLinks.reset();
+  repos.alertRules.reset();
+  repos.alertEvents.reset();
 }

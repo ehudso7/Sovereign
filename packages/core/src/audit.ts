@@ -68,7 +68,8 @@ export type AuditAction =
   | "memory.expired"
   | "memory.deleted"
   | "memory.promoted"
-  | "memory.retrieved_for_run";
+  | "memory.retrieved_for_run"
+  | "alert.acknowledged";
 
 // ---------------------------------------------------------------------------
 // Audit actor types

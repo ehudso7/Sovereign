@@ -171,6 +171,12 @@ Role management rules:
 - Browser state machine enforces terminal states (closed, failed) — no resurrection possible
 - Artifact keys stored in session metadata, actual artifacts stored in org-scoped S3 paths
 
+#### Observability Permissions (Phase 9)
+| Permission | org_owner | org_admin | org_member | org_billing_admin | org_security_admin |
+|------------|:---------:|:---------:|:----------:|:-----------------:|:------------------:|
+| observability:read | Y | Y | Y | Y | Y |
+| observability:alerts | Y | Y | - | - | Y |
+
 ### Memory Security (Phase 8 — implemented)
 - Every memory write is attributable (createdBy, sourceRunId, sourceAgentId)
 - Memory reads scoped to org via RLS + repo-level org_id filtering

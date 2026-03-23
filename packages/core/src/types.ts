@@ -30,6 +30,8 @@ export type SkillInstallId = Brand<string, "SkillInstallId">;
 export type BrowserSessionId = Brand<string, "BrowserSessionId">;
 export type MemoryId = Brand<string, "MemoryId">;
 export type MemoryLinkId = Brand<string, "MemoryLinkId">;
+export type AlertRuleId = Brand<string, "AlertRuleId">;
+export type AlertEventId = Brand<string, "AlertEventId">;
 export const toSkillId = (id: string): SkillId => id as SkillId;
 export const toSkillVersionId = (id: string): SkillVersionId => id as SkillVersionId;
 export const toConnectorInstallId = (id: string): ConnectorInstallId => id as ConnectorInstallId;
@@ -37,6 +39,8 @@ export const toSkillInstallId = (id: string): SkillInstallId => id as SkillInsta
 export const toBrowserSessionId = (id: string): BrowserSessionId => id as BrowserSessionId;
 export const toMemoryId = (id: string): MemoryId => id as MemoryId;
 export const toMemoryLinkId = (id: string): MemoryLinkId => id as MemoryLinkId;
+export const toAlertRuleId = (id: string): AlertRuleId => id as AlertRuleId;
+export const toAlertEventId = (id: string): AlertEventId => id as AlertEventId;
 
 // ---------------------------------------------------------------------------
 // Tenant context – threaded through every request
