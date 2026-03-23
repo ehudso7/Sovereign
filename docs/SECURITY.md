@@ -158,12 +158,18 @@ Role management rules:
 - No agent can escalate its own permissions
 - All agent actions traced and attributable
 
-### Browser Session Security
-- Browser sessions run in isolated containers
-- No persistent state between sessions
-- Secrets injected via secure channel, never in page context
-- Session recordings stored encrypted
-- Live takeover requires authenticated approval
+### Browser Session Security (Phase 7 — implemented)
+- Browser sessions run in managed Playwright contexts (headless, sandboxed)
+- Sessions are org-scoped and linked to runs — cross-tenant access impossible via RLS + repo enforcement
+- Session references (session_ref) are opaque identifiers, never raw credentials
+- Human takeover requires browser:takeover permission (org_owner, org_admin only)
+- Risky actions (upload_file, download_file) are policy-gated: denied by default unless explicitly allowed via session metadata
+- Blocked risky actions emit browser.action_blocked audit events
+- Allowed uploads/downloads emit browser.uploaded / browser.downloaded audit events with evidence
+- All state transitions are validated through the browser state machine
+- Sessions are cleaned up on closure/failure via session manager idle timeout
+- Browser state machine enforces terminal states (closed, failed) — no resurrection possible
+- Artifact keys stored in session metadata, actual artifacts stored in org-scoped S3 paths
 
 ### Memory Security
 - Memory writes require provenance (source run + step)

@@ -14,11 +14,13 @@ import type {
   ConnectorId,
   ConnectorInstallId,
   SkillId,
+  BrowserSessionId,
 
   OrgRole,
   AgentStatus,
   RunStatus,
   RunStepStatus,
+  BrowserSessionStatus,
   User,
   Organization,
   Membership,
@@ -44,6 +46,8 @@ import type {
   CreateConnectorInstallInput,
   Skill,
   SkillInstall,
+  BrowserSession,
+  CreateBrowserSessionInput,
   ISODateString,
 } from "@sovereign/core";
 
@@ -371,4 +375,27 @@ export interface SkillInstallRepo {
   getBySkillId(skillId: SkillId, orgId: OrgId): Promise<SkillInstall | null>;
   listForOrg(orgId: OrgId, filters?: { enabled?: boolean }): Promise<SkillInstall[]>;
   delete(skillId: SkillId, orgId: OrgId): Promise<boolean>;
+}
+
+// ---------------------------------------------------------------------------
+// Browser Session Repo (Phase 7) — org-scoped
+// ---------------------------------------------------------------------------
+
+export interface BrowserSessionRepo {
+  create(input: CreateBrowserSessionInput): Promise<BrowserSession>;
+  getById(id: BrowserSessionId, orgId: OrgId): Promise<BrowserSession | null>;
+  listForOrg(orgId: OrgId, filters?: { runId?: RunId; status?: BrowserSessionStatus }): Promise<BrowserSession[]>;
+  listForRun(runId: RunId, orgId: OrgId): Promise<BrowserSession[]>;
+  updateStatus(id: BrowserSessionId, orgId: OrgId, status: BrowserSessionStatus, extras?: {
+    currentUrl?: string;
+    humanTakeover?: boolean;
+    takeoverBy?: UserId | null;
+    sessionRef?: string;
+    artifactKeys?: readonly string[];
+    metadata?: Record<string, unknown>;
+    startedAt?: ISODateString;
+    lastActivityAt?: ISODateString;
+    endedAt?: ISODateString;
+  }): Promise<BrowserSession | null>;
+  delete(id: BrowserSessionId, orgId: OrgId): Promise<boolean>;
 }

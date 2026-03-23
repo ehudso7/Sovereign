@@ -15,6 +15,7 @@ export type {
   ConnectorCredentialRepo,
   SkillRepo,
   SkillInstallRepo,
+  BrowserSessionRepo,
 } from "./types.js";
 
 export { PgUserRepo } from "./pg-user.repo.js";
@@ -33,3 +34,4 @@ export { PgConnectorInstallRepo } from "./pg-connector-install.repo.js";
 export { PgConnectorCredentialRepo } from "./pg-connector-credential.repo.js";
 export { PgSkillRepo } from "./pg-skill.repo.js";
 export { PgSkillInstallRepo } from "./pg-skill-install.repo.js";
+export { PgBrowserSessionRepo } from "./pg-browser-session.repo.js";

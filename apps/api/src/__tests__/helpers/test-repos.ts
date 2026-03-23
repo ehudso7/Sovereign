@@ -16,6 +16,7 @@ import type {
   ConnectorId,
   ConnectorInstallId,
   SkillId,
+  BrowserSessionId,
   OrgRole,
   ISODateString,
   User,
@@ -47,6 +48,9 @@ import type {
   CreateConnectorInstallInput,
   Skill,
   SkillInstall,
+  BrowserSession,
+  BrowserSessionStatus,
+  CreateBrowserSessionInput,
 } from "@sovereign/core";
 
 import {
@@ -65,6 +69,7 @@ import {
   toConnectorInstallId,
   toSkillId,
   toSkillInstallId,
+  toBrowserSessionId,
 } from "@sovereign/core";
 
 import type {
@@ -84,6 +89,7 @@ import type {
   ConnectorCredentialRepo,
   SkillRepo,
   SkillInstallRepo,
+  BrowserSessionRepo,
 } from "@sovereign/db";
 
 // ---------------------------------------------------------------------------
@@ -1355,6 +1361,103 @@ export class TestSkillInstallRepo implements SkillInstallRepo {
 // Factory & reset helpers
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// TestBrowserSessionRepo
+// ---------------------------------------------------------------------------
+
+export class TestBrowserSessionRepo implements BrowserSessionRepo {
+  private readonly store = new Map<string, BrowserSession>();
+
+  async create(input: CreateBrowserSessionInput): Promise<BrowserSession> {
+    const session: BrowserSession = {
+      id: toBrowserSessionId(randomUUID()),
+      orgId: input.orgId,
+      runId: input.runId,
+      agentId: input.agentId,
+      status: "provisioning",
+      browserType: input.browserType ?? "chromium",
+      currentUrl: null,
+      humanTakeover: false,
+      takeoverBy: null,
+      sessionRef: null,
+      artifactKeys: [],
+      metadata: {},
+      createdBy: input.createdBy,
+      startedAt: null,
+      lastActivityAt: null,
+      endedAt: null,
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    this.store.set(session.id, session);
+    return session;
+  }
+
+  async getById(id: BrowserSessionId, orgId: OrgId): Promise<BrowserSession | null> {
+    const s = this.store.get(id);
+    return s && s.orgId === orgId ? s : null;
+  }
+
+  async listForOrg(orgId: OrgId, filters?: { runId?: RunId; status?: BrowserSessionStatus }): Promise<BrowserSession[]> {
+    return [...this.store.values()].filter((s) => {
+      if (s.orgId !== orgId) return false;
+      if (filters?.runId && s.runId !== filters.runId) return false;
+      if (filters?.status && s.status !== filters.status) return false;
+      return true;
+    });
+  }
+
+  async listForRun(runId: RunId, orgId: OrgId): Promise<BrowserSession[]> {
+    return [...this.store.values()].filter((s) => s.runId === runId && s.orgId === orgId);
+  }
+
+  async updateStatus(
+    id: BrowserSessionId,
+    orgId: OrgId,
+    status: BrowserSessionStatus,
+    extras?: {
+      currentUrl?: string;
+      humanTakeover?: boolean;
+      takeoverBy?: UserId | null;
+      sessionRef?: string;
+      artifactKeys?: readonly string[];
+      metadata?: Record<string, unknown>;
+      startedAt?: ISODateString;
+      lastActivityAt?: ISODateString;
+      endedAt?: ISODateString;
+    },
+  ): Promise<BrowserSession | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return null;
+    const updated: BrowserSession = {
+      ...existing,
+      status,
+      currentUrl: extras?.currentUrl ?? existing.currentUrl,
+      humanTakeover: extras?.humanTakeover ?? existing.humanTakeover,
+      takeoverBy: extras?.takeoverBy !== undefined ? extras.takeoverBy : existing.takeoverBy,
+      sessionRef: extras?.sessionRef ?? existing.sessionRef,
+      artifactKeys: extras?.artifactKeys ?? existing.artifactKeys,
+      metadata: extras?.metadata ?? existing.metadata,
+      startedAt: extras?.startedAt ?? existing.startedAt,
+      lastActivityAt: extras?.lastActivityAt ?? existing.lastActivityAt,
+      endedAt: extras?.endedAt ?? existing.endedAt,
+      updatedAt: now(),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async delete(id: BrowserSessionId, orgId: OrgId): Promise<boolean> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return false;
+    return this.store.delete(id);
+  }
+
+  reset(): void {
+    this.store.clear();
+  }
+}
+
 export interface TestRepos {
   users: TestUserRepo;
   orgs: TestOrgRepo;
@@ -1372,6 +1475,7 @@ export interface TestRepos {
   connectorCredentials: TestConnectorCredentialRepo;
   skills: TestSkillRepo;
   skillInstalls: TestSkillInstallRepo;
+  browserSessions: TestBrowserSessionRepo;
 }
 
 /**
@@ -1394,6 +1498,7 @@ export function createTestRepos(): TestRepos {
   const connectorCredentials = new TestConnectorCredentialRepo();
   const skills = new TestSkillRepo();
   const skillInstalls = new TestSkillInstallRepo();
+  const browserSessions = new TestBrowserSessionRepo();
 
   // Wire cross-repo references
   memberships._setUserRepo(users);
@@ -1416,6 +1521,7 @@ export function createTestRepos(): TestRepos {
     connectorCredentials,
     skills,
     skillInstalls,
+    browserSessions,
   };
 }
 
@@ -1439,4 +1545,5 @@ export function resetAllRepos(repos: TestRepos): void {
   repos.connectorCredentials.reset();
   repos.skills.reset();
   repos.skillInstalls.reset();
+  repos.browserSessions.reset();
 }

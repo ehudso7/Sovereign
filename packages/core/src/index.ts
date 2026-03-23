@@ -18,6 +18,7 @@ export type {
   SkillVersionId,
   ConnectorInstallId,
   SkillInstallId,
+  BrowserSessionId,
   TenantContext,
   Ok,
   Err,
@@ -45,6 +46,7 @@ export {
   toSkillVersionId,
   toConnectorInstallId,
   toSkillInstallId,
+  toBrowserSessionId,
   // Result helpers
   ok,
   err,
@@ -140,7 +142,15 @@ export type {
   SkillTrustTier,
   Skill,
   SkillInstall,
+  BrowserSessionStatus,
+  BrowserActionType,
+  BrowserSession,
+  CreateBrowserSessionInput,
+  BrowserAction,
+  BrowserActionResult,
 } from "./entities.js";
+
+export { RISKY_BROWSER_ACTIONS } from "./entities.js";
 
 // ---------------------------------------------------------------------------
 // Audit types (Phase 2)
@@ -172,6 +182,17 @@ export {
   isTerminal,
   TERMINAL_STATES,
 } from "./run-state-machine.js";
+
+// ---------------------------------------------------------------------------
+// Browser session state machine (Phase 7)
+// ---------------------------------------------------------------------------
+
+export {
+  isValidBrowserTransition,
+  assertBrowserTransition,
+  isBrowserTerminal,
+  BROWSER_TERMINAL_STATES,
+} from "./browser-state-machine.js";
 
 export type {
   AuthService,

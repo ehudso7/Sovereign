@@ -342,5 +342,88 @@
 - [x] TEST_STRATEGY.md: connector hub integration test section
 - [x] TASKS.md: remediation section
 
-### Phase 7–14
+### Phase 7 — Browser + Computer Action Plane ✅
+
+#### A. Data Model and Persistence
+- [x] BrowserSessionId branded type in packages/core/src/types.ts
+- [x] BrowserSession, BrowserAction, BrowserActionResult entities in entities.ts
+- [x] BrowserSessionStatus state enum (provisioning, ready, active, takeover_requested, human_control, closing, closed, failed)
+- [x] BrowserActionType enum (navigate, click, type, select, wait_for_selector, extract_text, screenshot, upload_file, download_file)
+- [x] RISKY_BROWSER_ACTIONS constant for policy gating
+- [x] Migration 006_phase7_browser.sql with browser_sessions table, indexes, RLS
+- [x] BrowserSessionRepo interface in packages/db
+- [x] PgBrowserSessionRepo implementation
+
+#### B. Browser Session State Machine
+- [x] browser-state-machine.ts with valid transitions
+- [x] isValidBrowserTransition, assertBrowserTransition, isBrowserTerminal
+- [x] Terminal states: closed, failed
+- [x] All transitions validated centrally
+
+#### C. Browser Execution Provider Abstraction
+- [x] BrowserProvider interface (launch, isAvailable)
+- [x] BrowserContext interface (navigate, click, type, select, etc.)
+- [x] executeBrowserAction dispatcher
+- [x] PlaywrightProvider implementation (chromium, firefox, webkit)
+
+#### D. Worker-Browser Implementation
+- [x] SessionManager for in-process browser session management
+- [x] PlaywrightProvider with headless browser launching
+- [x] Idle session cleanup
+- [x] Graceful shutdown with session cleanup
+- [x] Entry point with Playwright availability check
+
+#### E. Browser Action Model
+- [x] navigate, click, type, select, wait_for_selector, extract_text, screenshot, upload_file, download_file
+- [x] Actions validated with required parameters
+- [x] Error handling for missing parameters and context failures
+
+#### F. Policy and Approval Gating
+- [x] RISKY_BROWSER_ACTIONS: upload_file, download_file
+- [x] checkActionPolicy server-side enforcement
+- [x] Risky actions blocked by default unless session metadata.allowRiskyActions = true
+- [x] browser.action_blocked audit events for denied actions
+- [x] browser.downloaded / browser.uploaded audit events for allowed risky actions
+
+#### G. API Implementation
+- [x] POST /api/v1/browser-sessions — create session
+- [x] GET /api/v1/browser-sessions — list sessions (with status/runId filters)
+- [x] GET /api/v1/browser-sessions/:sessionId — get session detail
+- [x] GET /api/v1/browser-sessions/:sessionId/artifacts — list artifacts
+- [x] POST /api/v1/browser-sessions/:sessionId/takeover — request takeover
+- [x] POST /api/v1/browser-sessions/:sessionId/release — release takeover
+- [x] POST /api/v1/browser-sessions/:sessionId/close — close session
+
+#### H. Permission Model
+- [x] browser:read — all roles
+- [x] browser:control — org_owner, org_admin
+- [x] browser:takeover — org_owner, org_admin
+
+#### I. Minimal Web UI
+- [x] Browser sessions list page with status filters
+- [x] Browser session detail page with metadata, artifacts, controls
+- [x] Takeover/Release/Close controls with permission-gating
+- [x] Navigation link in app shell
+- [x] Empty/error/loading/forbidden states
+
+#### J. Audit Events
+- [x] browser.session_created
+- [x] browser.takeover_requested
+- [x] browser.takeover_started
+- [x] browser.takeover_released
+- [x] browser.session_closed
+- [x] browser.action_blocked
+- [x] browser.downloaded
+- [x] browser.uploaded
+
+#### K. Testing
+- [x] browser-state-machine.test.ts — state transition validation (17 valid, 10 invalid)
+- [x] browser-session.service.test.ts — unit tests with mock repos
+- [x] browser-session-permissions.test.ts — permission matrix verification
+- [x] browser-session-routes.test.ts — service-level contract tests
+- [x] browser-sessions.test.ts — PostgreSQL integration (CRUD, filters, tenant isolation, audit)
+- [x] browser-provider.test.ts — action execution with mock context
+- [x] session-manager.test.ts — session lifecycle management
+
+### Phase 8–14
 _See ROADMAP.md for full phase details._

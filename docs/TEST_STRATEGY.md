@@ -71,6 +71,35 @@
 - **Location**: `packages/db/src/__tests__/integration/connector-hub.test.ts`
 - **Coverage**: Catalog CRUD, install/revoke, credential storage, skill installs, tenant isolation, audit events, end-to-end tool-enabled run proof
 
+### Browser Session Integration Tests
+- **Scope**: Browser session CRUD, state transitions, takeover/release, tenant isolation, audit events
+- **Runner**: Vitest with real PostgreSQL
+- **Location**: `packages/db/src/__tests__/integration/browser-sessions.test.ts`
+- **Coverage**: Create/retrieve, list with filters, status updates, takeover fields, tenant isolation (read/update/delete), audit event persistence
+
+### Browser Worker Tests
+- **Scope**: Browser action execution, session management, Playwright provider
+- **Runner**: Vitest with mock contexts
+- **Location**: `apps/worker-browser/src/__tests/`
+- **Coverage**: All 9 action types, parameter validation, error handling, session registration/removal/cleanup
+
+### Browser Session Service Tests
+- **Scope**: Service-level business logic with mock repos
+- **Runner**: Vitest
+- **Location**: `apps/api/src/__tests__/services/browser-session.service.test.ts`
+- **Coverage**: Create, get, takeover, release, close, policy gating (allow/block)
+
+### Browser Session Permission Tests
+- **Scope**: Permission matrix verification for browser:read, browser:control, browser:takeover
+- **Runner**: Vitest
+- **Location**: `apps/api/src/__tests__/services/browser-session-permissions.test.ts`
+
+### Browser Session Route Tests
+- **Scope**: Service-level contract tests for all browser session endpoints
+- **Runner**: Vitest with in-memory test repos
+- **Location**: `apps/api/src/__tests__/routes/browser-session-routes.test.ts`
+- **Coverage**: Create, get, list, takeover/release, close, audit events, policy gating, tenant isolation
+
 ### Chaos Tests
 - **Scope**: Worker restart during runs, DB failover, network partition
 - **Approach**: Kill workers mid-run, verify recovery

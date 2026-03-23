@@ -11,6 +11,7 @@ import { agentRoutes } from "./routes/agents.js";
 import { runRoutes } from "./routes/runs.js";
 import { connectorRoutes } from "./routes/connectors.js";
 import { skillRoutes } from "./routes/skills.js";
+import { browserSessionRoutes } from "./routes/browser-sessions.js";
 import { devRoutes } from "./routes/dev.js";
 import type { AuthConfig } from "@sovereign/core";
 
@@ -59,6 +60,7 @@ server.register(agentRoutes);
 server.register(runRoutes);
 server.register(connectorRoutes);
 server.register(skillRoutes);
+server.register(browserSessionRoutes);
 
 // Dev-only routes
 if (process.env.NODE_ENV !== "production") {

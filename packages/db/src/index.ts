@@ -28,6 +28,7 @@ export type {
   ConnectorCredentialRepo,
   SkillRepo,
   SkillInstallRepo,
+  BrowserSessionRepo,
 } from "./repositories/index.js";
 
 export {
@@ -47,4 +48,5 @@ export {
   PgConnectorCredentialRepo,
   PgSkillRepo,
   PgSkillInstallRepo,
+  PgBrowserSessionRepo,
 } from "./repositories/index.js";

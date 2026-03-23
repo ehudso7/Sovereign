@@ -53,7 +53,15 @@ export type AuditAction =
   | "connector.revoked"
   | "skill.installed"
   | "skill.uninstalled"
-  | "run.tool_used";
+  | "run.tool_used"
+  | "browser.session_created"
+  | "browser.takeover_requested"
+  | "browser.takeover_started"
+  | "browser.takeover_released"
+  | "browser.session_closed"
+  | "browser.action_blocked"
+  | "browser.downloaded"
+  | "browser.uploaded";
 
 // ---------------------------------------------------------------------------
 // Audit actor types
