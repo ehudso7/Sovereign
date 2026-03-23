@@ -48,6 +48,9 @@ importers:
       '@sovereign/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@sovereign/gateway-mcp':
+        specifier: workspace:*
+        version: link:../gateway-mcp
       fastify:
         specifier: ^5.0.0
         version: 5.8.4
@@ -104,6 +107,9 @@ importers:
       '@sovereign/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@sovereign/db':
+        specifier: workspace:*
+        version: link:../../packages/db
     devDependencies:
       '@types/node':
         specifier: ^22.10.0
@@ -191,6 +197,9 @@ importers:
       '@sovereign/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@sovereign/gateway-mcp':
+        specifier: workspace:*
+        version: link:../gateway-mcp
       '@temporalio/activity':
         specifier: 1.11.6
         version: 1.11.6

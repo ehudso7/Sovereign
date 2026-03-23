@@ -28,6 +28,11 @@ import {
   PgAgentVersionRepo,
   PgRunRepo,
   PgRunStepRepo,
+  PgConnectorRepo,
+  PgConnectorInstallRepo,
+  PgConnectorCredentialRepo,
+  PgSkillRepo,
+  PgSkillInstallRepo,
 } from "@sovereign/db";
 import { PgAuthService } from "./auth.service.js";
 import { PgUserService } from "./user.service.js";
@@ -38,6 +43,9 @@ import { PgProjectService } from "./project.service.js";
 import { PgAuditEmitter } from "./audit.service.js";
 import { PgAgentStudioService } from "./agent-studio.service.js";
 import { PgRunService } from "./run.service.js";
+import { PgConnectorService } from "./connector.service.js";
+import { PgSkillService } from "./skill.service.js";
+import { BUILTIN_CONNECTORS, BUILTIN_SKILLS } from "@sovereign/gateway-mcp";
 
 export interface ServiceRegistry {
   auth: AuthService & { signInToOrg: PgAuthService["signInToOrg"] };
@@ -56,9 +64,55 @@ export interface ServiceRegistry {
   agentStudioForOrg: (orgId: OrgId) => AgentStudioService;
   /** Get a run service scoped to a specific org */
   runForOrg: (orgId: OrgId) => RunService;
+  /** Get a connector service scoped to a specific org */
+  connectorForOrg: (orgId: OrgId) => PgConnectorService;
+  /** Get a skill service scoped to a specific org */
+  skillForOrg: (orgId: OrgId) => PgSkillService;
 }
 
 let _registry: ServiceRegistry | null = null;
+
+/**
+ * Seed the global connector and skill catalogs from BUILTIN_CONNECTORS/BUILTIN_SKILLS.
+ * Upserts — only inserts if the slug doesn't already exist.
+ */
+async function seedCatalog(db: DatabaseClient): Promise<void> {
+  const unscopedDb = db.unscoped();
+  const connectorRepo = new PgConnectorRepo(unscopedDb);
+  const skillRepo = new PgSkillRepo(unscopedDb);
+
+  for (const c of BUILTIN_CONNECTORS) {
+    const existing = await connectorRepo.getBySlug(c.slug);
+    if (!existing) {
+      await connectorRepo.create({
+        slug: c.slug,
+        name: c.name,
+        description: c.description,
+        category: c.category,
+        trustTier: c.trustTier,
+        authMode: c.authMode,
+        status: "active",
+        tools: c.tools,
+        scopes: c.scopes,
+        metadata: {},
+      });
+    }
+  }
+
+  for (const s of BUILTIN_SKILLS) {
+    const existing = await skillRepo.getBySlug(s.slug);
+    if (!existing) {
+      await skillRepo.create({
+        slug: s.slug,
+        name: s.name,
+        description: s.description,
+        trustTier: s.trustTier,
+        connectorSlugs: s.connectorSlugs,
+        metadata: {},
+      });
+    }
+  }
+}
 
 export function initServices(authConfig: AuthConfig, db: DatabaseClient): ServiceRegistry {
   const unscopedDb = db.unscoped();
@@ -69,6 +123,10 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
   const membershipRepo = new PgMembershipRepo(unscopedDb);
   const invitationRepo = new PgInvitationRepo(unscopedDb);
   const sessionRepo = new PgSessionRepo(unscopedDb);
+
+  // Global catalog repos (unscoped)
+  const connectorRepo = new PgConnectorRepo(unscopedDb);
+  const skillRepo = new PgSkillRepo(unscopedDb);
 
   // Factory functions for tenant-scoped repos
   const projectsForOrg = (orgId: OrgId): ProjectService => {
@@ -107,6 +165,25 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     return new PgRunService(runRepo, runStepRepo, agentRepo, versionRepo, auditEmitter);
   };
 
+  // Factory for org-scoped connector service
+  const connectorForOrg = (orgId: OrgId): PgConnectorService => {
+    const tenantDb = db.forTenant(orgId);
+    const installRepo = new PgConnectorInstallRepo(tenantDb);
+    const credentialRepo = new PgConnectorCredentialRepo(tenantDb);
+    const auditRepo = new PgAuditRepo(tenantDb);
+    const auditEmitter = new PgAuditEmitter(auditRepo);
+    return new PgConnectorService(connectorRepo, installRepo, credentialRepo, auditEmitter);
+  };
+
+  // Factory for org-scoped skill service
+  const skillForOrg = (orgId: OrgId): PgSkillService => {
+    const tenantDb = db.forTenant(orgId);
+    const installRepo = new PgSkillInstallRepo(tenantDb);
+    const auditRepo = new PgAuditRepo(tenantDb);
+    const auditEmitter = new PgAuditEmitter(auditRepo);
+    return new PgSkillService(skillRepo, installRepo, auditEmitter);
+  };
+
   // Default audit emitter uses unscoped DB for cross-org operations (like org.created)
   // Services that need org-scoped audit will use auditForOrg
   const defaultAuditRepo = new PgAuditRepo(db.forTenant("00000000-0000-0000-0000-000000000000" as OrgId));
@@ -142,7 +219,15 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     auditForOrg,
     agentStudioForOrg,
     runForOrg,
+    connectorForOrg,
+    skillForOrg,
   };
+
+  // Seed catalog asynchronously (non-blocking, log errors)
+  seedCatalog(db).catch((e) => {
+    // eslint-disable-next-line no-console
+    console.warn("[services] Failed to seed connector/skill catalog:", e instanceof Error ? e.message : e);
+  });
 
   return _registry;
 }

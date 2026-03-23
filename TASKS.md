@@ -249,5 +249,75 @@
 - [x] Unit tests: 166 (core: 47, api: 113, worker-orchestrator: 6)
 - [x] Integration tests: 88 (migrations: 8, repositories: 28, agent-studio: 16, rls: 17, run-engine: 19)
 
-### Phase 6–14
+### Phase 6 — Tooling and Connector Hub (In Progress)
+
+#### MCP Gateway Runtime (apps/gateway-mcp)
+- [x] Tool registry with register, get, list, execute, and clear operations
+- [x] Echo connector — no-auth proof connector (echo, current_time tools)
+- [x] Weather connector — credentialed proof connector with dev-safe simulation (get_weather, get_forecast tools)
+- [x] Connector registration barrel (registerBuiltinConnectors)
+- [x] Catalog definitions (BUILTIN_CONNECTORS, BUILTIN_SKILLS seed data)
+- [x] Gateway entry point with exports for API/worker consumption
+- [x] Package exports configured for workspace resolution
+
+#### Data Layer
+- [x] Connector, ConnectorInstall, Skill, SkillInstall entity types in @sovereign/core
+- [x] ConnectorRepo, ConnectorInstallRepo, ConnectorCredentialRepo, SkillRepo, SkillInstallRepo interfaces
+- [x] PgConnectorRepo implementation (unscoped, global catalog)
+- [x] PgConnectorInstallRepo implementation (tenant-scoped with RLS)
+- [x] PgConnectorCredentialRepo implementation (tenant-scoped with upsert)
+- [x] PgSkillRepo implementation (unscoped, global catalog)
+- [x] PgSkillInstallRepo implementation (tenant-scoped with RLS)
+- [x] Audit actions: connector.installed, connector.configured, connector.tested, connector.revoked, skill.installed, skill.uninstalled
+
+#### Service Layer
+- [x] PgConnectorService — catalog listing, install, configure, test, revoke, scope retrieval
+- [x] PgSkillService — catalog listing, install, uninstall
+
+#### API Endpoints
+- [x] GET /api/v1/connectors — list connector catalog
+- [x] GET /api/v1/connectors/installed — list installed connectors for org
+- [x] GET /api/v1/connectors/:connectorId — connector detail
+- [x] GET /api/v1/connectors/:connectorId/scopes — connector scopes
+- [x] POST /api/v1/connectors/:connectorId/install — install connector
+- [x] PATCH /api/v1/connectors/:connectorId/configure — configure credentials/settings
+- [x] POST /api/v1/connectors/:connectorId/test — test connector
+- [x] POST /api/v1/connectors/:connectorId/revoke — revoke connector
+- [x] GET /api/v1/skills — list skill catalog
+- [x] GET /api/v1/skills/installed — list installed skills for org
+- [x] GET /api/v1/skills/:skillId — skill detail
+- [x] POST /api/v1/skills/:skillId/install — install skill
+- [x] POST /api/v1/skills/:skillId/uninstall — uninstall skill
+
+#### Permission Model
+- [x] connector:read (all roles)
+- [x] connector:install (org_owner, org_admin)
+- [x] connector:configure (org_owner, org_admin)
+- [x] connector:test (org_owner, org_admin)
+- [x] connector:revoke (org_owner, org_admin)
+- [x] skill:read (all roles)
+- [x] skill:install (org_owner, org_admin)
+- [x] skill:uninstall (org_owner, org_admin)
+
+#### Web UI
+- [x] Connector catalog page (/connectors) with trust badges and category filter
+- [x] Connector detail page (/connectors/:id) with install/configure/test/revoke controls
+- [x] Skills catalog page (/skills) with install/uninstall
+- [x] "Connectors" and "Skills" nav links in AppShell
+
+#### Runtime Integration
+- [x] Worker-orchestrator executeAgent supports tool_call steps
+- [x] Connector credentials loaded from DB for tool execution
+- [x] Tool execution results recorded as run steps
+
+#### Database Migration
+- [x] 005_phase6_connectors.sql (connectors, connector_installs, connector_credentials, skills, skill_installs)
+- [x] RLS policies on org-scoped tables
+
+#### Proof Connectors/Skills
+- [x] Echo connector (no-auth): echo, current_time tools
+- [x] Weather connector (api_key): get_weather, get_forecast tools
+- [x] Research Assistant skill (bundles echo + weather)
+
+### Phase 7–14
 _See ROADMAP.md for full phase details._

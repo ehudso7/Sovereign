@@ -137,43 +137,63 @@ All tables include `org_id` for tenant isolation. All timestamps are UTC. All ID
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | **UNIQUE** | | (skill_id, version) |
 
-### connectors
+### connectors (Phase 6 — global catalog, not org-scoped)
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | uuid | PK |
-| org_id | uuid | FK → organizations |
+| slug | varchar(63) | UNIQUE, NOT NULL |
 | name | varchar(255) | NOT NULL |
-| type | varchar(100) | NOT NULL |
+| description | text | |
+| category | varchar(100) | NOT NULL, DEFAULT 'custom' |
 | trust_tier | varchar(50) | NOT NULL, DEFAULT 'untrusted' |
-| mcp_server_url | text | |
+| auth_mode | varchar(50) | NOT NULL, DEFAULT 'none' |
+| status | varchar(50) | NOT NULL, DEFAULT 'active' |
+| tools | jsonb | NOT NULL, DEFAULT '[]' |
+| scopes | jsonb | NOT NULL, DEFAULT '[]' |
 | metadata | jsonb | DEFAULT '{}' |
-| enabled | boolean | DEFAULT true |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | NOT NULL, DEFAULT now() |
 
-### connector_credentials
+### connector_installs (Phase 6 — org-scoped installations)
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | uuid | PK |
 | org_id | uuid | FK → organizations, NOT NULL |
 | connector_id | uuid | FK → connectors, NOT NULL |
+| connector_slug | varchar(63) | NOT NULL |
+| enabled | boolean | NOT NULL, DEFAULT true |
+| config | jsonb | NOT NULL, DEFAULT '{}' |
+| granted_scopes | jsonb | NOT NULL, DEFAULT '[]' |
+| installed_by | uuid | FK → users, NOT NULL |
+| updated_by | uuid | FK → users |
+| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | NOT NULL, DEFAULT now() |
+| **UNIQUE** | | (org_id, connector_id) |
+
+### connector_credentials (Phase 6 — org-scoped, encrypted)
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PK |
+| org_id | uuid | FK → organizations, NOT NULL |
+| connector_install_id | uuid | FK → connector_installs, UNIQUE, NOT NULL |
 | credential_type | varchar(50) | NOT NULL |
-| encrypted_data | bytea | NOT NULL |
+| encrypted_data | text | NOT NULL |
 | expires_at | timestamptz | |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | NOT NULL, DEFAULT now() |
 
-### tool_scopes
+### skill_installs (Phase 6 — org-scoped)
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | uuid | PK |
 | org_id | uuid | FK → organizations, NOT NULL |
-| connector_id | uuid | FK → connectors, NOT NULL |
-| scope | varchar(255) | NOT NULL |
-| granted | boolean | DEFAULT false |
-| granted_by | uuid | FK → users |
-| granted_at | timestamptz | |
+| skill_id | uuid | FK → skills, NOT NULL |
+| skill_slug | varchar(63) | NOT NULL |
+| enabled | boolean | NOT NULL, DEFAULT true |
+| installed_by | uuid | FK → users, NOT NULL |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | NOT NULL, DEFAULT now() |
+| **UNIQUE** | | (org_id, skill_id) |
 
 ## Execution Tables
 

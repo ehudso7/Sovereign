@@ -23,6 +23,14 @@ export const toAgentVersionId = (id: string): AgentVersionId => id as AgentVersi
 export const toRunId = (id: string): RunId => id as RunId;
 export const toConnectorId = (id: string): ConnectorId => id as ConnectorId;
 export const toPolicyId = (id: string): PolicyId => id as PolicyId;
+export type SkillId = Brand<string, "SkillId">;
+export type SkillVersionId = Brand<string, "SkillVersionId">;
+export type ConnectorInstallId = Brand<string, "ConnectorInstallId">;
+export type SkillInstallId = Brand<string, "SkillInstallId">;
+export const toSkillId = (id: string): SkillId => id as SkillId;
+export const toSkillVersionId = (id: string): SkillVersionId => id as SkillVersionId;
+export const toConnectorInstallId = (id: string): ConnectorInstallId => id as ConnectorInstallId;
+export const toSkillInstallId = (id: string): SkillInstallId => id as SkillInstallId;
 
 // ---------------------------------------------------------------------------
 // Tenant context – threaded through every request

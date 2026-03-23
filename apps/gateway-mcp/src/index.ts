@@ -1,19 +1,24 @@
-// MCP gateway entry point
+// ---------------------------------------------------------------------------
+// MCP Gateway — Connector runtime and tool execution gateway
+// ---------------------------------------------------------------------------
 
-const start = async () => {
-  console.warn('MCP gateway starting...');
-  // TODO: Initialize MCP gateway and register tools/resources
-};
+import { registerBuiltinConnectors } from "./connectors/index.js";
 
-const shutdown = async () => {
-  console.warn('MCP gateway shutting down...');
+// Register all built-in connectors on startup
+registerBuiltinConnectors();
+
+// Export gateway utilities for use by API server and worker
+export { executeTool, getTool, listTools, listToolsForConnector, registerTool, clearRegistry } from "./registry.js";
+export type { ToolDefinition, ToolExecutionContext, ToolExecutionResult, ToolHandler, ToolParameter } from "./registry.js";
+export { registerBuiltinConnectors } from "./connectors/index.js";
+export { BUILTIN_CONNECTORS, BUILTIN_SKILLS } from "./catalog.js";
+export type { CatalogConnector, CatalogSkill } from "./catalog.js";
+
+// Process lifecycle
+process.on("SIGINT", () => {
   process.exit(0);
-};
+});
 
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
-
-start().catch((err) => {
-  console.error('Failed to start MCP gateway:', err);
-  process.exit(1);
+process.on("SIGTERM", () => {
+  process.exit(0);
 });

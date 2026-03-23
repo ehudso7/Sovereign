@@ -274,32 +274,92 @@ Deny an action.
 
 ## Connector Endpoints
 
-### GET /api/v1/connectors
-List available connectors.
+**Status: Implemented in Phase 6**
 
-### POST /api/v1/connectors
-Register a connector.
+### GET /api/v1/connectors
+List the connector catalog. Filterable by `?category=` and `?trustTier=`.
+- Auth: Bearer token required
+- Permission: `connector:read` (all roles)
+
+### GET /api/v1/connectors/installed
+List installed connectors for the current org.
+- Auth: Bearer token required
+- Permission: `connector:read` (all roles)
 
 ### GET /api/v1/connectors/:connectorId
-Get connector details.
-
-### PATCH /api/v1/connectors/:connectorId
-Update connector.
-
-### DELETE /api/v1/connectors/:connectorId
-Remove connector.
-
-### POST /api/v1/connectors/:connectorId/test
-Test connector connectivity.
-
-### POST /api/v1/connectors/:connectorId/credentials
-Set connector credentials.
-
-### DELETE /api/v1/connectors/:connectorId/credentials
-Revoke connector credentials.
+Get connector catalog detail.
+- Auth: Bearer token required
+- Permission: `connector:read`
 
 ### GET /api/v1/connectors/:connectorId/scopes
-List connector scopes.
+List scopes/capabilities for a connector.
+- Auth: Bearer token required
+- Permission: `connector:read`
+
+### POST /api/v1/connectors/:connectorId/install
+Install a connector for the current org. Grants default scopes.
+- Auth: Bearer token required
+- Permission: `connector:install` (org_owner, org_admin)
+- Returns 409 if already installed
+
+### PATCH /api/v1/connectors/:connectorId/configure
+Configure connector settings and/or credentials.
+- Auth: Bearer token required
+- Permission: `connector:configure` (org_owner, org_admin)
+- Body: `{ config?: Record<string, unknown>, credentials?: { type: string, data: string } }`
+- Credentials are stored encrypted (base64 in dev, real encryption in prod)
+- Credentials are never returned in API responses
+
+### POST /api/v1/connectors/:connectorId/test
+Test connector connectivity by executing the first available tool.
+- Auth: Bearer token required
+- Permission: `connector:test` (org_owner, org_admin)
+- Returns success/failure with test results
+
+### POST /api/v1/connectors/:connectorId/revoke
+Revoke (uninstall) a connector. Deletes credentials and install record.
+- Auth: Bearer token required
+- Permission: `connector:revoke` (org_owner, org_admin)
+
+### Connector Trust Tiers
+- **verified**: Audited, maintained by SOVEREIGN team
+- **internal**: Org-created, org-reviewed
+- **untrusted**: Third-party, sandboxed
+
+### Connector Auth Modes
+- **none**: No authentication required
+- **api_key**: Requires API key credential
+- **oauth2**: OAuth2 flow (stub for future)
+
+## Skill Endpoints
+
+**Status: Implemented in Phase 6**
+
+### GET /api/v1/skills
+List the skill catalog. Filterable by `?trustTier=`.
+- Auth: Bearer token required
+- Permission: `skill:read` (all roles)
+
+### GET /api/v1/skills/installed
+List installed skills for the current org.
+- Auth: Bearer token required
+- Permission: `skill:read` (all roles)
+
+### GET /api/v1/skills/:skillId
+Get skill detail.
+- Auth: Bearer token required
+- Permission: `skill:read`
+
+### POST /api/v1/skills/:skillId/install
+Install a skill for the current org.
+- Auth: Bearer token required
+- Permission: `skill:install` (org_owner, org_admin)
+- Returns 409 if already installed
+
+### POST /api/v1/skills/:skillId/uninstall
+Uninstall a skill.
+- Auth: Bearer token required
+- Permission: `skill:uninstall` (org_owner, org_admin)
 
 ## Memory Endpoints
 

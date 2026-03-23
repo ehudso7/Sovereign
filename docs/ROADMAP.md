@@ -163,7 +163,7 @@ Phases execute in strict order. No feature jumping. No shiny-object detours.
 
 ## Phase 6 — Tooling and Connector Hub
 
-**Status**: Not started
+**Status**: Complete
 
 **Goal**: One registry for all tools.
 

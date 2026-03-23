@@ -15,6 +15,7 @@
     "@sovereign/config": "workspace:*",
     "@sovereign/core": "workspace:*",
     "@sovereign/db": "workspace:*",
+    "@sovereign/gateway-mcp": "workspace:*",
     "@temporalio/activity": "1.11.6",
     "@temporalio/client": "1.11.6",
     "@temporalio/testing": "1.11.6",

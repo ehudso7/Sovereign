@@ -2,9 +2,10 @@
 // Temporal activities for run execution
 // ---------------------------------------------------------------------------
 
-import { initDb, PgRunRepo, PgRunStepRepo, PgAuditRepo } from "@sovereign/db";
+import { initDb, PgRunRepo, PgRunStepRepo, PgAuditRepo, PgConnectorInstallRepo, PgConnectorCredentialRepo } from "@sovereign/db";
 import type { OrgId, ISODateString } from "@sovereign/core";
 import { toRunId, toISODateString } from "@sovereign/core";
+import { executeTool, listToolsForConnector } from "@sovereign/gateway-mcp";
 
 // ---------------------------------------------------------------------------
 // Database client (initialized lazily)
@@ -45,7 +46,7 @@ export async function startRun(params: StartRunParams): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Activity: Execute agent (tool-less LLM call)
+// Activity: Execute agent (with optional tool calls)
 // ---------------------------------------------------------------------------
 
 export interface ExecuteAgentParams {
@@ -56,6 +57,7 @@ export interface ExecuteAgentParams {
   input: Record<string, unknown>;
   goals: readonly string[];
   executionProvider: string;
+  configSnapshot?: Record<string, unknown>;
 }
 
 export interface ExecuteAgentResult {
@@ -68,6 +70,7 @@ export interface ExecuteAgentResult {
     tokenUsage: { inputTokens: number; outputTokens: number; totalTokens: number } | null;
     providerMetadata: Record<string, unknown> | null;
     latencyMs: number;
+    toolName?: string;
   }>;
   error?: { code: string; message: string };
 }
@@ -83,7 +86,7 @@ export async function executeAgent(params: ExecuteAgentParams): Promise<ExecuteA
 async function executeWithLocal(params: ExecuteAgentParams): Promise<ExecuteAgentResult> {
   const startTime = Date.now();
 
-  const output = {
+  const output: Record<string, unknown> = {
     response: `[Local/Dev] Executed agent with instructions: "${params.instructions.slice(0, 100)}..."`,
     goals: params.goals,
     inputReceived: params.input,
@@ -94,23 +97,55 @@ async function executeWithLocal(params: ExecuteAgentParams): Promise<ExecuteAgen
 
   const latencyMs = Date.now() - startTime + 50; // Minimum simulated latency
 
+  const steps: ExecuteAgentResult["steps"] = [
+    {
+      type: "llm_call",
+      input: {
+        system: params.instructions,
+        user: JSON.stringify(params.input),
+        model: params.modelConfig.model,
+      },
+      output,
+      tokenUsage: { inputTokens: 150, outputTokens: 75, totalTokens: 225 },
+      providerMetadata: { provider: "local", mode: "dev" },
+      latencyMs,
+    },
+  ];
+
+  // If configSnapshot contains tools, simulate tool_call steps
+  const tools = params.configSnapshot?.tools as Array<{ name: string; connectorId?: string }> | undefined;
+  if (tools && tools.length > 0) {
+    for (const tool of tools) {
+      const connectorSlug = tool.connectorId ?? "unknown";
+      const toolCallStart = Date.now();
+
+      const toolResult = await executeTool(tool.name, { message: "test" }, {
+        orgId: params.orgId,
+        runId: params.runId,
+        connectorSlug,
+      });
+
+      steps.push({
+        type: "tool_call",
+        toolName: tool.name,
+        input: { toolName: tool.name, args: { message: "test" } },
+        output: toolResult.output,
+        tokenUsage: null,
+        providerMetadata: { connectorSlug, toolError: toolResult.error ?? null },
+        latencyMs: Date.now() - toolCallStart,
+      });
+
+      // Merge tool output into the final output
+      output[`tool_${tool.name}`] = toolResult.output;
+    }
+  }
+
+  const totalTokens = { inputTokens: 150, outputTokens: 75, totalTokens: 225 };
+
   return {
     output,
-    tokenUsage: { inputTokens: 150, outputTokens: 75, totalTokens: 225 },
-    steps: [
-      {
-        type: "llm_call",
-        input: {
-          system: params.instructions,
-          user: JSON.stringify(params.input),
-          model: params.modelConfig.model,
-        },
-        output,
-        tokenUsage: { inputTokens: 150, outputTokens: 75, totalTokens: 225 },
-        providerMetadata: { provider: "local", mode: "dev" },
-        latencyMs,
-      },
-    ],
+    tokenUsage: totalTokens,
+    steps,
   };
 }
 
@@ -134,6 +169,31 @@ async function executeWithOpenAI(params: ExecuteAgentParams): Promise<ExecuteAge
   }
   inputParts.push(JSON.stringify(params.input));
 
+  // Build function tools from configSnapshot if present
+  const configTools = params.configSnapshot?.tools as Array<{ name: string; connectorId?: string; parameters?: Record<string, unknown> }> | undefined;
+  const functionTools: Array<Record<string, unknown>> = [];
+  if (configTools && configTools.length > 0) {
+    for (const tool of configTools) {
+      const connectorSlug = tool.connectorId ?? "unknown";
+      const registeredTools = listToolsForConnector(connectorSlug);
+      const registered = registeredTools.find((t) => t.name === tool.name);
+      if (registered) {
+        functionTools.push({
+          type: "function",
+          name: tool.name,
+          description: registered.description,
+          parameters: tool.parameters ?? {
+            type: "object",
+            properties: Object.fromEntries(
+              registered.parameters.map((p) => [p.name, { type: p.type, description: p.description }]),
+            ),
+            required: registered.parameters.filter((p) => p.required).map((p) => p.name),
+          },
+        });
+      }
+    }
+  }
+
   const requestBody: Record<string, unknown> = {
     model: params.modelConfig.model ?? "gpt-4o",
     instructions: params.instructions,
@@ -142,6 +202,7 @@ async function executeWithOpenAI(params: ExecuteAgentParams): Promise<ExecuteAge
     ...(params.modelConfig.maxTokens !== undefined && {
       max_output_tokens: params.modelConfig.maxTokens,
     }),
+    ...(functionTools.length > 0 && { tools: functionTools }),
   };
 
   try {
@@ -170,12 +231,14 @@ async function executeWithOpenAI(params: ExecuteAgentParams): Promise<ExecuteAge
       id: string;
       model: string;
       status: string;
-      output: Array<{ type: string; content?: Array<{ type: string; text?: string }> }>;
+      output: Array<{ type: string; content?: Array<{ type: string; text?: string }>; name?: string; arguments?: string; call_id?: string }>;
       usage?: { input_tokens: number; output_tokens: number; total_tokens: number };
     };
 
     // Extract text from Responses API output array
     let content = "";
+    const toolCallSteps: ExecuteAgentResult["steps"] = [];
+
     for (const item of data.output) {
       if (item.type === "message" && item.content) {
         for (const part of item.content) {
@@ -183,6 +246,19 @@ async function executeWithOpenAI(params: ExecuteAgentParams): Promise<ExecuteAge
             content += part.text;
           }
         }
+      }
+      // Parse tool_use outputs from the Responses API
+      if (item.type === "function_call" && item.name && item.arguments) {
+        const toolArgs = JSON.parse(item.arguments) as Record<string, unknown>;
+        toolCallSteps.push({
+          type: "tool_call",
+          toolName: item.name,
+          input: { toolName: item.name, args: toolArgs, callId: item.call_id },
+          output: { pending: true },
+          tokenUsage: null,
+          providerMetadata: { callId: item.call_id },
+          latencyMs: 0,
+        });
       }
     }
 
@@ -195,24 +271,27 @@ async function executeWithOpenAI(params: ExecuteAgentParams): Promise<ExecuteAge
       totalTokens: usage.total_tokens,
     };
 
+    const steps: ExecuteAgentResult["steps"] = [
+      {
+        type: "llm_call",
+        input: { instructions: params.instructions, model: params.modelConfig.model ?? "gpt-4o" },
+        output,
+        tokenUsage,
+        providerMetadata: {
+          provider: "openai",
+          api: "responses",
+          model: data.model,
+          responseId: data.id,
+        },
+        latencyMs,
+      },
+      ...toolCallSteps,
+    ];
+
     return {
       output,
       tokenUsage,
-      steps: [
-        {
-          type: "llm_call",
-          input: { instructions: params.instructions, model: params.modelConfig.model ?? "gpt-4o" },
-          output,
-          tokenUsage,
-          providerMetadata: {
-            provider: "openai",
-            api: "responses",
-            model: data.model,
-            responseId: data.id,
-          },
-          latencyMs,
-        },
-      ],
+      steps,
     };
   } catch (e) {
     return {
@@ -225,6 +304,60 @@ async function executeWithOpenAI(params: ExecuteAgentParams): Promise<ExecuteAge
       },
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Activity: Execute a tool call
+// ---------------------------------------------------------------------------
+
+export interface ExecuteToolCallParams {
+  runId: string;
+  orgId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  connectorSlug: string;
+}
+
+export interface ExecuteToolCallResult {
+  output: Record<string, unknown>;
+  error?: { code: string; message: string };
+  latencyMs: number;
+}
+
+export async function executeToolCall(params: ExecuteToolCallParams): Promise<ExecuteToolCallResult> {
+  const db = getDb();
+  const tenantDb = db.forTenant(params.orgId as OrgId);
+
+  // Attempt to get credentials from DB
+  const installRepo = new PgConnectorInstallRepo(tenantDb);
+  const credentialRepo = new PgConnectorCredentialRepo(tenantDb);
+
+  let credentials: Record<string, unknown> | undefined;
+
+  // Find the install for this connector
+  const installs = await installRepo.listForOrg(params.orgId as OrgId);
+  const install = installs.find((i) => i.connectorSlug === params.connectorSlug);
+
+  if (install) {
+    const cred = await credentialRepo.getByInstallId(install.id, params.orgId as OrgId);
+    if (cred) {
+      const decrypted = Buffer.from(cred.encryptedData, "base64").toString("utf-8");
+      credentials = { apiKey: decrypted };
+    }
+  }
+
+  const result = await executeTool(params.toolName, params.args, {
+    orgId: params.orgId,
+    runId: params.runId,
+    connectorSlug: params.connectorSlug,
+    credentials,
+  });
+
+  return {
+    output: result.output,
+    error: result.error,
+    latencyMs: result.latencyMs,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -250,6 +383,7 @@ export async function recordRunSteps(params: RecordStepsParams): Promise<void> {
       stepNumber: i + 1,
       type: step.type as "llm_call" | "tool_call" | "system" | "error",
       attempt: 1,
+      toolName: step.toolName,
       input: step.input,
     });
 

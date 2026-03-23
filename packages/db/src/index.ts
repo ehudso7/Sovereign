@@ -23,6 +23,11 @@ export type {
   AgentVersionRepo,
   RunRepo,
   RunStepRepo,
+  ConnectorRepo,
+  ConnectorInstallRepo,
+  ConnectorCredentialRepo,
+  SkillRepo,
+  SkillInstallRepo,
 } from "./repositories/index.js";
 
 export {
@@ -37,4 +42,9 @@ export {
   PgAgentVersionRepo,
   PgRunRepo,
   PgRunStepRepo,
+  PgConnectorRepo,
+  PgConnectorInstallRepo,
+  PgConnectorCredentialRepo,
+  PgSkillRepo,
+  PgSkillInstallRepo,
 } from "./repositories/index.js";

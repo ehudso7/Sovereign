@@ -15,6 +15,7 @@
     "@sovereign/core": "workspace:*",
     "@sovereign/db": "workspace:*",
     "@sovereign/config": "workspace:*",
+    "@sovereign/gateway-mcp": "workspace:*",
     "zod": "^3.24.0"
   },
   "devDependencies": {

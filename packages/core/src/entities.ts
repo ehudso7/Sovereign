@@ -9,6 +9,10 @@ import type {
   AgentId,
   AgentVersionId,
   RunId,
+  ConnectorId,
+  ConnectorInstallId,
+  SkillId,
+  SkillInstallId,
   ISODateString,
 } from "./types.js";
 import type { MembershipId, InvitationId, OrgRole } from "./auth.js";
@@ -325,4 +329,92 @@ export interface RunStep {
   readonly startedAt: ISODateString | null;
   readonly completedAt: ISODateString | null;
   readonly createdAt: ISODateString;
+}
+
+// ---------------------------------------------------------------------------
+// Connector (Phase 6)
+// ---------------------------------------------------------------------------
+
+export type ConnectorTrustTier = "verified" | "internal" | "untrusted";
+export type ConnectorAuthMode = "none" | "api_key" | "oauth2";
+export type ConnectorStatus = "active" | "disabled" | "deprecated";
+
+export interface ConnectorTool {
+  readonly name: string;
+  readonly description: string;
+  readonly parameters: Record<string, unknown>;
+}
+
+export interface ConnectorScope {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+}
+
+export interface Connector {
+  readonly id: ConnectorId;
+  readonly slug: string;
+  readonly name: string;
+  readonly description: string;
+  readonly category: string;
+  readonly trustTier: ConnectorTrustTier;
+  readonly authMode: ConnectorAuthMode;
+  readonly status: ConnectorStatus;
+  readonly tools: readonly ConnectorTool[];
+  readonly scopes: readonly ConnectorScope[];
+  readonly metadata: Record<string, unknown>;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+export interface ConnectorInstall {
+  readonly id: ConnectorInstallId;
+  readonly orgId: OrgId;
+  readonly connectorId: ConnectorId;
+  readonly connectorSlug: string;
+  readonly enabled: boolean;
+  readonly config: Record<string, unknown>;
+  readonly grantedScopes: readonly string[];
+  readonly installedBy: UserId;
+  readonly updatedBy: UserId | null;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+export interface CreateConnectorInstallInput {
+  readonly orgId: OrgId;
+  readonly connectorId: ConnectorId;
+  readonly connectorSlug: string;
+  readonly config?: Record<string, unknown>;
+  readonly grantedScopes?: readonly string[];
+  readonly installedBy: UserId;
+}
+
+// ---------------------------------------------------------------------------
+// Skill (Phase 6)
+// ---------------------------------------------------------------------------
+
+export type SkillTrustTier = "verified" | "internal" | "untrusted";
+
+export interface Skill {
+  readonly id: SkillId;
+  readonly slug: string;
+  readonly name: string;
+  readonly description: string;
+  readonly trustTier: SkillTrustTier;
+  readonly connectorSlugs: readonly string[];
+  readonly metadata: Record<string, unknown>;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+export interface SkillInstall {
+  readonly id: SkillInstallId;
+  readonly orgId: OrgId;
+  readonly skillId: SkillId;
+  readonly skillSlug: string;
+  readonly enabled: boolean;
+  readonly installedBy: UserId;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
 }

@@ -13,6 +13,9 @@ import type {
   RunId,
   SessionId,
   MembershipId,
+  ConnectorId,
+  ConnectorInstallId,
+  SkillId,
   OrgRole,
   ISODateString,
   User,
@@ -39,6 +42,11 @@ import type {
   RunStep,
   RunStepType,
   RunStepStatus,
+  Connector,
+  ConnectorInstall,
+  CreateConnectorInstallInput,
+  Skill,
+  SkillInstall,
 } from "@sovereign/core";
 
 import {
@@ -53,6 +61,10 @@ import {
   toInvitationId,
   toISODateString,
   toAuditEventId,
+  toConnectorId,
+  toConnectorInstallId,
+  toSkillId,
+  toSkillInstallId,
 } from "@sovereign/core";
 
 import type {
@@ -67,6 +79,11 @@ import type {
   AgentVersionRepo,
   RunRepo,
   RunStepRepo,
+  ConnectorRepo,
+  ConnectorInstallRepo,
+  ConnectorCredentialRepo,
+  SkillRepo,
+  SkillInstallRepo,
 } from "@sovereign/db";
 
 // ---------------------------------------------------------------------------
@@ -1022,6 +1039,319 @@ export class TestRunStepRepo implements RunStepRepo {
 }
 
 // ---------------------------------------------------------------------------
+// TestConnectorRepo (global catalog, not org-scoped)
+// ---------------------------------------------------------------------------
+
+export class TestConnectorRepo implements ConnectorRepo {
+  private readonly store = new Map<string, Connector>();
+
+  async create(input: {
+    slug: string;
+    name: string;
+    description?: string;
+    category: string;
+    trustTier: string;
+    authMode: string;
+    status?: string;
+    tools: readonly unknown[];
+    scopes: readonly unknown[];
+    metadata?: Record<string, unknown>;
+  }): Promise<Connector> {
+    const ts = now();
+    const connector: Connector = {
+      id: toConnectorId(randomUUID()),
+      slug: input.slug,
+      name: input.name,
+      description: input.description ?? "",
+      category: input.category,
+      trustTier: input.trustTier as Connector["trustTier"],
+      authMode: input.authMode as Connector["authMode"],
+      status: (input.status ?? "active") as Connector["status"],
+      tools: input.tools as Connector["tools"],
+      scopes: input.scopes as Connector["scopes"],
+      metadata: input.metadata ?? {},
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.store.set(connector.id, connector);
+    return connector;
+  }
+
+  async getById(id: ConnectorId): Promise<Connector | null> {
+    return this.store.get(id) ?? null;
+  }
+
+  async getBySlug(slug: string): Promise<Connector | null> {
+    for (const c of this.store.values()) {
+      if (c.slug === slug) return c;
+    }
+    return null;
+  }
+
+  async listAll(filters?: { category?: string; trustTier?: string; status?: string }): Promise<Connector[]> {
+    let results = [...this.store.values()];
+    if (filters?.category) results = results.filter((c) => c.category === filters.category);
+    if (filters?.trustTier) results = results.filter((c) => c.trustTier === filters.trustTier);
+    if (filters?.status) results = results.filter((c) => c.status === filters.status);
+    return results;
+  }
+
+  reset(): void {
+    this.store.clear();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TestConnectorInstallRepo (org-scoped)
+// ---------------------------------------------------------------------------
+
+export class TestConnectorInstallRepo implements ConnectorInstallRepo {
+  private readonly store = new Map<string, ConnectorInstall>();
+
+  async create(input: CreateConnectorInstallInput): Promise<ConnectorInstall> {
+    const ts = now();
+    const install: ConnectorInstall = {
+      id: toConnectorInstallId(randomUUID()),
+      orgId: input.orgId,
+      connectorId: input.connectorId,
+      connectorSlug: input.connectorSlug,
+      enabled: true,
+      config: input.config ?? {},
+      grantedScopes: input.grantedScopes ?? [],
+      installedBy: input.installedBy,
+      updatedBy: null,
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.store.set(install.id, install);
+    return install;
+  }
+
+  async getById(id: ConnectorInstallId, orgId: OrgId): Promise<ConnectorInstall | null> {
+    const install = this.store.get(id);
+    if (!install || install.orgId !== orgId) return null;
+    return install;
+  }
+
+  async getByConnectorId(connectorId: ConnectorId, orgId: OrgId): Promise<ConnectorInstall | null> {
+    for (const i of this.store.values()) {
+      if (i.connectorId === connectorId && i.orgId === orgId) return i;
+    }
+    return null;
+  }
+
+  async listForOrg(orgId: OrgId, filters?: { enabled?: boolean }): Promise<ConnectorInstall[]> {
+    let results = [...this.store.values()].filter((i) => i.orgId === orgId);
+    if (filters?.enabled !== undefined) results = results.filter((i) => i.enabled === filters.enabled);
+    return results;
+  }
+
+  async update(
+    id: ConnectorInstallId,
+    orgId: OrgId,
+    input: { enabled?: boolean; config?: Record<string, unknown>; grantedScopes?: readonly string[]; updatedBy: UserId },
+  ): Promise<ConnectorInstall | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return null;
+    const updated: ConnectorInstall = {
+      ...existing,
+      ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+      ...(input.config !== undefined ? { config: input.config } : {}),
+      ...(input.grantedScopes !== undefined ? { grantedScopes: input.grantedScopes } : {}),
+      updatedBy: input.updatedBy,
+      updatedAt: now(),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async delete(id: ConnectorInstallId, orgId: OrgId): Promise<boolean> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return false;
+    return this.store.delete(id);
+  }
+
+  reset(): void {
+    this.store.clear();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TestConnectorCredentialRepo
+// ---------------------------------------------------------------------------
+
+export class TestConnectorCredentialRepo implements ConnectorCredentialRepo {
+  private readonly store = new Map<string, { id: string; orgId: OrgId; connectorInstallId: ConnectorInstallId; credentialType: string; encryptedData: string; expiresAt: string | null }>();
+
+  async upsert(input: {
+    orgId: OrgId;
+    connectorInstallId: ConnectorInstallId;
+    credentialType: string;
+    encryptedData: string;
+    expiresAt?: string;
+  }): Promise<{ id: string }> {
+    // Check for existing credential for this install
+    for (const [key, c] of this.store.entries()) {
+      if (c.connectorInstallId === input.connectorInstallId && c.orgId === input.orgId) {
+        const updated = {
+          ...c,
+          credentialType: input.credentialType,
+          encryptedData: input.encryptedData,
+          expiresAt: input.expiresAt ?? null,
+        };
+        this.store.set(key, updated);
+        return { id: c.id };
+      }
+    }
+    const id = randomUUID();
+    this.store.set(id, {
+      id,
+      orgId: input.orgId,
+      connectorInstallId: input.connectorInstallId,
+      credentialType: input.credentialType,
+      encryptedData: input.encryptedData,
+      expiresAt: input.expiresAt ?? null,
+    });
+    return { id };
+  }
+
+  async getByInstallId(
+    connectorInstallId: ConnectorInstallId,
+    orgId: OrgId,
+  ): Promise<{ id: string; credentialType: string; encryptedData: string; expiresAt: string | null } | null> {
+    for (const c of this.store.values()) {
+      if (c.connectorInstallId === connectorInstallId && c.orgId === orgId) {
+        return { id: c.id, credentialType: c.credentialType, encryptedData: c.encryptedData, expiresAt: c.expiresAt };
+      }
+    }
+    return null;
+  }
+
+  async deleteByInstallId(connectorInstallId: ConnectorInstallId, orgId: OrgId): Promise<boolean> {
+    for (const [key, c] of this.store.entries()) {
+      if (c.connectorInstallId === connectorInstallId && c.orgId === orgId) {
+        this.store.delete(key);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  reset(): void {
+    this.store.clear();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TestSkillRepo (global catalog, not org-scoped)
+// ---------------------------------------------------------------------------
+
+export class TestSkillRepo implements SkillRepo {
+  private readonly store = new Map<string, Skill>();
+
+  async create(input: {
+    slug: string;
+    name: string;
+    description?: string;
+    trustTier: string;
+    connectorSlugs: readonly string[];
+    metadata?: Record<string, unknown>;
+  }): Promise<Skill> {
+    const ts = now();
+    const skill: Skill = {
+      id: toSkillId(randomUUID()),
+      slug: input.slug,
+      name: input.name,
+      description: input.description ?? "",
+      trustTier: input.trustTier as Skill["trustTier"],
+      connectorSlugs: input.connectorSlugs,
+      metadata: input.metadata ?? {},
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.store.set(skill.id, skill);
+    return skill;
+  }
+
+  async getById(id: SkillId): Promise<Skill | null> {
+    return this.store.get(id) ?? null;
+  }
+
+  async getBySlug(slug: string): Promise<Skill | null> {
+    for (const s of this.store.values()) {
+      if (s.slug === slug) return s;
+    }
+    return null;
+  }
+
+  async listAll(filters?: { trustTier?: string }): Promise<Skill[]> {
+    let results = [...this.store.values()];
+    if (filters?.trustTier) results = results.filter((s) => s.trustTier === filters.trustTier);
+    return results;
+  }
+
+  reset(): void {
+    this.store.clear();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TestSkillInstallRepo (org-scoped)
+// ---------------------------------------------------------------------------
+
+export class TestSkillInstallRepo implements SkillInstallRepo {
+  private readonly store = new Map<string, SkillInstall>();
+
+  async create(input: {
+    orgId: OrgId;
+    skillId: SkillId;
+    skillSlug: string;
+    installedBy: UserId;
+  }): Promise<SkillInstall> {
+    const ts = now();
+    const install: SkillInstall = {
+      id: toSkillInstallId(randomUUID()),
+      orgId: input.orgId,
+      skillId: input.skillId,
+      skillSlug: input.skillSlug,
+      enabled: true,
+      installedBy: input.installedBy,
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.store.set(install.id, install);
+    return install;
+  }
+
+  async getBySkillId(skillId: SkillId, orgId: OrgId): Promise<SkillInstall | null> {
+    for (const i of this.store.values()) {
+      if (i.skillId === skillId && i.orgId === orgId) return i;
+    }
+    return null;
+  }
+
+  async listForOrg(orgId: OrgId, _filters?: { enabled?: boolean }): Promise<SkillInstall[]> {
+    let results = [...this.store.values()].filter((i) => i.orgId === orgId);
+    if (_filters?.enabled !== undefined) results = results.filter((i) => i.enabled === _filters.enabled);
+    return results;
+  }
+
+  async delete(skillId: SkillId, orgId: OrgId): Promise<boolean> {
+    for (const [key, i] of this.store.entries()) {
+      if (i.skillId === skillId && i.orgId === orgId) {
+        this.store.delete(key);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  reset(): void {
+    this.store.clear();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Factory & reset helpers
 // ---------------------------------------------------------------------------
 
@@ -1037,6 +1367,11 @@ export interface TestRepos {
   runs: TestRunRepo;
   runSteps: TestRunStepRepo;
   audit: TestAuditRepo;
+  connectors: TestConnectorRepo;
+  connectorInstalls: TestConnectorInstallRepo;
+  connectorCredentials: TestConnectorCredentialRepo;
+  skills: TestSkillRepo;
+  skillInstalls: TestSkillInstallRepo;
 }
 
 /**
@@ -1054,6 +1389,11 @@ export function createTestRepos(): TestRepos {
   const runs = new TestRunRepo();
   const runSteps = new TestRunStepRepo();
   const audit = new TestAuditRepo();
+  const connectors = new TestConnectorRepo();
+  const connectorInstalls = new TestConnectorInstallRepo();
+  const connectorCredentials = new TestConnectorCredentialRepo();
+  const skills = new TestSkillRepo();
+  const skillInstalls = new TestSkillInstallRepo();
 
   // Wire cross-repo references
   memberships._setUserRepo(users);
@@ -1071,6 +1411,11 @@ export function createTestRepos(): TestRepos {
     runs,
     runSteps,
     audit,
+    connectors,
+    connectorInstalls,
+    connectorCredentials,
+    skills,
+    skillInstalls,
   };
 }
 
@@ -1089,4 +1434,9 @@ export function resetAllRepos(repos: TestRepos): void {
   repos.runs.reset();
   repos.runSteps.reset();
   repos.audit.reset();
+  repos.connectors.reset();
+  repos.connectorInstalls.reset();
+  repos.connectorCredentials.reset();
+  repos.skills.reset();
+  repos.skillInstalls.reset();
 }

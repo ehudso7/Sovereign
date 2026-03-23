@@ -46,7 +46,13 @@ export type AuditAction =
   | "run.resumed"
   | "run.cancelled"
   | "run.completed"
-  | "run.failed";
+  | "run.failed"
+  | "connector.installed"
+  | "connector.configured"
+  | "connector.tested"
+  | "connector.revoked"
+  | "skill.installed"
+  | "skill.uninstalled";
 
 // ---------------------------------------------------------------------------
 // Audit actor types

@@ -28,6 +28,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link href="/runs" className="text-gray-600 hover:text-gray-900">
                 Runs
               </Link>
+              <Link href="/connectors" className="text-gray-600 hover:text-gray-900">
+                Connectors
+              </Link>
+              <Link href="/skills" className="text-gray-600 hover:text-gray-900">
+                Skills
+              </Link>
               <Link href="/settings/members" className="text-gray-600 hover:text-gray-900">
                 Members
               </Link>

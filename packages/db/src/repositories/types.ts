@@ -11,6 +11,9 @@ import type {
   AgentId,
   AgentVersionId,
   RunId,
+  ConnectorId,
+  ConnectorInstallId,
+  SkillId,
 
   OrgRole,
   AgentStatus,
@@ -36,6 +39,11 @@ import type {
   Run,
   CreateRunInput,
   RunStep,
+  Connector,
+  ConnectorInstall,
+  CreateConnectorInstallInput,
+  Skill,
+  SkillInstall,
   ISODateString,
 } from "@sovereign/core";
 
@@ -278,4 +286,89 @@ export interface RunStepRepo {
     completedAt?: ISODateString;
   }): Promise<RunStep | null>;
   getNextStepNumber(runId: RunId): Promise<number>;
+}
+
+// ---------------------------------------------------------------------------
+// Connector Repo (Phase 6) — global catalog, not org-scoped
+// ---------------------------------------------------------------------------
+
+export interface ConnectorRepo {
+  create(input: {
+    slug: string;
+    name: string;
+    description?: string;
+    category: string;
+    trustTier: string;
+    authMode: string;
+    status?: string;
+    tools: readonly unknown[];
+    scopes: readonly unknown[];
+    metadata?: Record<string, unknown>;
+  }): Promise<Connector>;
+  getById(id: ConnectorId): Promise<Connector | null>;
+  getBySlug(slug: string): Promise<Connector | null>;
+  listAll(filters?: { category?: string; trustTier?: string; status?: string }): Promise<Connector[]>;
+}
+
+// ---------------------------------------------------------------------------
+// Connector Install Repo (Phase 6) — org-scoped
+// ---------------------------------------------------------------------------
+
+export interface ConnectorInstallRepo {
+  create(input: CreateConnectorInstallInput): Promise<ConnectorInstall>;
+  getById(id: ConnectorInstallId, orgId: OrgId): Promise<ConnectorInstall | null>;
+  getByConnectorId(connectorId: ConnectorId, orgId: OrgId): Promise<ConnectorInstall | null>;
+  listForOrg(orgId: OrgId, filters?: { enabled?: boolean }): Promise<ConnectorInstall[]>;
+  update(id: ConnectorInstallId, orgId: OrgId, input: { enabled?: boolean; config?: Record<string, unknown>; grantedScopes?: readonly string[]; updatedBy: UserId }): Promise<ConnectorInstall | null>;
+  delete(id: ConnectorInstallId, orgId: OrgId): Promise<boolean>;
+}
+
+// ---------------------------------------------------------------------------
+// Connector Credential Repo (Phase 6) — org-scoped
+// ---------------------------------------------------------------------------
+
+export interface ConnectorCredentialRepo {
+  upsert(input: {
+    orgId: OrgId;
+    connectorInstallId: ConnectorInstallId;
+    credentialType: string;
+    encryptedData: string;
+    expiresAt?: string;
+  }): Promise<{ id: string }>;
+  getByInstallId(connectorInstallId: ConnectorInstallId, orgId: OrgId): Promise<{ id: string; credentialType: string; encryptedData: string; expiresAt: string | null } | null>;
+  deleteByInstallId(connectorInstallId: ConnectorInstallId, orgId: OrgId): Promise<boolean>;
+}
+
+// ---------------------------------------------------------------------------
+// Skill Repo (Phase 6) — global catalog
+// ---------------------------------------------------------------------------
+
+export interface SkillRepo {
+  create(input: {
+    slug: string;
+    name: string;
+    description?: string;
+    trustTier: string;
+    connectorSlugs: readonly string[];
+    metadata?: Record<string, unknown>;
+  }): Promise<Skill>;
+  getById(id: SkillId): Promise<Skill | null>;
+  getBySlug(slug: string): Promise<Skill | null>;
+  listAll(filters?: { trustTier?: string }): Promise<Skill[]>;
+}
+
+// ---------------------------------------------------------------------------
+// Skill Install Repo (Phase 6) — org-scoped
+// ---------------------------------------------------------------------------
+
+export interface SkillInstallRepo {
+  create(input: {
+    orgId: OrgId;
+    skillId: SkillId;
+    skillSlug: string;
+    installedBy: UserId;
+  }): Promise<SkillInstall>;
+  getBySkillId(skillId: SkillId, orgId: OrgId): Promise<SkillInstall | null>;
+  listForOrg(orgId: OrgId, filters?: { enabled?: boolean }): Promise<SkillInstall[]>;
+  delete(skillId: SkillId, orgId: OrgId): Promise<boolean>;
 }

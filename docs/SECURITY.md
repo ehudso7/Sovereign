@@ -57,6 +57,18 @@
 | run:create | Y | Y | Y | - | - |
 | run:control | Y | Y | - | - | - |
 
+#### Connector Hub Permissions (Phase 6)
+| Permission | org_owner | org_admin | org_member | org_billing_admin | org_security_admin |
+|------------|:---------:|:---------:|:----------:|:-----------------:|:------------------:|
+| connector:read | Y | Y | Y | Y | Y |
+| connector:install | Y | Y | - | - | - |
+| connector:configure | Y | Y | - | - | - |
+| connector:test | Y | Y | - | - | - |
+| connector:revoke | Y | Y | - | - | - |
+| skill:read | Y | Y | Y | Y | Y |
+| skill:install | Y | Y | - | - | - |
+| skill:uninstall | Y | Y | - | - | - |
+
 Role hierarchy: `org_owner` > `org_admin` > `org_billing_admin` = `org_security_admin` > `org_member`
 
 Role management rules:

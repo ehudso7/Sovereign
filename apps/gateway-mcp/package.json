@@ -2,6 +2,11 @@
   "name": "@sovereign/gateway-mcp",
   "version": "0.0.1",
   "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
@@ -12,7 +17,8 @@
   },
   "dependencies": {
     "@sovereign/core": "workspace:*",
-    "@sovereign/config": "workspace:*"
+    "@sovereign/config": "workspace:*",
+    "@sovereign/db": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -81,7 +81,15 @@ export type Permission =
   | "agent:archive"
   | "run:read"
   | "run:create"
-  | "run:control";
+  | "run:control"
+  | "connector:read"
+  | "connector:install"
+  | "connector:configure"
+  | "connector:test"
+  | "connector:revoke"
+  | "skill:read"
+  | "skill:install"
+  | "skill:uninstall";
 
 const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   org_owner: [
@@ -105,6 +113,14 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "run:read",
     "run:create",
     "run:control",
+    "connector:read",
+    "connector:install",
+    "connector:configure",
+    "connector:test",
+    "connector:revoke",
+    "skill:read",
+    "skill:install",
+    "skill:uninstall",
   ],
   org_admin: [
     "org:read",
@@ -123,6 +139,14 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "run:read",
     "run:create",
     "run:control",
+    "connector:read",
+    "connector:install",
+    "connector:configure",
+    "connector:test",
+    "connector:revoke",
+    "skill:read",
+    "skill:install",
+    "skill:uninstall",
   ],
   org_member: [
     "org:read",
@@ -130,6 +154,8 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "agent:read",
     "run:read",
     "run:create",
+    "connector:read",
+    "skill:read",
   ],
   org_billing_admin: [
     "org:read",
@@ -137,6 +163,8 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "project:read",
     "agent:read",
     "run:read",
+    "connector:read",
+    "skill:read",
   ],
   org_security_admin: [
     "org:read",
@@ -145,6 +173,8 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "project:read",
     "agent:read",
     "run:read",
+    "connector:read",
+    "skill:read",
   ],
 };
 

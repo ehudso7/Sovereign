@@ -19,6 +19,8 @@ import type {
   RecordStepsParams,
   CompleteRunParams,
   FailRunParams,
+  ExecuteToolCallParams,
+  ExecuteToolCallResult,
 } from "../activities/run-activities.js";
 
 // ---------------------------------------------------------------------------
@@ -32,6 +34,7 @@ const activities = proxyActivities<{
   recordRunSteps: (params: RecordStepsParams) => Promise<void>;
   completeRun: (params: CompleteRunParams) => Promise<void>;
   failRun: (params: FailRunParams) => Promise<void>;
+  executeToolCall: (params: ExecuteToolCallParams) => Promise<ExecuteToolCallResult>;
 }>({
   startToCloseTimeout: "5 minutes",
   retry: {
