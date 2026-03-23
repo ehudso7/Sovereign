@@ -52,7 +52,8 @@ export type AuditAction =
   | "connector.tested"
   | "connector.revoked"
   | "skill.installed"
-  | "skill.uninstalled";
+  | "skill.uninstalled"
+  | "run.tool_used";
 
 // ---------------------------------------------------------------------------
 // Audit actor types

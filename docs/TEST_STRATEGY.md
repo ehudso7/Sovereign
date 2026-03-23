@@ -65,6 +65,12 @@
   - Status query returns correct state
 - **Speed**: < 60 seconds for full suite (downloads test server on first run)
 
+### Connector Hub Integration Tests
+- **Scope**: Connector/skill install persistence, credential encryption, tool-enabled runs, tenant isolation
+- **Runner**: Vitest with real PostgreSQL
+- **Location**: `packages/db/src/__tests__/integration/connector-hub.test.ts`
+- **Coverage**: Catalog CRUD, install/revoke, credential storage, skill installs, tenant isolation, audit events, end-to-end tool-enabled run proof
+
 ### Chaos Tests
 - **Scope**: Worker restart during runs, DB failover, network partition
 - **Approach**: Kill workers mid-run, verify recovery

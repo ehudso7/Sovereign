@@ -126,6 +126,13 @@ Role management rules:
   - Browser console
   - Error messages
 
+### Connector Credential Encryption
+- Connector credentials are encrypted at rest using AES-256-GCM
+- Encryption key derived from `SOVEREIGN_SECRET_KEY` environment variable via scrypt
+- Each credential uses a unique random salt and IV
+- Credentials are never returned in API responses — only presence/type is exposed
+- Decryption only occurs at the narrowest runtime point: connector test execution and agent run tool execution
+
 ## Connector Security
 
 ### Trust Tiers

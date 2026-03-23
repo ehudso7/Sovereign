@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import type { OrgId, UserId, ConnectorId, Connector } from "@sovereign/core";
 import { PgConnectorService } from "../../services/connector.service.js";
 import { PgAuditEmitter } from "../../services/audit.service.js";
@@ -11,6 +11,11 @@ import {
   type TestRepos,
 } from "../helpers/test-repos.js";
 import { clearRegistry, registerBuiltinConnectors } from "@sovereign/gateway-mcp";
+
+// AES-256-GCM encryption requires SOVEREIGN_SECRET_KEY
+beforeAll(() => {
+  process.env.SOVEREIGN_SECRET_KEY = "test-secret-key-for-unit-tests-minimum-32-chars";
+});
 
 describe("ConnectorService", () => {
   let repos: TestRepos;

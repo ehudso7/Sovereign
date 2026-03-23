@@ -183,3 +183,9 @@ export type {
   AgentStudioService,
   RunService,
 } from "./services.js";
+
+// ---------------------------------------------------------------------------
+// Crypto utilities (Phase 6 — credential encryption)
+// ---------------------------------------------------------------------------
+
+export { encryptSecret, decryptSecret } from "./crypto.js";

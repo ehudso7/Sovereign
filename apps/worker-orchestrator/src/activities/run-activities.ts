@@ -4,7 +4,7 @@
 
 import { initDb, PgRunRepo, PgRunStepRepo, PgAuditRepo, PgConnectorInstallRepo, PgConnectorCredentialRepo } from "@sovereign/db";
 import type { OrgId, ISODateString } from "@sovereign/core";
-import { toRunId, toISODateString } from "@sovereign/core";
+import { toRunId, toISODateString, decryptSecret } from "@sovereign/core";
 import { executeTool, listToolsForConnector } from "@sovereign/gateway-mcp";
 
 // ---------------------------------------------------------------------------
@@ -341,7 +341,7 @@ export async function executeToolCall(params: ExecuteToolCallParams): Promise<Ex
   if (install) {
     const cred = await credentialRepo.getByInstallId(install.id, params.orgId as OrgId);
     if (cred) {
-      const decrypted = Buffer.from(cred.encryptedData, "base64").toString("utf-8");
+      const decrypted = decryptSecret(cred.encryptedData);
       credentials = { apiKey: decrypted };
     }
   }
@@ -374,6 +374,7 @@ export async function recordRunSteps(params: RecordStepsParams): Promise<void> {
   const db = getDb();
   const tenantDb = db.forTenant(params.orgId as OrgId);
   const stepRepo = new PgRunStepRepo(tenantDb);
+  const auditRepo = new PgAuditRepo(tenantDb);
 
   for (let i = 0; i < params.steps.length; i++) {
     const step = params.steps[i]!;
@@ -396,6 +397,22 @@ export async function recordRunSteps(params: RecordStepsParams): Promise<void> {
       startedAt: toISODateString(new Date()),
       completedAt: toISODateString(new Date()),
     });
+
+    // Emit run.tool_used audit event for tool_call steps
+    if (step.type === "tool_call") {
+      await auditRepo.emit({
+        orgId: params.orgId as OrgId,
+        actorType: "system",
+        action: "run.tool_used",
+        resourceType: "run",
+        resourceId: params.runId,
+        metadata: {
+          toolName: step.toolName ?? "unknown",
+          connectorSlug: (step.providerMetadata as Record<string, unknown>)?.connectorSlug ?? "unknown",
+          stepNumber: i + 1,
+        },
+      });
+    }
   }
 }
 
