@@ -2,7 +2,7 @@
 // Connector service — catalog, install, configure, test, revoke
 // ---------------------------------------------------------------------------
 
-import { ok, err, AppError } from "@sovereign/core";
+import { ok, err, AppError, encryptSecret, decryptSecret } from "@sovereign/core";
 import type {
   Connector,
   ConnectorInstall,
@@ -117,9 +117,9 @@ export class PgConnectorService {
         await this.installRepo.update(install.id, orgId, { config, updatedBy: userId });
       }
 
-      // Store credentials if provided (simple encryption: base64 for dev, real encryption in prod)
+      // Store credentials if provided (AES-256-GCM encryption via SOVEREIGN_SECRET_KEY)
       if (credentials) {
-        const encrypted = Buffer.from(credentials.data).toString("base64");
+        const encrypted = encryptSecret(credentials.data);
         await this.credentialRepo.upsert({
           orgId,
           connectorInstallId: install.id,
@@ -167,8 +167,8 @@ export class PgConnectorService {
         if (!cred) {
           return ok({ success: false, message: `Connector "${connector.name}" requires credentials but none are configured` });
         }
-        // Decrypt (base64 for dev)
-        const decrypted = Buffer.from(cred.encryptedData, "base64").toString("utf-8");
+        // Decrypt credentials (AES-256-GCM)
+        const decrypted = decryptSecret(cred.encryptedData);
         credentials = { apiKey: decrypted };
       }
 

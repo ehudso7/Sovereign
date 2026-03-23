@@ -319,5 +319,28 @@
 - [x] Weather connector (api_key): get_weather, get_forecast tools
 - [x] Research Assistant skill (bundles echo + weather)
 
+### Phase 6 Remediation ✅
+
+#### A. Credential Security
+- [x] Replaced base64-only encoding with AES-256-GCM encryption via SOVEREIGN_SECRET_KEY
+- [x] Encryption uses scrypt key derivation, random salt, random IV per credential
+- [x] Decryption only at connector test and agent run tool execution
+- [x] API responses never expose raw credential values
+
+#### B. PostgreSQL Integration Tests
+- [x] connector-hub.test.ts: connector catalog, install, credential, skill install, tenant isolation, audit, E2E run proof
+
+#### C. Runtime Tool-Use Evidence
+- [x] Added run.tool_used audit action
+- [x] Tool-call run steps emit run.tool_used audit events with tool name and connector slug
+
+#### D. Route/API Coverage
+- [x] connector-routes.test.ts: HTTP-level tests for connector and skill endpoints
+
+#### E. Docs
+- [x] SECURITY.md: connector credential encryption details
+- [x] TEST_STRATEGY.md: connector hub integration test section
+- [x] TASKS.md: remediation section
+
 ### Phase 7–14
 _See ROADMAP.md for full phase details._
