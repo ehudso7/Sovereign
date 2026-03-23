@@ -140,7 +140,7 @@ Phases execute in strict order. No feature jumping. No shiny-object detours.
 
 ## Phase 5 — Orchestrator and Run Engine
 
-**Status**: Not started
+**Status**: Complete
 
 **Goal**: Durable, resumable execution.
 

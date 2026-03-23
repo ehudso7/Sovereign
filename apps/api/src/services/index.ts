@@ -10,6 +10,7 @@ import type {
   InvitationService,
   ProjectService,
   AgentStudioService,
+  RunService,
   AuditEmitter,
   AuthConfig,
   OrgId,
@@ -25,6 +26,8 @@ import {
   PgAuditRepo,
   PgAgentRepo,
   PgAgentVersionRepo,
+  PgRunRepo,
+  PgRunStepRepo,
 } from "@sovereign/db";
 import { PgAuthService } from "./auth.service.js";
 import { PgUserService } from "./user.service.js";
@@ -34,6 +37,7 @@ import { PgInvitationService } from "./invitation.service.js";
 import { PgProjectService } from "./project.service.js";
 import { PgAuditEmitter } from "./audit.service.js";
 import { PgAgentStudioService } from "./agent-studio.service.js";
+import { PgRunService } from "./run.service.js";
 
 export interface ServiceRegistry {
   auth: AuthService & { signInToOrg: PgAuthService["signInToOrg"] };
@@ -50,6 +54,8 @@ export interface ServiceRegistry {
   auditForOrg: (orgId: OrgId) => AuditEmitter;
   /** Get an agent studio service scoped to a specific org */
   agentStudioForOrg: (orgId: OrgId) => AgentStudioService;
+  /** Get a run service scoped to a specific org */
+  runForOrg: (orgId: OrgId) => RunService;
 }
 
 let _registry: ServiceRegistry | null = null;
@@ -89,6 +95,18 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     return new PgAgentStudioService(agentRepo, versionRepo, auditEmitter);
   };
 
+  // Factory for org-scoped run service
+  const runForOrg = (orgId: OrgId): RunService => {
+    const tenantDb = db.forTenant(orgId);
+    const runRepo = new PgRunRepo(tenantDb);
+    const runStepRepo = new PgRunStepRepo(tenantDb);
+    const agentRepo = new PgAgentRepo(tenantDb);
+    const versionRepo = new PgAgentVersionRepo(tenantDb);
+    const auditRepo = new PgAuditRepo(tenantDb);
+    const auditEmitter = new PgAuditEmitter(auditRepo);
+    return new PgRunService(runRepo, runStepRepo, agentRepo, versionRepo, auditEmitter);
+  };
+
   // Default audit emitter uses unscoped DB for cross-org operations (like org.created)
   // Services that need org-scoped audit will use auditForOrg
   const defaultAuditRepo = new PgAuditRepo(db.forTenant("00000000-0000-0000-0000-000000000000" as OrgId));
@@ -123,6 +141,7 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     projectsForOrg,
     auditForOrg,
     agentStudioForOrg,
+    runForOrg,
   };
 
   return _registry;

@@ -8,6 +8,7 @@ import type {
   ProjectId,
   AgentId,
   AgentVersionId,
+  RunId,
   ISODateString,
 } from "./types.js";
 import type { MembershipId, InvitationId, OrgRole } from "./auth.js";
@@ -243,4 +244,85 @@ export interface UpdateAgentVersionInput {
   readonly memoryConfig?: MemoryConfig | null;
   readonly schedule?: ScheduleConfig | null;
   readonly modelConfig?: ModelConfig;
+}
+
+// ---------------------------------------------------------------------------
+// Run (Phase 5)
+// ---------------------------------------------------------------------------
+
+export type RunStatus =
+  | "queued"
+  | "starting"
+  | "running"
+  | "paused"
+  | "cancelling"
+  | "cancelled"
+  | "failed"
+  | "completed";
+
+export type TriggerType = "manual" | "api" | "schedule" | "webhook";
+
+export type ExecutionProvider = "local" | "openai";
+
+export interface Run {
+  readonly id: RunId;
+  readonly orgId: OrgId;
+  readonly projectId: ProjectId;
+  readonly agentId: AgentId;
+  readonly agentVersionId: AgentVersionId;
+  readonly status: RunStatus;
+  readonly triggerType: TriggerType;
+  readonly triggeredBy: UserId;
+  readonly executionProvider: ExecutionProvider;
+  readonly input: Record<string, unknown>;
+  readonly configSnapshot: Record<string, unknown>;
+  readonly output: Record<string, unknown> | null;
+  readonly error: { code: string; message: string } | null;
+  readonly tokenUsage: { inputTokens: number; outputTokens: number; totalTokens: number } | null;
+  readonly costCents: number | null;
+  readonly attemptCount: number;
+  readonly temporalWorkflowId: string | null;
+  readonly startedAt: ISODateString | null;
+  readonly completedAt: ISODateString | null;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+export interface CreateRunInput {
+  readonly orgId: OrgId;
+  readonly projectId: ProjectId;
+  readonly agentId: AgentId;
+  readonly agentVersionId: AgentVersionId;
+  readonly triggerType: TriggerType;
+  readonly triggeredBy: UserId;
+  readonly executionProvider: ExecutionProvider;
+  readonly input?: Record<string, unknown>;
+  readonly configSnapshot: Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
+// Run Step (Phase 5)
+// ---------------------------------------------------------------------------
+
+export type RunStepType = "llm_call" | "tool_call" | "system" | "error";
+export type RunStepStatus = "pending" | "running" | "completed" | "failed";
+
+export interface RunStep {
+  readonly id: string;
+  readonly orgId: OrgId;
+  readonly runId: RunId;
+  readonly stepNumber: number;
+  readonly type: RunStepType;
+  readonly status: RunStepStatus;
+  readonly attempt: number;
+  readonly toolName: string | null;
+  readonly input: Record<string, unknown> | null;
+  readonly output: Record<string, unknown> | null;
+  readonly error: Record<string, unknown> | null;
+  readonly tokenUsage: { inputTokens: number; outputTokens: number; totalTokens: number } | null;
+  readonly providerMetadata: Record<string, unknown> | null;
+  readonly latencyMs: number | null;
+  readonly startedAt: ISODateString | null;
+  readonly completedAt: ISODateString | null;
+  readonly createdAt: ISODateString;
 }

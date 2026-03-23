@@ -189,23 +189,61 @@ Unpublish all versions for an agent. Sets agent status back to "draft".
 
 ## Run Endpoints
 
-### GET /api/v1/runs
-List runs (filterable by agent, project, status).
+**Status: Implemented in Phase 5**
 
-### POST /api/v1/runs
-Start a new run.
+### POST /api/v1/agents/:agentId/runs
+Start a new run for a published agent version.
+- Auth: Bearer token required
+- Permission: `run:create` (org_owner, org_admin, org_member)
+- Body: `{ input?: Record<string, unknown> }`
+- Requires agent to have a published version. Rejects draft/unpublished/archived agents.
+- Creates run in "queued" status, dispatches to Temporal workflow.
+- Returns 201 with run data.
+
+### GET /api/v1/runs
+List runs for the current org. Filterable by `?agentId=`, `?status=`, `?projectId=`.
+- Auth: Bearer token required
+- Permission: `run:read` (all roles)
 
 ### GET /api/v1/runs/:runId
-Get run details.
+Get run details by ID.
+- Auth: Bearer token required
+- Permission: `run:read`
+
+### GET /api/v1/runs/:runId/steps
+Get ordered step records for a run.
+- Auth: Bearer token required
+- Permission: `run:read`
 
 ### POST /api/v1/runs/:runId/pause
-Pause a running run.
+Pause a running run. Only valid when status is "running".
+- Auth: Bearer token required
+- Permission: `run:control` (org_owner, org_admin)
 
 ### POST /api/v1/runs/:runId/resume
-Resume a paused run.
+Resume a paused run. Only valid when status is "paused".
+- Auth: Bearer token required
+- Permission: `run:control` (org_owner, org_admin)
 
 ### POST /api/v1/runs/:runId/cancel
-Cancel a run.
+Cancel a run. Valid from "queued", "running", or "paused" status.
+- Auth: Bearer token required
+- Permission: `run:control` (org_owner, org_admin)
+
+### Run State Machine
+States: queued → starting → running → completed/failed
+- queued → starting → running (normal flow)
+- running → paused (pause), paused → running (resume)
+- queued/running/paused → cancelling → cancelled
+- completed, failed, cancelled are terminal states
+- Invalid transitions return 400 BAD_REQUEST
+
+### Run Behavior Rules
+- **Published versions only**: Runs can only be created for agents with a published version.
+- **Draft/archived rejection**: Agents in draft or archived status cannot be executed.
+- **Durable execution**: Runs are persisted via Temporal workflows and survive worker restarts.
+- **Execution providers**: "local" (deterministic dev/CI) or "openai" (production via Responses API).
+- **Audit trail**: All state transitions emit audit events.
 
 ### GET /api/v1/runs/:runId/steps
 Get run steps.

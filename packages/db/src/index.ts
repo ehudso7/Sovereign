@@ -21,6 +21,8 @@ export type {
   AuditRepo,
   AgentRepo,
   AgentVersionRepo,
+  RunRepo,
+  RunStepRepo,
 } from "./repositories/index.js";
 
 export {
@@ -33,4 +35,6 @@ export {
   PgAuditRepo,
   PgAgentRepo,
   PgAgentVersionRepo,
+  PgRunRepo,
+  PgRunStepRepo,
 } from "./repositories/index.js";

@@ -113,7 +113,7 @@ export async function truncateAllTables(): Promise<void> {
   const db = getTestDb();
   const unscoped = db.unscoped();
   await unscoped.execute(`
-    TRUNCATE TABLE agent_versions, agents, audit_events, sessions, invitations, projects, memberships, organizations, users CASCADE
+    TRUNCATE TABLE run_steps, runs, agent_versions, agents, audit_events, sessions, invitations, projects, memberships, organizations, users CASCADE
   `);
 }
 

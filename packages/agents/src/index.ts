@@ -195,3 +195,18 @@ export interface RunAgentInput {
   readonly messages: readonly Pick<Message, "role" | "content">[];
   readonly metadata?: Record<string, unknown>;
 }
+
+// ---------------------------------------------------------------------------
+// Execution provider abstraction (Phase 5)
+// ---------------------------------------------------------------------------
+
+export type {
+  TokenUsage,
+  ExecutionResult,
+  ExecutionStep,
+  ExecutionParams,
+  ExecutionProvider,
+} from "./execution-provider.js";
+
+export { LocalExecutionProvider } from "./providers/local-provider.js";
+export { OpenAIExecutionProvider } from "./providers/openai-provider.js";

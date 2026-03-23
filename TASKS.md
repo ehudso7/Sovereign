@@ -145,5 +145,60 @@
 - [x] Unit Tests: 14/14 (81 tests — 14 core + 67 api)
 - [x] Integration Tests: requires PostgreSQL (16 tests in agent-studio.test.ts)
 
-### Phase 5–14
+### Phase 5 — Orchestrator and Run Engine ✅
+
+#### Data Model
+- [x] Run, RunStep, RunStatus, TriggerType, ExecutionProvider entity types in @sovereign/core
+- [x] Run state machine (isValidTransition, isTerminal, TERMINAL_STATES)
+- [x] RunService interface in @sovereign/core
+- [x] Database migration 004_phase5_runs.sql (runs + run_steps tables with RLS)
+- [x] RunRepo and RunStepRepo interfaces
+- [x] PgRunRepo and PgRunStepRepo implementations
+
+#### Execution Engine
+- [x] Execution provider abstraction (ExecutionProvider interface)
+- [x] Local/dev provider (deterministic, no external calls)
+- [x] OpenAI provider (production wiring via chat completions API)
+- [x] Temporal workflow definition (runAgentWorkflow)
+- [x] Temporal activities (startRun, markRunning, executeAgent, recordRunSteps, completeRun, failRun)
+- [x] Worker-orchestrator Temporal worker setup
+- [x] Temporal client wrapper for API server
+
+#### API Routes
+- [x] POST /api/v1/agents/:agentId/runs (create run)
+- [x] GET /api/v1/runs (list runs with filters)
+- [x] GET /api/v1/runs/:runId (get run detail)
+- [x] GET /api/v1/runs/:runId/steps (get run steps)
+- [x] POST /api/v1/runs/:runId/pause
+- [x] POST /api/v1/runs/:runId/resume
+- [x] POST /api/v1/runs/:runId/cancel
+
+#### Permission Model
+- [x] run:read (all roles)
+- [x] run:create (org_owner, org_admin, org_member)
+- [x] run:control (org_owner, org_admin)
+
+#### Web UI
+- [x] Run button on agent detail page (published agents only)
+- [x] Runs list page (/runs) with status filter
+- [x] Run detail page (/runs/:runId) with steps, output, controls
+- [x] Pause/resume/cancel controls
+- [x] "Runs" nav link in AppShell
+
+#### Audit Events
+- [x] run.created, run.started, run.paused, run.resumed, run.cancelled, run.completed, run.failed
+
+#### Tests
+- [x] State machine unit tests
+- [x] Run service unit tests
+- [x] Permission enforcement tests
+- [x] PostgreSQL integration tests (run CRUD, steps, state transitions, tenant isolation, audit)
+
+#### Docs
+- [x] docs/API_SPEC.md updated with run endpoint docs and behavior rules
+- [x] docs/SECURITY.md updated with run permission matrix
+- [x] docs/ROADMAP.md Phase 5 status: Complete
+- [x] TASKS.md updated
+
+### Phase 6–14
 _See ROADMAP.md for full phase details._

@@ -48,6 +48,9 @@ export default function AgentDetailPage() {
   const canEdit = role === "org_owner" || role === "org_admin";
   const canPublish = role === "org_owner" || role === "org_admin";
   const canArchive = role === "org_owner" || role === "org_admin";
+  const canRun = role === "org_owner" || role === "org_admin" || role === "org_member";
+
+  const [startingRun, setStartingRun] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -111,6 +114,22 @@ export default function AgentDetailPage() {
       await loadAgent();
     } else {
       setError(result.error.message);
+    }
+  };
+
+  const handleStartRun = async () => {
+    if (!token) return;
+    setStartingRun(true);
+    const result = await apiFetch<{ id: string }>(`/api/v1/agents/${agentId}/runs`, {
+      method: "POST",
+      token,
+      body: JSON.stringify({}),
+    });
+    if (result.ok) {
+      router.push(`/runs/${result.data.id}`);
+    } else {
+      setError(result.error.message);
+      setStartingRun(false);
     }
   };
 
@@ -229,6 +248,15 @@ export default function AgentDetailPage() {
           </div>
           <div className="flex items-center gap-3">
             {statusBadge(agent.status)}
+            {canRun && agent.status === "published" && (
+              <button
+                onClick={handleStartRun}
+                disabled={startingRun}
+                className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-500 disabled:opacity-50"
+              >
+                {startingRun ? "Starting..." : "Run"}
+              </button>
+            )}
             {canEdit && agent.status !== "archived" && !editing && (
               <button
                 onClick={() => setEditing(true)}

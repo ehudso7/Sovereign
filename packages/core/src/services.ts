@@ -2,7 +2,7 @@
 // Service interfaces for Phase 2 — Identity, Orgs, Tenancy
 // ---------------------------------------------------------------------------
 
-import type { OrgId, UserId, ProjectId, AgentId, AgentVersionId, Result, PaginatedResult, PaginationParams } from "./types.js";
+import type { OrgId, UserId, ProjectId, AgentId, AgentVersionId, RunId, Result, PaginatedResult, PaginationParams } from "./types.js";
 import type { SessionId, OrgRole, Session, AuthConfig, AuthResult } from "./auth.js";
 import type {
   User,
@@ -24,6 +24,10 @@ import type {
   UpdateAgentInput,
   CreateAgentVersionInput,
   UpdateAgentVersionInput,
+  Run,
+  RunStatus,
+  RunStep,
+  TriggerType,
 } from "./entities.js";
 // ---------------------------------------------------------------------------
 // Auth service
@@ -129,4 +133,31 @@ export interface AgentStudioService {
   // Publish/unpublish
   publishVersion(agentId: AgentId, versionId: AgentVersionId, orgId: OrgId): Promise<Result<AgentVersion>>;
   unpublishAgent(agentId: AgentId, orgId: OrgId): Promise<Result<Agent>>;
+}
+
+// ---------------------------------------------------------------------------
+// Run service (Phase 5)
+// ---------------------------------------------------------------------------
+
+export interface RunService {
+  createRun(
+    agentId: AgentId,
+    orgId: OrgId,
+    triggeredBy: UserId,
+    input?: Record<string, unknown>,
+    triggerType?: TriggerType,
+  ): Promise<Result<Run>>;
+
+  getRun(runId: RunId, orgId: OrgId): Promise<Result<Run>>;
+
+  listRuns(
+    orgId: OrgId,
+    filters?: { agentId?: AgentId; status?: RunStatus; projectId?: ProjectId },
+  ): Promise<Result<Run[]>>;
+
+  getRunSteps(runId: RunId, orgId: OrgId): Promise<Result<RunStep[]>>;
+
+  pauseRun(runId: RunId, orgId: OrgId, actorId: UserId): Promise<Result<Run>>;
+  resumeRun(runId: RunId, orgId: OrgId, actorId: UserId): Promise<Result<Run>>;
+  cancelRun(runId: RunId, orgId: OrgId, actorId: UserId): Promise<Result<Run>>;
 }

@@ -113,6 +113,14 @@ export type {
   MemoryConfig,
   ScheduleConfig,
   ModelConfig,
+  Run,
+  RunStatus,
+  RunStep,
+  RunStepType,
+  RunStepStatus,
+  CreateRunInput,
+  TriggerType,
+  ExecutionProvider,
 } from "./entities.js";
 
 // ---------------------------------------------------------------------------
@@ -135,6 +143,17 @@ export { toAuditEventId } from "./audit.js";
 // Service interfaces (Phase 2)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Run state machine (Phase 5)
+// ---------------------------------------------------------------------------
+
+export {
+  isValidTransition,
+  assertTransition,
+  isTerminal,
+  TERMINAL_STATES,
+} from "./run-state-machine.js";
+
 export type {
   AuthService,
   UserService,
@@ -143,4 +162,5 @@ export type {
   InvitationService,
   ProjectService,
   AgentStudioService,
+  RunService,
 } from "./services.js";

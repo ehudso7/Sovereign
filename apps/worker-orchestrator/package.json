@@ -12,7 +12,12 @@
   },
   "dependencies": {
     "@sovereign/core": "workspace:*",
-    "@sovereign/config": "workspace:*"
+    "@sovereign/config": "workspace:*",
+    "@sovereign/db": "workspace:*",
+    "@sovereign/agents": "workspace:*",
+    "@temporalio/client": "1.11.6",
+    "@temporalio/worker": "1.11.6",
+    "@temporalio/activity": "1.11.6"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

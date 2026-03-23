@@ -10,6 +10,7 @@ import type {
   ProjectId,
   AgentId,
   AgentVersionId,
+  RunId,
   SessionId,
   MembershipId,
   OrgRole,
@@ -32,6 +33,12 @@ import type {
   AuditEvent,
   EmitAuditEventInput,
   AuditQueryParams,
+  Run,
+  CreateRunInput,
+  RunStatus,
+  RunStep,
+  RunStepType,
+  RunStepStatus,
 } from "@sovereign/core";
 
 import {
@@ -40,6 +47,7 @@ import {
   toProjectId,
   toAgentId,
   toAgentVersionId,
+  toRunId,
   toSessionId,
   toMembershipId,
   toInvitationId,
@@ -57,6 +65,8 @@ import type {
   AuditRepo,
   AgentRepo,
   AgentVersionRepo,
+  RunRepo,
+  RunStepRepo,
 } from "@sovereign/db";
 
 // ---------------------------------------------------------------------------
@@ -805,6 +815,213 @@ export class TestAgentVersionRepo implements AgentVersionRepo {
 }
 
 // ---------------------------------------------------------------------------
+// TestRunRepo
+// ---------------------------------------------------------------------------
+
+export class TestRunRepo implements RunRepo {
+  private readonly store = new Map<string, Run>();
+  readonly scopedOrgId?: OrgId;
+
+  constructor(orgId?: OrgId) {
+    this.scopedOrgId = orgId;
+  }
+
+  async create(input: CreateRunInput): Promise<Run> {
+    const ts = now();
+    const run: Run = {
+      id: toRunId(randomUUID()),
+      orgId: input.orgId,
+      projectId: input.projectId,
+      agentId: input.agentId,
+      agentVersionId: input.agentVersionId,
+      status: "queued",
+      triggerType: input.triggerType,
+      triggeredBy: input.triggeredBy,
+      executionProvider: input.executionProvider,
+      input: input.input ?? {},
+      configSnapshot: input.configSnapshot,
+      output: null,
+      error: null,
+      tokenUsage: null,
+      costCents: null,
+      attemptCount: 1,
+      temporalWorkflowId: null,
+      startedAt: null,
+      completedAt: null,
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.store.set(run.id, run);
+    return run;
+  }
+
+  async getById(id: RunId, orgId: OrgId): Promise<Run | null> {
+    const run = this.store.get(id);
+    if (!run || run.orgId !== orgId) return null;
+    return run;
+  }
+
+  async listForOrg(
+    orgId: OrgId,
+    filters?: { agentId?: AgentId; projectId?: ProjectId; status?: RunStatus },
+  ): Promise<Run[]> {
+    let results = [...this.store.values()].filter((r) => r.orgId === orgId);
+    if (filters?.agentId) results = results.filter((r) => r.agentId === filters.agentId);
+    if (filters?.projectId) results = results.filter((r) => r.projectId === filters.projectId);
+    if (filters?.status) results = results.filter((r) => r.status === filters.status);
+    return results;
+  }
+
+  async listForAgent(agentId: AgentId, orgId: OrgId): Promise<Run[]> {
+    return [...this.store.values()].filter(
+      (r) => r.agentId === agentId && r.orgId === orgId,
+    );
+  }
+
+  async updateStatus(
+    id: RunId,
+    orgId: OrgId,
+    status: RunStatus,
+    extras?: {
+      output?: Record<string, unknown>;
+      error?: { code: string; message: string };
+      tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+      costCents?: number;
+      startedAt?: ISODateString;
+      completedAt?: ISODateString;
+    },
+  ): Promise<Run | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return null;
+    const updated: Run = {
+      ...existing,
+      status,
+      ...(extras?.output !== undefined ? { output: extras.output } : {}),
+      ...(extras?.error !== undefined ? { error: extras.error } : {}),
+      ...(extras?.tokenUsage !== undefined ? { tokenUsage: extras.tokenUsage } : {}),
+      ...(extras?.costCents !== undefined ? { costCents: extras.costCents } : {}),
+      ...(extras?.startedAt !== undefined ? { startedAt: extras.startedAt } : {}),
+      ...(extras?.completedAt !== undefined ? { completedAt: extras.completedAt } : {}),
+      updatedAt: now(),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async delete(id: RunId, orgId: OrgId): Promise<boolean> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return false;
+    return this.store.delete(id);
+  }
+
+  reset(): void {
+    this.store.clear();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TestRunStepRepo
+// ---------------------------------------------------------------------------
+
+export class TestRunStepRepo implements RunStepRepo {
+  private readonly store = new Map<string, RunStep>();
+  readonly scopedOrgId?: OrgId;
+
+  constructor(orgId?: OrgId) {
+    this.scopedOrgId = orgId;
+  }
+
+  async create(input: {
+    orgId: OrgId;
+    runId: RunId;
+    stepNumber: number;
+    type: RunStepType;
+    attempt?: number;
+    toolName?: string;
+    input?: Record<string, unknown>;
+  }): Promise<RunStep> {
+    const ts = now();
+    const id = randomUUID();
+    const step: RunStep = {
+      id,
+      orgId: input.orgId,
+      runId: input.runId,
+      stepNumber: input.stepNumber,
+      type: input.type,
+      status: "pending",
+      attempt: input.attempt ?? 1,
+      toolName: input.toolName ?? null,
+      input: input.input ?? null,
+      output: null,
+      error: null,
+      tokenUsage: null,
+      providerMetadata: null,
+      latencyMs: null,
+      startedAt: null,
+      completedAt: null,
+      createdAt: ts,
+    };
+    this.store.set(id, step);
+    return step;
+  }
+
+  async getById(id: string, orgId: OrgId): Promise<RunStep | null> {
+    const step = this.store.get(id);
+    if (!step || step.orgId !== orgId) return null;
+    return step;
+  }
+
+  async listForRun(runId: RunId): Promise<RunStep[]> {
+    return [...this.store.values()]
+      .filter((s) => s.runId === runId)
+      .sort((a, b) => a.stepNumber - b.stepNumber);
+  }
+
+  async updateStatus(
+    id: string,
+    orgId: OrgId,
+    status: RunStepStatus,
+    extras?: {
+      output?: Record<string, unknown>;
+      error?: Record<string, unknown>;
+      tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+      providerMetadata?: Record<string, unknown>;
+      latencyMs?: number;
+      startedAt?: ISODateString;
+      completedAt?: ISODateString;
+    },
+  ): Promise<RunStep | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return null;
+    const updated: RunStep = {
+      ...existing,
+      status,
+      ...(extras?.output !== undefined ? { output: extras.output } : {}),
+      ...(extras?.error !== undefined ? { error: extras.error } : {}),
+      ...(extras?.tokenUsage !== undefined ? { tokenUsage: extras.tokenUsage } : {}),
+      ...(extras?.providerMetadata !== undefined ? { providerMetadata: extras.providerMetadata } : {}),
+      ...(extras?.latencyMs !== undefined ? { latencyMs: extras.latencyMs } : {}),
+      ...(extras?.startedAt !== undefined ? { startedAt: extras.startedAt } : {}),
+      ...(extras?.completedAt !== undefined ? { completedAt: extras.completedAt } : {}),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async getNextStepNumber(runId: RunId): Promise<number> {
+    let max = 0;
+    for (const s of this.store.values()) {
+      if (s.runId === runId && s.stepNumber > max) max = s.stepNumber;
+    }
+    return max + 1;
+  }
+
+  reset(): void {
+    this.store.clear();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Factory & reset helpers
 // ---------------------------------------------------------------------------
 
@@ -817,6 +1034,8 @@ export interface TestRepos {
   projects: TestProjectRepo;
   agents: TestAgentRepo;
   agentVersions: TestAgentVersionRepo;
+  runs: TestRunRepo;
+  runSteps: TestRunStepRepo;
   audit: TestAuditRepo;
 }
 
@@ -832,6 +1051,8 @@ export function createTestRepos(): TestRepos {
   const projects = new TestProjectRepo();
   const agents = new TestAgentRepo();
   const agentVersions = new TestAgentVersionRepo();
+  const runs = new TestRunRepo();
+  const runSteps = new TestRunStepRepo();
   const audit = new TestAuditRepo();
 
   // Wire cross-repo references
@@ -847,6 +1068,8 @@ export function createTestRepos(): TestRepos {
     projects,
     agents,
     agentVersions,
+    runs,
+    runSteps,
     audit,
   };
 }
@@ -863,5 +1086,7 @@ export function resetAllRepos(repos: TestRepos): void {
   repos.projects.reset();
   repos.agents.reset();
   repos.agentVersions.reset();
+  repos.runs.reset();
+  repos.runSteps.reset();
   repos.audit.reset();
 }

@@ -39,7 +39,14 @@ export type AuditAction =
   | "agent_version.created"
   | "agent_version.updated"
   | "agent_version.published"
-  | "agent.unpublished";
+  | "agent.unpublished"
+  | "run.created"
+  | "run.started"
+  | "run.paused"
+  | "run.resumed"
+  | "run.cancelled"
+  | "run.completed"
+  | "run.failed";
 
 // ---------------------------------------------------------------------------
 // Audit actor types

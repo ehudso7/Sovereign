@@ -10,9 +10,12 @@ import type {
   MembershipId,
   AgentId,
   AgentVersionId,
+  RunId,
 
   OrgRole,
   AgentStatus,
+  RunStatus,
+  RunStepStatus,
   User,
   Organization,
   Membership,
@@ -30,6 +33,10 @@ import type {
   AuditEvent,
   EmitAuditEventInput,
   AuditQueryParams,
+  Run,
+  CreateRunInput,
+  RunStep,
+  ISODateString,
 } from "@sovereign/core";
 
 // ---------------------------------------------------------------------------
@@ -219,4 +226,56 @@ export interface AgentVersionRepo {
   }): Promise<AgentVersion | null>;
   publish(id: AgentVersionId, orgId: OrgId): Promise<AgentVersion | null>;
   unpublishAll(agentId: AgentId): Promise<number>;
+}
+
+// ---------------------------------------------------------------------------
+// Run repository (Phase 5, tenant-scoped)
+// ---------------------------------------------------------------------------
+
+export interface RunRepo {
+  create(input: CreateRunInput): Promise<Run>;
+  getById(id: RunId, orgId: OrgId): Promise<Run | null>;
+  listForOrg(orgId: OrgId, filters?: {
+    agentId?: AgentId;
+    projectId?: ProjectId;
+    status?: RunStatus;
+  }): Promise<Run[]>;
+  listForAgent(agentId: AgentId, orgId: OrgId): Promise<Run[]>;
+  updateStatus(id: RunId, orgId: OrgId, status: RunStatus, extras?: {
+    output?: Record<string, unknown>;
+    error?: { code: string; message: string };
+    tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+    costCents?: number;
+    startedAt?: ISODateString;
+    completedAt?: ISODateString;
+  }): Promise<Run | null>;
+  delete(id: RunId, orgId: OrgId): Promise<boolean>;
+}
+
+// ---------------------------------------------------------------------------
+// Run step repository (Phase 5, tenant-scoped)
+// ---------------------------------------------------------------------------
+
+export interface RunStepRepo {
+  create(input: {
+    orgId: OrgId;
+    runId: RunId;
+    stepNumber: number;
+    type: import("@sovereign/core").RunStepType;
+    attempt?: number;
+    toolName?: string;
+    input?: Record<string, unknown>;
+  }): Promise<RunStep>;
+  getById(id: string, orgId: OrgId): Promise<RunStep | null>;
+  listForRun(runId: RunId): Promise<RunStep[]>;
+  updateStatus(id: string, orgId: OrgId, status: RunStepStatus, extras?: {
+    output?: Record<string, unknown>;
+    error?: Record<string, unknown>;
+    tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+    providerMetadata?: Record<string, unknown>;
+    latencyMs?: number;
+    startedAt?: ISODateString;
+    completedAt?: ISODateString;
+  }): Promise<RunStep | null>;
+  getNextStepNumber(runId: RunId): Promise<number>;
 }
