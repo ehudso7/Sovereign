@@ -95,11 +95,14 @@
 - [x] Lint: 19/19 (0 errors), Typecheck: 19/19, Tests: 14/14 (51 tests)
 
 #### API Routes
-- [ ] Agent CRUD endpoints (POST/GET/PUT/DELETE /api/v1/agents)
-- [ ] Agent version endpoints (POST/GET/PUT /api/v1/agents/:id/versions)
-- [ ] Publish/unpublish endpoints
-- [ ] Input validation with Zod schemas
-- [ ] Unit tests for agent studio service
+- [x] Agent CRUD endpoints (GET/POST/PATCH/DELETE /api/v1/agents)
+- [x] Agent version endpoints (GET/POST/PATCH /api/v1/agents/:id/versions)
+- [x] Publish/unpublish endpoints (POST .../publish, POST .../unpublish)
+- [x] Input validation with Zod schemas (all endpoints)
+- [x] Route registration in API app
+- [x] In-memory test repos (TestAgentRepo, TestAgentVersionRepo)
+- [x] Unit tests for agent studio service (19 tests)
+- [x] Lint: 19/19 (0 errors), Typecheck: 19/19, Tests: 14/14 (70 tests)
 
 #### Web UI
 - [ ] Agent listing page

@@ -8,6 +8,8 @@ import type {
   OrgId,
   UserId,
   ProjectId,
+  AgentId,
+  AgentVersionId,
   SessionId,
   MembershipId,
   OrgRole,
@@ -18,6 +20,15 @@ import type {
   Invitation,
   Session,
   Project,
+  Agent,
+  AgentStatus,
+  AgentVersion,
+  ToolConfig,
+  BudgetConfig,
+  ApprovalRuleConfig,
+  MemoryConfig,
+  ScheduleConfig,
+  ModelConfig,
   AuditEvent,
   EmitAuditEventInput,
   AuditQueryParams,
@@ -27,6 +38,8 @@ import {
   toOrgId,
   toUserId,
   toProjectId,
+  toAgentId,
+  toAgentVersionId,
   toSessionId,
   toMembershipId,
   toInvitationId,
@@ -42,6 +55,8 @@ import type {
   SessionRepo,
   ProjectRepo,
   AuditRepo,
+  AgentRepo,
+  AgentVersionRepo,
 } from "@sovereign/db";
 
 // ---------------------------------------------------------------------------
@@ -564,6 +579,232 @@ export class TestAuditRepo implements AuditRepo {
 }
 
 // ---------------------------------------------------------------------------
+// TestAgentRepo
+// ---------------------------------------------------------------------------
+
+export class TestAgentRepo implements AgentRepo {
+  private readonly store = new Map<string, Agent>();
+  readonly scopedOrgId?: OrgId;
+
+  constructor(orgId?: OrgId) {
+    this.scopedOrgId = orgId;
+  }
+
+  async create(input: {
+    orgId: OrgId;
+    projectId: ProjectId;
+    name: string;
+    slug: string;
+    description?: string;
+    createdBy: UserId;
+  }): Promise<Agent> {
+    const ts = now();
+    const agent: Agent = {
+      id: toAgentId(randomUUID()),
+      orgId: input.orgId,
+      projectId: input.projectId,
+      name: input.name,
+      slug: input.slug,
+      description: input.description,
+      status: "draft",
+      createdBy: input.createdBy,
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.store.set(agent.id, agent);
+    return agent;
+  }
+
+  async getById(id: AgentId, orgId: OrgId): Promise<Agent | null> {
+    const agent = this.store.get(id);
+    if (!agent || agent.orgId !== orgId) return null;
+    return agent;
+  }
+
+  async getBySlug(projectId: ProjectId, slug: string): Promise<Agent | null> {
+    for (const a of this.store.values()) {
+      if (a.projectId === projectId && a.slug === slug) return a;
+    }
+    return null;
+  }
+
+  async listForOrg(orgId: OrgId, filters?: { projectId?: ProjectId; status?: AgentStatus }): Promise<Agent[]> {
+    let results = [...this.store.values()].filter((a) => a.orgId === orgId);
+    if (filters?.projectId) results = results.filter((a) => a.projectId === filters.projectId);
+    if (filters?.status) results = results.filter((a) => a.status === filters.status);
+    return results;
+  }
+
+  async update(id: AgentId, orgId: OrgId, input: { name?: string; description?: string }): Promise<Agent | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return null;
+    const updated: Agent = {
+      ...existing,
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      updatedAt: now(),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async updateStatus(id: AgentId, orgId: OrgId, status: AgentStatus): Promise<Agent | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return null;
+    const updated: Agent = { ...existing, status, updatedAt: now() };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async delete(id: AgentId, orgId: OrgId): Promise<boolean> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return false;
+    return this.store.delete(id);
+  }
+
+  reset(): void {
+    this.store.clear();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TestAgentVersionRepo
+// ---------------------------------------------------------------------------
+
+export class TestAgentVersionRepo implements AgentVersionRepo {
+  private readonly store = new Map<string, AgentVersion>();
+  readonly scopedOrgId?: OrgId;
+
+  constructor(orgId?: OrgId) {
+    this.scopedOrgId = orgId;
+  }
+
+  async create(input: {
+    orgId: OrgId;
+    agentId: AgentId;
+    version: number;
+    goals: readonly string[];
+    instructions: string;
+    tools: readonly ToolConfig[];
+    budget: BudgetConfig | null;
+    approvalRules: readonly ApprovalRuleConfig[];
+    memoryConfig: MemoryConfig | null;
+    schedule: ScheduleConfig | null;
+    modelConfig: ModelConfig;
+    createdBy: UserId;
+  }): Promise<AgentVersion> {
+    const ts = now();
+    const version: AgentVersion = {
+      id: toAgentVersionId(randomUUID()),
+      orgId: input.orgId,
+      agentId: input.agentId,
+      version: input.version,
+      goals: input.goals,
+      instructions: input.instructions,
+      tools: input.tools,
+      budget: input.budget,
+      approvalRules: input.approvalRules,
+      memoryConfig: input.memoryConfig,
+      schedule: input.schedule,
+      modelConfig: input.modelConfig,
+      published: false,
+      createdBy: input.createdBy,
+      createdAt: ts,
+    };
+    this.store.set(version.id, version);
+    return version;
+  }
+
+  async getById(id: AgentVersionId, orgId: OrgId): Promise<AgentVersion | null> {
+    const v = this.store.get(id);
+    if (!v || v.orgId !== orgId) return null;
+    return v;
+  }
+
+  async getByVersion(agentId: AgentId, version: number): Promise<AgentVersion | null> {
+    for (const v of this.store.values()) {
+      if (v.agentId === agentId && v.version === version) return v;
+    }
+    return null;
+  }
+
+  async listForAgent(agentId: AgentId): Promise<AgentVersion[]> {
+    return [...this.store.values()]
+      .filter((v) => v.agentId === agentId)
+      .sort((a, b) => b.version - a.version);
+  }
+
+  async getLatestVersion(agentId: AgentId): Promise<number> {
+    let max = 0;
+    for (const v of this.store.values()) {
+      if (v.agentId === agentId && v.version > max) max = v.version;
+    }
+    return max;
+  }
+
+  async getPublished(agentId: AgentId): Promise<AgentVersion | null> {
+    for (const v of this.store.values()) {
+      if (v.agentId === agentId && v.published) return v;
+    }
+    return null;
+  }
+
+  async update(id: AgentVersionId, orgId: OrgId, input: {
+    goals?: readonly string[];
+    instructions?: string;
+    tools?: readonly ToolConfig[];
+    budget?: BudgetConfig | null;
+    approvalRules?: readonly ApprovalRuleConfig[];
+    memoryConfig?: MemoryConfig | null;
+    schedule?: ScheduleConfig | null;
+    modelConfig?: ModelConfig;
+  }): Promise<AgentVersion | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return null;
+    const updated: AgentVersion = {
+      ...existing,
+      ...(input.goals !== undefined ? { goals: input.goals } : {}),
+      ...(input.instructions !== undefined ? { instructions: input.instructions } : {}),
+      ...(input.tools !== undefined ? { tools: input.tools } : {}),
+      ...(input.budget !== undefined ? { budget: input.budget } : {}),
+      ...(input.approvalRules !== undefined ? { approvalRules: input.approvalRules } : {}),
+      ...(input.memoryConfig !== undefined ? { memoryConfig: input.memoryConfig } : {}),
+      ...(input.schedule !== undefined ? { schedule: input.schedule } : {}),
+      ...(input.modelConfig !== undefined ? { modelConfig: input.modelConfig } : {}),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async publish(id: AgentVersionId, orgId: OrgId): Promise<AgentVersion | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return null;
+    const published: AgentVersion = {
+      ...existing,
+      published: true,
+      publishedAt: now(),
+    };
+    this.store.set(id, published);
+    return published;
+  }
+
+  async unpublishAll(agentId: AgentId): Promise<number> {
+    let count = 0;
+    for (const [key, v] of this.store.entries()) {
+      if (v.agentId === agentId && v.published) {
+        this.store.set(key, { ...v, published: false, publishedAt: undefined });
+        count++;
+      }
+    }
+    return count;
+  }
+
+  reset(): void {
+    this.store.clear();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Factory & reset helpers
 // ---------------------------------------------------------------------------
 
@@ -574,6 +815,8 @@ export interface TestRepos {
   invitations: TestInvitationRepo;
   sessions: TestSessionRepo;
   projects: TestProjectRepo;
+  agents: TestAgentRepo;
+  agentVersions: TestAgentVersionRepo;
   audit: TestAuditRepo;
 }
 
@@ -587,6 +830,8 @@ export function createTestRepos(): TestRepos {
   const invitations = new TestInvitationRepo();
   const sessions = new TestSessionRepo();
   const projects = new TestProjectRepo();
+  const agents = new TestAgentRepo();
+  const agentVersions = new TestAgentVersionRepo();
   const audit = new TestAuditRepo();
 
   // Wire cross-repo references
@@ -600,6 +845,8 @@ export function createTestRepos(): TestRepos {
     invitations,
     sessions,
     projects,
+    agents,
+    agentVersions,
     audit,
   };
 }
@@ -614,5 +861,7 @@ export function resetAllRepos(repos: TestRepos): void {
   repos.invitations.reset();
   repos.sessions.reset();
   repos.projects.reset();
+  repos.agents.reset();
+  repos.agentVersions.reset();
   repos.audit.reset();
 }
