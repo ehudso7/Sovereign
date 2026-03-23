@@ -51,6 +51,11 @@ export interface UnscopedDb {
   ): Promise<T | null>;
   execute(sql: string, params?: unknown[]): Promise<number>;
   transaction<T>(fn: (tx: UnscopedDb) => Promise<T>): Promise<T>;
+  /**
+   * Run a transaction with app.current_org_id set for RLS-protected table writes.
+   * Use this when an unscoped repo needs to INSERT/UPDATE/DELETE on RLS-enabled tables.
+   */
+  transactionWithOrg<T>(orgId: OrgId, fn: (tx: UnscopedDb) => Promise<T>): Promise<T>;
 }
 
 // ---------------------------------------------------------------------------
@@ -101,7 +106,7 @@ class PgTenantDb implements TenantDb {
       const poolClient = await this.client.connect();
       try {
         await poolClient.query("BEGIN");
-        await poolClient.query("SET LOCAL app.current_org_id = $1", [this.orgId]);
+        await poolClient.query("SELECT set_config('app.current_org_id', $1::text, true)", [this.orgId]);
         const txDb = new PgTenantDb(this.orgId, poolClient, this.debug);
         const result = await fn(txDb);
         await poolClient.query("COMMIT");
@@ -179,6 +184,37 @@ class PgUnscopedDb implements UnscopedDb {
         return result;
       } catch (e) {
         await this.client.query("ROLLBACK TO SAVEPOINT sp");
+        throw e;
+      }
+    }
+  }
+
+  async transactionWithOrg<T>(orgId: OrgId, fn: (tx: UnscopedDb) => Promise<T>): Promise<T> {
+    if (this.client instanceof Pool) {
+      const poolClient = await this.client.connect();
+      try {
+        await poolClient.query("BEGIN");
+        await poolClient.query("SELECT set_config('app.current_org_id', $1::text, true)", [orgId]);
+        const txDb = new PgUnscopedDb(poolClient, this.debug);
+        const result = await fn(txDb);
+        await poolClient.query("COMMIT");
+        return result;
+      } catch (e) {
+        await poolClient.query("ROLLBACK");
+        throw e;
+      } finally {
+        poolClient.release();
+      }
+    } else {
+      // Nested: use savepoint and set org context
+      await this.client.query("SAVEPOINT sp_org");
+      await this.client.query("SELECT set_config('app.current_org_id', $1::text, true)", [orgId]);
+      try {
+        const result = await fn(this);
+        await this.client.query("RELEASE SAVEPOINT sp_org");
+        return result;
+      } catch (e) {
+        await this.client.query("ROLLBACK TO SAVEPOINT sp_org");
         throw e;
       }
     }

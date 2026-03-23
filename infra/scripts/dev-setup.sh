@@ -22,9 +22,32 @@ fi
 echo "Starting infrastructure services..."
 docker compose -f infra/docker/docker-compose.yml up -d
 
-# Wait for services
-echo "Waiting for services to be ready..."
-sleep 5
+# Wait for PostgreSQL to be ready
+echo "Waiting for PostgreSQL to be ready..."
+for i in $(seq 1 30); do
+  if pg_isready -h localhost -p 5432 -q 2>/dev/null; then
+    echo "PostgreSQL is ready."
+    break
+  fi
+  if [ "$i" -eq 30 ]; then
+    echo "Timed out waiting for PostgreSQL."
+    exit 1
+  fi
+  sleep 1
+done
 
+# Run database migrations
+echo "Running database migrations..."
+pnpm db:migrate
+
+echo ""
 echo "Development environment ready!"
-echo "Run 'pnpm dev' to start all applications."
+echo ""
+echo "Commands:"
+echo "  pnpm dev              # Start all applications"
+echo "  pnpm db:migrate       # Run database migrations"
+echo "  pnpm test             # Run unit tests"
+echo "  pnpm test:integration # Run integration tests (requires PostgreSQL)"
+echo "  pnpm lint             # Lint all packages"
+echo "  pnpm typecheck        # Type check all packages"
+echo "  pnpm build            # Build all packages"

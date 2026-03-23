@@ -87,7 +87,10 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test:integration
+      - name: Run database migrations
+        run: pnpm db:migrate
+      - name: Run integration tests
+        run: pnpm test:integration
 
   build:
     name: Build

@@ -63,8 +63,23 @@
 ### Test Database
 - Fresh PostgreSQL per test suite (integration)
 - Migrations run automatically before tests
+- Each integration test file gets an isolated database (created/dropped per suite)
+- Tables truncated between individual tests for isolation
 - Seed data via test factories
 - Cleanup after each test
+
+### Running Integration Tests Locally
+```bash
+# Start PostgreSQL (via Docker Compose or local install)
+docker compose -f infra/docker/docker-compose.yml up -d postgres
+
+# Run migrations and integration tests
+./infra/scripts/run-integration-tests.sh
+
+# Or manually:
+DATABASE_URL=postgresql://sovereign:sovereign_dev@localhost:5432/sovereign pnpm db:migrate
+DATABASE_URL=postgresql://sovereign:sovereign_dev@localhost:5432/sovereign pnpm --filter @sovereign/db test:integration
+```
 
 ### Test Factories
 - Located in `packages/testing/factories/`

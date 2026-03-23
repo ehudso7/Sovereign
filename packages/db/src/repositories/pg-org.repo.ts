@@ -82,13 +82,25 @@ export class PgOrgRepo implements OrgRepo {
   }
 
   async listForUser(userId: UserId): Promise<Organization[]> {
-    const rows = await this.db.query<OrgRow>(
-      `SELECT o.* FROM organizations o
-       INNER JOIN memberships m ON m.org_id = o.id
-       WHERE m.user_id = $1
-       ORDER BY o.created_at`,
-      [userId],
+    // memberships table has FORCE RLS, so cross-org JOINs require per-org context.
+    // Query all orgs (organizations table has no RLS), then check membership per-org.
+    const allOrgs = await this.db.query<OrgRow>(
+      "SELECT * FROM organizations ORDER BY created_at",
     );
-    return rows.map(toOrg);
+
+    const result: Organization[] = [];
+    for (const org of allOrgs) {
+      const orgId = toOrgId(org.id);
+      const membership = await this.db.transactionWithOrg(orgId, async (tx) => {
+        return tx.queryOne<{ id: string }>(
+          "SELECT id FROM memberships WHERE org_id = $1 AND user_id = $2",
+          [orgId, userId],
+        );
+      });
+      if (membership) {
+        result.push(toOrg(org));
+      }
+    }
+    return result;
   }
 }

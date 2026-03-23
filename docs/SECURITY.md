@@ -78,6 +78,14 @@ Role management rules:
 - Object storage keys prefixed by org_id
 - No shared state between tenants
 - Tenant context is passed explicitly via `TenantDb.orgId` and repository constructor parameters
+- **RLS verification**: Integration tests in `packages/db/src/__tests__/integration/rls-tenant-isolation.test.ts` prove:
+  - Correct-tenant access succeeds for all RLS-protected tables
+  - Wrong-tenant access returns no rows (not errors — silent denial)
+  - Queries without `app.current_org_id` get UUID cast errors (defense in depth)
+  - Cross-tenant INSERT, UPDATE, DELETE are blocked by RLS
+  - `app.current_org_id` is correctly set via `set_config()` in TenantDb transactions
+  - All 5 RLS-protected tables (memberships, invitations, projects, audit_events, sessions) verified
+- **Known limitation**: Cross-org reads (e.g., session token lookup, listing user memberships) use per-org iteration due to FORCE RLS. Production optimization: use SECURITY DEFINER functions or role separation (app role vs. migration role).
 
 ### Secret Management
 - Secrets stored encrypted in `connector_credentials`

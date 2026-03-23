@@ -36,61 +36,68 @@ function toAuditEvent(row: AuditRow): AuditEvent {
   };
 }
 
-/** Audit repo is tenant-scoped — all queries automatically filter by orgId */
+/**
+ * Audit repo is tenant-scoped.
+ * All operations run inside transactions to ensure app.current_org_id is set for RLS.
+ */
 export class PgAuditRepo implements AuditRepo {
   constructor(private readonly db: TenantDb) {}
 
   async emit(input: EmitAuditEventInput): Promise<AuditEvent> {
-    const row = await this.db.queryOne<AuditRow>(
-      `INSERT INTO audit_events (org_id, actor_id, actor_type, action, resource_type, resource_id, metadata, ip_address)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
-      [
-        this.db.orgId,
-        input.actorId ?? null,
-        input.actorType,
-        input.action,
-        input.resourceType,
-        input.resourceId ?? null,
-        JSON.stringify(input.metadata ?? {}),
-        input.ipAddress ?? null,
-      ],
-    );
-    if (!row) throw new Error("Failed to emit audit event");
-    return toAuditEvent(row);
+    return this.db.transaction(async (tx) => {
+      const row = await tx.queryOne<AuditRow>(
+        `INSERT INTO audit_events (org_id, actor_id, actor_type, action, resource_type, resource_id, metadata, ip_address)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [
+          this.db.orgId,
+          input.actorId ?? null,
+          input.actorType,
+          input.action,
+          input.resourceType,
+          input.resourceId ?? null,
+          JSON.stringify(input.metadata ?? {}),
+          input.ipAddress ?? null,
+        ],
+      );
+      if (!row) throw new Error("Failed to emit audit event");
+      return toAuditEvent(row);
+    });
   }
 
   async query(_orgId: OrgId, params?: AuditQueryParams): Promise<AuditEvent[]> {
-    const conditions = ["org_id = $1"];
-    const queryParams: unknown[] = [this.db.orgId];
-    let idx = 2;
+    return this.db.transaction(async (tx) => {
+      const conditions = ["org_id = $1"];
+      const queryParams: unknown[] = [this.db.orgId];
+      let idx = 2;
 
-    if (params?.action) {
-      conditions.push(`action = $${idx++}`);
-      queryParams.push(params.action);
-    }
-    if (params?.resourceType) {
-      conditions.push(`resource_type = $${idx++}`);
-      queryParams.push(params.resourceType);
-    }
-    if (params?.resourceId) {
-      conditions.push(`resource_id = $${idx++}`);
-      queryParams.push(params.resourceId);
-    }
-    if (params?.actorId) {
-      conditions.push(`actor_id = $${idx++}`);
-      queryParams.push(params.actorId);
-    }
-    if (params?.since) {
-      conditions.push(`created_at >= $${idx++}`);
-      queryParams.push(params.since);
-    }
+      if (params?.action) {
+        conditions.push(`action = $${idx++}`);
+        queryParams.push(params.action);
+      }
+      if (params?.resourceType) {
+        conditions.push(`resource_type = $${idx++}`);
+        queryParams.push(params.resourceType);
+      }
+      if (params?.resourceId) {
+        conditions.push(`resource_id = $${idx++}`);
+        queryParams.push(params.resourceId);
+      }
+      if (params?.actorId) {
+        conditions.push(`actor_id = $${idx++}`);
+        queryParams.push(params.actorId);
+      }
+      if (params?.since) {
+        conditions.push(`created_at >= $${idx++}`);
+        queryParams.push(params.since);
+      }
 
-    const limit = params?.limit ?? 100;
-    const rows = await this.db.query<AuditRow>(
-      `SELECT * FROM audit_events WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC LIMIT ${limit}`,
-      queryParams,
-    );
-    return rows.map(toAuditEvent);
+      const limit = params?.limit ?? 100;
+      const rows = await tx.query<AuditRow>(
+        `SELECT * FROM audit_events WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC LIMIT ${limit}`,
+        queryParams,
+      );
+      return rows.map(toAuditEvent);
+    });
   }
 }

@@ -61,6 +61,21 @@
 - [x] Cross-tenant isolation tests verified with new architecture
 - [x] Lint: 19/19, Typecheck: 19/19, Tests: 14/14 (65 tests)
 
+### Phase 3 Remediation — Real DB Proof ✅
+- [x] Fixed SET LOCAL → set_config() for RLS session variable (critical bug)
+- [x] Added UnscopedDb.transactionWithOrg() for RLS-protected table writes
+- [x] Updated PgMembershipRepo, PgInvitationRepo, PgSessionRepo to handle FORCE RLS
+- [x] Updated PgProjectRepo, PgAuditRepo to wrap all operations in transactions for RLS context
+- [x] Updated PgOrgRepo.listForUser to work with FORCE RLS on memberships table
+- [x] Real PostgreSQL integration test harness (setupTestDb/teardownTestDb/truncateAllTables)
+- [x] Migration proof: fresh DB migration, idempotent reruns, schema validation (8 tests)
+- [x] Repository CRUD integration tests against real PostgreSQL (28 tests)
+- [x] RLS tenant isolation tests: cross-tenant data isolation proven (17 tests)
+- [x] Transaction behavior tests: commit, rollback, nested savepoints
+- [x] CI integration test job runs migrations then real DB tests
+- [x] Local developer verification scripts (dev-setup.sh, run-integration-tests.sh)
+- [x] Lint: 19/19, Typecheck: 19/19, Build: 19/19, Unit Tests: 14/14 (65 tests), Integration Tests: 3/3 (53 tests)
+
 ## Backlog
 
 ### Phase 4 — Agent Studio

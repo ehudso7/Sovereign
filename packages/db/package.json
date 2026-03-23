@@ -9,7 +9,8 @@
     "build": "tsc",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "clean": "rm -rf dist",
     "migrate": "node dist/migrate.js",
     "seed": "node dist/seed.js"
