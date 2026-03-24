@@ -155,12 +155,12 @@ describe("Load / Stress Verification", () => {
   // =========================================================================
 
   it("handles 20 memory creations then concurrent search", async () => {
-    const { token } = await bootstrap();
+    const { token, orgId } = await bootstrap();
 
     for (let i = 0; i < 20; i++) {
       await app.inject({
         method: "POST", url: "/api/v1/memories", headers: auth(token),
-        payload: { kind: "semantic", scopeType: "org", title: `Mem ${i}`, content: `Content ${i} searchable` },
+        payload: { kind: "semantic", scopeType: "org", scopeId: orgId, title: `Mem ${i}`, summary: `Summary ${i}`, content: `Content ${i} searchable` },
       });
     }
 

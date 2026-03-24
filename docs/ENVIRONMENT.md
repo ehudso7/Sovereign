@@ -56,13 +56,21 @@
 | `LOG_LEVEL` | No | `info` | `debug`, `info`, `warn`, `error` |
 | `LOG_FORMAT` | No | `json` | `json` or `pretty` |
 
+## Production Enforcement
+
+The API server **refuses to start** in production mode (`NODE_ENV=production`) if:
+- `SESSION_SECRET` is not set — prevents accidental use of dev fallback
+- `SOVEREIGN_SECRET_KEY` is not set — prevents running without encryption key
+
+This is enforced at startup in `apps/api/src/index.ts`. There is no way to bypass this.
+
 ## Production Checklist
 
 Before going live, verify:
 
 1. `NODE_ENV=production`
 2. `AUTH_MODE=workos` with valid WorkOS credentials
-3. `SESSION_SECRET` is a unique, random 64+ character string (not the dev fallback)
+3. `SESSION_SECRET` is a unique, random 64+ character string (enforced at startup)
 4. `SOVEREIGN_SECRET_KEY` is a unique, random 32+ character string
 5. `DATABASE_URL` points to production PostgreSQL (not localhost)
 6. `CORS_ORIGINS` is restricted to your production domains

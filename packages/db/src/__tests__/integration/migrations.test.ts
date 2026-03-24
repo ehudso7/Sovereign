@@ -98,7 +98,7 @@ describe("Migration runner against real PostgreSQL", () => {
   it("creates schema_migrations tracking table with correct entries", async () => {
     const status = await getMigrationStatus(testDbUrl);
 
-    expect(status).toHaveLength(9);
+    expect(status).toHaveLength(11);
     expect(status[0]!.version).toBe("001_phase2_identity");
     expect(status[1]!.version).toBe("002_row_level_security");
     expect(status[2]!.version).toBe("003_phase4_agents");
@@ -108,6 +108,8 @@ describe("Migration runner against real PostgreSQL", () => {
     expect(status[6]!.version).toBe("007_phase8_memory");
     expect(status[7]!.version).toBe("008_phase9_alerts");
     expect(status[8]!.version).toBe("009_phase10_policies");
+    expect(status[9]!.version).toBe("010_phase11_revenue");
+    expect(status[10]!.version).toBe("011_phase12_billing");
     expect(status[0]!.appliedAt).toBeTruthy();
     expect(status[1]!.appliedAt).toBeTruthy();
   });

@@ -84,6 +84,16 @@ if (isDirectRun) {
   });
 
   const authMode = (process.env.AUTH_MODE ?? "local") as "local" | "workos";
+  const isProduction = process.env.NODE_ENV === "production";
+
+  // In production, SESSION_SECRET must be explicitly set — no fallback allowed
+  if (isProduction && !process.env.SESSION_SECRET) {
+    throw new Error("SESSION_SECRET must be set in production. Refusing to start with dev fallback.");
+  }
+  if (isProduction && !process.env.SOVEREIGN_SECRET_KEY) {
+    throw new Error("SOVEREIGN_SECRET_KEY must be set in production. Refusing to start without encryption key.");
+  }
+
   const authConfig: AuthConfig = {
     mode: authMode,
     sessionSecret: process.env.SESSION_SECRET ?? "dev-session-secret-min-32-chars-long!!",

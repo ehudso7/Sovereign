@@ -89,10 +89,18 @@ export async function rollbackMigration(databaseUrl: string, migrationsDir?: str
     const file = `${lastVersion}.sql`;
     const sql = await readFile(join(dir, file), "utf-8");
 
-    // Extract DOWN portion
+    // Extract DOWN portion — uncomment `-- DROP` lines or use raw DOWN SQL
+    let downSql: string;
     const downMatch = sql.match(/^-- =+\s*\n-- DOWN.*?\n-- =+\s*\n([\s\S]+)$/m);
-    if (!downMatch) {
-      // Try extracting commented-out DROP statements
+    if (downMatch) {
+      // DOWN section found — uncomment any `-- ` prefixed lines
+      downSql = downMatch[1]!
+        .split("\n")
+        .map((line) => line.startsWith("-- ") ? line.slice(3) : line)
+        .join("\n")
+        .trim();
+    } else {
+      // Try extracting commented-out DROP statements from anywhere in the file
       const dropStatements = sql
         .split("\n")
         .filter((line) => line.startsWith("-- DROP"))
@@ -100,22 +108,22 @@ export async function rollbackMigration(databaseUrl: string, migrationsDir?: str
       if (dropStatements.length === 0) {
         throw new Error(`No DOWN section found in migration ${lastVersion}`);
       }
-      const client = await pool.connect();
-      try {
-        await client.query("BEGIN");
-        for (const stmt of dropStatements) {
-          await client.query(stmt);
-        }
-        await client.query(`DELETE FROM ${MIGRATIONS_TABLE} WHERE version = $1`, [lastVersion]);
-        await client.query("COMMIT");
-        result.applied.push(lastVersion);
-      } catch (e) {
-        await client.query("ROLLBACK");
-        result.failed.push(lastVersion);
-        throw e;
-      } finally {
-        client.release();
-      }
+      downSql = dropStatements.join(";\n");
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(downSql);
+      await client.query(`DELETE FROM ${MIGRATIONS_TABLE} WHERE version = $1`, [lastVersion]);
+      await client.query("COMMIT");
+      result.applied.push(lastVersion);
+    } catch (e) {
+      await client.query("ROLLBACK");
+      result.failed.push(lastVersion);
+      throw e;
+    } finally {
+      client.release();
     }
 
     return result;

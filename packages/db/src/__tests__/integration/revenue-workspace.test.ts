@@ -247,7 +247,7 @@ describe("Revenue Workspace — PostgreSQL integration", () => {
       const db = getTestDb();
       const orgId = getOrgAId();
       const repo = new PgCrmSyncLogRepo(db.forTenant(orgId));
-      const log = await repo.create({ orgId, direction: "push", entityType: "account", entityId: "some-id", createdBy: USER_A_ID });
+      const log = await repo.create({ orgId, direction: "push", entityType: "account", entityId: "00000000-0000-0000-0000-000000000001", createdBy: USER_A_ID });
       expect(log.status).toBe("pending");
       const updated = await repo.updateStatus(log.id, orgId, "completed", { externalCrmId: "ext-123", completedAt: new Date().toISOString() });
       expect(updated!.status).toBe("completed");
@@ -321,7 +321,7 @@ describe("Revenue Workspace — PostgreSQL integration", () => {
       const orgBId = getOrgBId();
       const repoA = new PgCrmSyncLogRepo(db.forTenant(orgAId));
       const repoB = new PgCrmSyncLogRepo(db.forTenant(orgBId));
-      await repoA.create({ orgId: orgAId, direction: "push", entityType: "account", entityId: "x", createdBy: USER_A_ID });
+      await repoA.create({ orgId: orgAId, direction: "push", entityType: "account", entityId: "00000000-0000-0000-0000-000000000002", createdBy: USER_A_ID });
       const fromB = await repoB.listForOrg(orgBId);
       expect(fromB.length).toBe(0);
     });
@@ -339,7 +339,7 @@ describe("Revenue Workspace — PostgreSQL integration", () => {
       await auditRepo.emit({
         orgId, actorId: USER_A_ID, actorType: "user",
         action: "revenue.account_created", resourceType: "crm_account",
-        resourceId: "test-id", metadata: { name: "Test" },
+        resourceId: "00000000-0000-0000-0000-000000000003", metadata: { name: "Test" },
       });
       const events = await auditRepo.query(orgId, { action: "revenue.account_created" as import("@sovereign/core").AuditAction });
       expect(events.length).toBe(1);
