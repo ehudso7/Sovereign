@@ -3,13 +3,8 @@
 // ---------------------------------------------------------------------------
 
 import type { FastifyInstance } from "fastify";
-import { z } from "zod";
 import { getServices } from "../services/index.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
-
-const CompleteStepSchema = z.object({
-  stepKey: z.string().min(1),
-});
 
 function meta(requestId: string) {
   return { request_id: requestId, timestamp: new Date().toISOString() };
@@ -34,16 +29,14 @@ export async function onboardingRoutes(server: FastifyInstance): Promise<void> {
   );
 
   server.post(
-    "/api/v1/onboarding/complete",
+    "/api/v1/onboarding/dismiss",
     { preHandler: [authenticate, requirePermission("onboarding:write")] },
     async (request, reply) => {
       const session = request.session!;
-      const validation = CompleteStepSchema.safeParse(request.body);
-      if (!validation.success) return reply.status(400).send({ error: { code: "BAD_REQUEST", message: "Invalid input", details: validation.error.errors }, meta: meta(request.id) });
       const svc = getServices().onboardingForOrg(session.orgId);
-      const result = await svc.completeStep(session.orgId, session.userId, validation.data.stepKey);
+      const result = await svc.dismissOnboarding(session.orgId, session.userId);
       if (!result.ok) return reply.status(result.error.statusCode).send({ error: result.error.toJSON(), meta: meta(request.id) });
-      return { data: { completed: true }, meta: meta(request.id) };
+      return { data: { dismissed: true }, meta: meta(request.id) };
     },
   );
 

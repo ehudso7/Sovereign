@@ -252,12 +252,15 @@ export class PgOnboardingService {
     } catch (e) { return err(AppError.internal((e as Error).message)); }
   }
 
-  async completeStep(orgId: OrgId, userId: UserId, stepKey: string): Promise<Result<void>> {
+  /**
+   * Dismiss onboarding guidance. Does NOT fake-complete any prerequisite.
+   * Steps are always derived from real platform state.
+   */
+  async dismissOnboarding(orgId: OrgId, userId: UserId): Promise<Result<void>> {
     try {
       await this.audit.emit({
         orgId, actorId: userId, actorType: "user",
-        action: "onboarding.step_completed", resourceType: "onboarding",
-        metadata: { stepKey },
+        action: "onboarding.dismissed", resourceType: "onboarding",
       });
       return ok(undefined);
     } catch (e) { return err(AppError.internal((e as Error).message)); }

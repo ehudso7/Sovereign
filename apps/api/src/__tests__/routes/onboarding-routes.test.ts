@@ -100,11 +100,10 @@ describe("Onboarding, Docs, Support, Admin (service-level contract)", () => {
       expect(result.value.completedCount).toBe(8);
     });
 
-    it("completeStep emits audit event", async () => {
-      await svc.completeStep(ORG_A, USER_ID, "agent_created");
-      const events = await repos.audit.query(ORG_A, { action: "onboarding.step_completed" as import("@sovereign/core").AuditAction });
+    it("dismissOnboarding emits audit event", async () => {
+      await svc.dismissOnboarding(ORG_A, USER_ID);
+      const events = await repos.audit.query(ORG_A, { action: "onboarding.dismissed" as import("@sovereign/core").AuditAction });
       expect(events.length).toBe(1);
-      expect((events[0]!.metadata as Record<string, unknown>).stepKey).toBe("agent_created");
     });
   });
 

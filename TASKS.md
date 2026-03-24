@@ -1107,7 +1107,7 @@ Grand total: 795 tests (587 unit + 208 integration)
 
 #### E. API Endpoints (8 endpoints)
 - [x] GET /api/v1/onboarding
-- [x] POST /api/v1/onboarding/complete
+- [x] POST /api/v1/onboarding/dismiss
 - [x] GET /api/v1/docs
 - [x] GET /api/v1/docs/:slug
 - [x] GET /api/v1/support/diagnostics
@@ -1126,13 +1126,13 @@ Grand total: 795 tests (587 unit + 208 integration)
 - [x] onboarding.step_completed, onboarding.dismissed
 - [x] support.diagnostics_viewed, admin.overview_viewed
 
-#### H. Web UI (7 pages + nav)
+#### H. Web UI (5 pages + 4 nav links)
 - [x] /onboarding — checklist with progress bar and action links
 - [x] /docs — category index with article links
 - [x] /docs/[slug] — article detail
 - [x] /support — diagnostics dashboard
 - [x] /admin — overview with members, settings, and quick links
-- [x] Setup/Docs/Support/Admin nav links in AppShell
+- [x] 4 nav links in AppShell: Setup, Docs, Support, Admin
 
 #### I. Testing
 - [x] onboarding-routes.test.ts — 20 unit tests
@@ -1147,6 +1147,32 @@ Grand total: 795 tests (587 unit + 208 integration)
 - Unit: 649 (81 core + 528 api + 10 orch + 17 browser + 13 mcp)
 - Integration: 219 across 12 suites (unchanged)
 - Grand total: 868
+
+### Phase 13 Remediation — DB-Backed Proof and Contract Reconciliation ✅
+
+#### A. Onboarding Contract Fix
+- [x] Removed POST /api/v1/onboarding/complete (was misleading — steps are derived, not manually completable)
+- [x] Added POST /api/v1/onboarding/dismiss (dismisses guidance, does not fake prerequisites)
+- [x] Service: completeStep() replaced with dismissOnboarding()
+- [x] Audit: onboarding.dismissed event (not step_completed for manual faking)
+
+#### B. PostgreSQL-Backed Integration Tests
+- [x] onboarding-support-admin.test.ts — 18 DB-backed tests:
+  - Onboarding: 7 tests (project_created, agent_created, agent_published, run_completed, connector_installed, billing_setup, policy_reviewed — all from persisted data)
+  - Support diagnostics: 4 tests (agent count, failed runs, billing plan/email, alert count)
+  - Admin overview: 3 tests (membership count, policy count, settings with billing/projects)
+  - Tenant isolation: 4 tests (agents, billing, policies, runs cross-org blocked)
+  - Audit: 1 test (support/admin audit events persisted)
+
+#### C. UI/API Contract Reconciliation
+- [x] Exact pages: 5 (/onboarding, /docs, /docs/[slug], /support, /admin)
+- [x] Exact nav links: 4 (Setup, Docs, Support, Admin)
+- [x] Exact endpoints: 8 (GET onboarding, POST onboarding/dismiss, GET docs, GET docs/:slug, GET support/diagnostics, GET admin/overview, GET admin/memberships, GET admin/settings-summary)
+
+#### D. Final Totals
+- Unit: 649 (81 core + 528 api + 10 orch + 17 browser + 13 mcp)
+- Integration: 237 across 13 suites (+18 new in onboarding-support-admin.test.ts)
+- Grand total: 886
 
 ### Phase 14
 _See ROADMAP.md for full phase details._
