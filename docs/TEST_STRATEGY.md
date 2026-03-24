@@ -134,6 +134,12 @@
 - **Location**: `apps/api/src/__tests__/routes/mission-control-routes.test.ts`
 - **Coverage**: Overview metrics (status counts, failure rate, token aggregation, alert count, recent failures), run listing with filters, run detail with steps/tool/memory linkage, timeline ordering, linked browser sessions, alert listing/filtering/acknowledgment, alert generation (run_failed, deduplication), org scoping, permission enforcement
 
+### Mission Control Integration Tests (DB-Backed)
+- **Scope**: PostgreSQL-backed proof for Mission Control queries, alert lifecycle, overview metrics, and tenant isolation
+- **Runner**: Vitest with real PostgreSQL (test harness: setupTestDb/teardownTestDb/truncateAllTables)
+- **Location**: `packages/db/src/__tests__/integration/mission-control.test.ts`
+- **Coverage**: Alert rule CRUD (create, list/filter, update, delete), alert event CRUD (create, list with filters, acknowledge, resolve, countByStatus), alert deduplication via resourceId, overview metrics computed from persisted runs (status counts, token aggregation, cost, queue wait, duration, failure rate, open alerts, recent failures), run list filters (status, agentId, projectId), run detail/timeline (ordered steps, tool usage aggregation), browser session linkage (runId-based, runsWithBrowser count), tool usage via audit events (distinct runs), memory usage via audit events (distinct runs, no double-count), tenant isolation across all mission control queries (alert rules, alert events, acknowledge, runs, browser sessions, audit events)
+
 ### Chaos Tests
 - **Scope**: Worker restart during runs, DB failover, network partition
 - **Approach**: Kill workers mid-run, verify recovery

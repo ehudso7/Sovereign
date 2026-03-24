@@ -169,9 +169,11 @@ export class MissionControlService {
     const runIdsWithTools = new Set(toolAuditEvents.map((e) => e.resourceId));
     runsWithTools = runIdsWithTools.size;
 
-    // Memory usage — count runs that had memory.retrieved_for_run
+    // Memory usage — count distinct runs that had memory.retrieved_for_run
     const memAuditEvents = await this.auditRepo.query(orgId, { action: "memory.retrieved_for_run" });
-    const runIdsWithMemory = new Set(memAuditEvents.map((e) => e.metadata?.scopeId).filter(Boolean));
+    const runIdsWithMemory = new Set(
+      memAuditEvents.map((e) => (e.metadata?.runId as string | undefined) ?? e.resourceId).filter(Boolean),
+    );
     const runsWithMemory = runIdsWithMemory.size;
 
     // Alert count

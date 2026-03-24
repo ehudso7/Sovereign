@@ -570,5 +570,60 @@ Grand total: 576 tests (420 unit + 156 integration)
 #### G. Docs
 - [x] TASKS.md, API_SPEC.md, SECURITY.md, DB_SCHEMA.md, TEST_STRATEGY.md updated
 
+### Phase 9 Remediation — DB-Backed Mission Control Proof ✅
+
+#### A. PostgreSQL-Backed Integration Tests
+- [x] mission-control.test.ts — 29 DB-backed integration tests:
+  - Alert rule CRUD: create, list with filters, update, delete (3 tests)
+  - Alert event CRUD: create, list with status/severity/conditionType filters, acknowledge (prevents re-ack), resolve (prevents re-resolve), countByStatus (5 tests)
+  - Alert deduplication: service-level dedup via resourceId tracking (1 test)
+  - Overview metrics from persisted data: status counts + token/cost aggregation, queue wait + duration from timestamps, open alert count, recent failures ordering (4 tests)
+  - Run list filters: by status, by agentId, by projectId (3 tests)
+  - Run detail/timeline: ordered steps, tool usage aggregation from steps (2 tests)
+  - Browser linkage: sessions linked to runs, runsWithBrowser count (2 tests)
+  - Tool usage via audit events: distinct runs with tools (1 test)
+  - Memory usage via audit events: distinct runs with memory retrieval, no double-counting (2 tests)
+  - Tenant isolation: alert rules, alert events, alert acknowledge, runs, browser sessions, audit events — all proven cross-org isolated (6 tests)
+
+#### B. Metric Correction
+- [x] Fixed `runsWithMemory` metric: was using `metadata.scopeId` (memory scope, not run) → now uses `metadata.runId ?? resourceId` to count distinct runs
+- [x] Label now correctly counts runs that had memory retrieval, not distinct memory scopes
+
+#### C. Pre-existing Integration Test Fixes
+- [x] Fixed truncateAllTables to include alert_events, alert_rules, memory_links, memories, browser_sessions
+- [x] Fixed browser-sessions.test.ts and memory-engine.test.ts cleanup to use transactionWithOrg (FORCE RLS requires org context)
+- [x] Fixed memory-engine.test.ts: replaced non-UUID scopeId strings with proper UUIDs
+- [x] Fixed memory-engine.test.ts: added prerequisite run/agent/project records for FK constraints
+- [x] Fixed browser-sessions.test.ts: replaced non-UUID resourceId in audit test
+- [x] Fixed migrations.test.ts: updated migration count from 5 to 8
+
+#### D. Final Verified Totals
+Unit tests (450 total across 5 packages):
+- @sovereign/core: 81 tests (3 files)
+- @sovereign/api: 333 tests (22 files)
+- @sovereign/worker-orchestrator: 6 tests (1 file)
+- @sovereign/worker-browser: 17 tests (2 files)
+- @sovereign/gateway-mcp: 13 tests (1 file)
+
+Integration tests (169 total across 9 suites, requires PostgreSQL):
+- mission-control.test.ts: 29 tests (NEW)
+- connector-hub.test.ts: 26 tests
+- repositories.test.ts: 28 tests
+- run-engine.test.ts: 19 tests
+- memory-engine.test.ts: 17 tests
+- rls-tenant-isolation.test.ts: 17 tests
+- agent-studio.test.ts: 16 tests
+- browser-sessions.test.ts: 9 tests
+- migrations.test.ts: 8 tests
+
+Grand total: 619 tests (450 unit + 169 integration)
+
+#### E. Exit Gates
+- [x] PostgreSQL-backed Mission Control integration tests exist and pass (29 tests)
+- [x] Alerts are proven durable in DB-backed tests (9 tests: CRUD, acknowledge, resolve, countByStatus, dedup)
+- [x] Overview metrics are clearly defined and correctly labeled (runsWithMemory fix)
+- [x] Lint, typecheck, build, unit tests, and integration tests pass
+- [x] No Phase 10 work was done
+
 ### Phase 10–14
 _See ROADMAP.md for full phase details._

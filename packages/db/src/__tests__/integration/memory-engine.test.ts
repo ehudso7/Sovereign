@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { toOrgId, toUserId } from "@sovereign/core";
+import { toOrgId, toUserId, toProjectId, toAgentId, toAgentVersionId, toRunId } from "@sovereign/core";
 import type { OrgId, UserId } from "@sovereign/core";
 import { DatabaseClient } from "../../client.js";
 import { PgMemoryRepo } from "../../repositories/pg-memory.repo.js";
@@ -38,28 +38,93 @@ async function ensureUser(userId: UserId, email: string): Promise<void> {
   });
 }
 
+// Prerequisite IDs for FK constraints
+const PROJECT_A = toProjectId("a0000000-0000-0000-0000-000000000100");
+const AGENT_A = toAgentId("a0000000-0000-0000-0000-000000000200");
+const AGENT_VERSION_A = toAgentVersionId("a0000000-0000-0000-0000-000000000300");
+
+// Run IDs referenced by sourceRunId in memory tests
+const RUN_IDS = [
+  toRunId("00000000-0000-0000-0000-000000000099"),
+  toRunId("00000000-0000-0000-0000-000000000077"),
+  toRunId("00000000-0000-0000-0000-000000000044"),
+];
+
+async function ensurePrerequisites(): Promise<void> {
+  const unscoped = db.unscoped();
+  // Project (RLS-protected)
+  await unscoped.transactionWithOrg(ORG_A, async (tx) => {
+    const existing = await tx.queryOne("SELECT id FROM projects WHERE id = $1", [PROJECT_A]);
+    if (!existing) {
+      await tx.execute(
+        "INSERT INTO projects (id, org_id, name, slug) VALUES ($1, $2, $3, $4)",
+        [PROJECT_A, ORG_A, "Mem Project", "mem-proj"],
+      );
+    }
+  });
+  // Agent (RLS-protected)
+  await unscoped.transactionWithOrg(ORG_A, async (tx) => {
+    const existing = await tx.queryOne("SELECT id FROM agents WHERE id = $1", [AGENT_A]);
+    if (!existing) {
+      await tx.execute(
+        "INSERT INTO agents (id, org_id, project_id, name, slug, created_by) VALUES ($1, $2, $3, $4, $5, $6)",
+        [AGENT_A, ORG_A, PROJECT_A, "Mem Agent", "mem-agent", USER_A],
+      );
+    }
+  });
+  // Agent version (RLS-protected)
+  await unscoped.transactionWithOrg(ORG_A, async (tx) => {
+    const existing = await tx.queryOne("SELECT id FROM agent_versions WHERE id = $1", [AGENT_VERSION_A]);
+    if (!existing) {
+      await tx.execute(
+        `INSERT INTO agent_versions (id, org_id, agent_id, version, goals, instructions, tools, approval_rules, model_config, created_by)
+         VALUES ($1, $2, $3, 1, '[]', 'test', '[]', '[]', '{"provider":"local","model":"test"}', $4)`,
+        [AGENT_VERSION_A, ORG_A, AGENT_A, USER_A],
+      );
+    }
+  });
+  // Runs referenced by sourceRunId (RLS-protected)
+  for (const runId of RUN_IDS) {
+    await unscoped.transactionWithOrg(ORG_A, async (tx) => {
+      const existing = await tx.queryOne("SELECT id FROM runs WHERE id = $1", [runId]);
+      if (!existing) {
+        await tx.execute(
+          `INSERT INTO runs (id, org_id, project_id, agent_id, agent_version_id, triggered_by, input, config_snapshot)
+           VALUES ($1, $2, $3, $4, $5, $6, '{}', '{}')`,
+          [runId, ORG_A, PROJECT_A, AGENT_A, AGENT_VERSION_A, USER_A],
+        );
+      }
+    });
+  }
+}
+
 beforeAll(async () => {
   db = new DatabaseClient({ url: DB_URL, maxConnections: 3 });
   await ensureOrg(ORG_A, "memory-test-a");
   await ensureOrg(ORG_B, "memory-test-b");
   await ensureUser(USER_A, "memory-a@test.com");
+  await ensurePrerequisites();
 });
 
 afterAll(async () => {
   const unscoped = db.unscoped();
-  await unscoped.transaction(async (tx) => {
-    await tx.execute("DELETE FROM memory_links WHERE org_id IN ($1, $2)", [ORG_A, ORG_B]);
-    await tx.execute("DELETE FROM memories WHERE org_id IN ($1, $2)", [ORG_A, ORG_B]);
-  });
+  for (const orgId of [ORG_A, ORG_B]) {
+    await unscoped.transactionWithOrg(orgId, async (tx) => {
+      await tx.execute("DELETE FROM memory_links WHERE org_id = $1", [orgId]);
+      await tx.execute("DELETE FROM memories WHERE org_id = $1", [orgId]);
+    });
+  }
   await db.destroy();
 });
 
 beforeEach(async () => {
   const unscoped = db.unscoped();
-  await unscoped.transaction(async (tx) => {
-    await tx.execute("DELETE FROM memory_links WHERE org_id IN ($1, $2)", [ORG_A, ORG_B]);
-    await tx.execute("DELETE FROM memories WHERE org_id IN ($1, $2)", [ORG_A, ORG_B]);
-  });
+  for (const orgId of [ORG_A, ORG_B]) {
+    await unscoped.transactionWithOrg(orgId, async (tx) => {
+      await tx.execute("DELETE FROM memory_links WHERE org_id = $1", [orgId]);
+      await tx.execute("DELETE FROM memories WHERE org_id = $1", [orgId]);
+    });
+  }
 });
 
 describe("PgMemoryRepo integration", () => {
@@ -177,7 +242,7 @@ describe("Memory audit events", () => {
 
     await auditRepo.emit({
       orgId: ORG_A, actorId: USER_A, actorType: "user",
-      action: "memory.created", resourceType: "memory", resourceId: "test-id",
+      action: "memory.created", resourceType: "memory", resourceId: "a0000000-0000-0000-0000-000000000888",
       metadata: { kind: "semantic" },
     });
 
@@ -215,14 +280,14 @@ describe("Runtime memory behavior (DB-backed)", () => {
       const { mem } = reposFor(ORG_A);
 
       await mem.create({
-        orgId: ORG_A, scopeType: "agent", scopeId: "runtime-agent-1",
+        orgId: ORG_A, scopeType: "agent", scopeId: "a0000000-0000-0000-0000-aa0000000001",
         kind: "semantic", title: "Active Fact", summary: "Active", content: "active-retrieval-fact",
         createdBy: USER_A,
       });
 
       // Runtime retrieval: listForOrg with status: "active" — same path as PgMemoryService.retrieveForRun
       const result = await mem.listForOrg(ORG_A, {
-        scopeType: "agent", scopeId: "runtime-agent-1", status: "active",
+        scopeType: "agent", scopeId: "a0000000-0000-0000-0000-aa0000000001", status: "active",
       });
 
       expect(result.length).toBe(1);
@@ -233,7 +298,7 @@ describe("Runtime memory behavior (DB-backed)", () => {
       const { mem } = reposFor(ORG_A);
 
       const created = await mem.create({
-        orgId: ORG_A, scopeType: "agent", scopeId: "runtime-agent-2",
+        orgId: ORG_A, scopeType: "agent", scopeId: "a0000000-0000-0000-0000-aa0000000002",
         kind: "semantic", title: "Secret Data", summary: "S", content: "redact-target-data",
         createdBy: USER_A,
       });
@@ -243,7 +308,7 @@ describe("Runtime memory behavior (DB-backed)", () => {
       });
 
       const result = await mem.listForOrg(ORG_A, {
-        scopeType: "agent", scopeId: "runtime-agent-2", status: "active",
+        scopeType: "agent", scopeId: "a0000000-0000-0000-0000-aa0000000002", status: "active",
       });
       expect(result.length).toBe(0);
     });
@@ -252,7 +317,7 @@ describe("Runtime memory behavior (DB-backed)", () => {
       const { mem } = reposFor(ORG_A);
 
       const created = await mem.create({
-        orgId: ORG_A, scopeType: "agent", scopeId: "runtime-agent-3",
+        orgId: ORG_A, scopeType: "agent", scopeId: "a0000000-0000-0000-0000-aa0000000003",
         kind: "semantic", title: "Old Data", summary: "S", content: "expire-target-data",
         createdBy: USER_A,
       });
@@ -260,7 +325,7 @@ describe("Runtime memory behavior (DB-backed)", () => {
       await mem.updateStatus(created.id, ORG_A, "expired");
 
       const result = await mem.listForOrg(ORG_A, {
-        scopeType: "agent", scopeId: "runtime-agent-3", status: "active",
+        scopeType: "agent", scopeId: "a0000000-0000-0000-0000-aa0000000003", status: "active",
       });
       expect(result.length).toBe(0);
     });
@@ -269,7 +334,7 @@ describe("Runtime memory behavior (DB-backed)", () => {
       const { mem } = reposFor(ORG_A);
 
       const created = await mem.create({
-        orgId: ORG_A, scopeType: "agent", scopeId: "runtime-agent-4",
+        orgId: ORG_A, scopeType: "agent", scopeId: "a0000000-0000-0000-0000-aa0000000004",
         kind: "semantic", title: "Deleted Data", summary: "S", content: "delete-target-data",
         createdBy: USER_A,
       });
@@ -277,7 +342,7 @@ describe("Runtime memory behavior (DB-backed)", () => {
       await mem.updateStatus(created.id, ORG_A, "deleted");
 
       const result = await mem.listForOrg(ORG_A, {
-        scopeType: "agent", scopeId: "runtime-agent-4", status: "active",
+        scopeType: "agent", scopeId: "a0000000-0000-0000-0000-aa0000000004", status: "active",
       });
       expect(result.length).toBe(0);
     });
@@ -286,37 +351,37 @@ describe("Runtime memory behavior (DB-backed)", () => {
       const { mem } = reposFor(ORG_A);
 
       await mem.create({
-        orgId: ORG_A, scopeType: "agent", scopeId: "runtime-agent-6",
+        orgId: ORG_A, scopeType: "agent", scopeId: "a0000000-0000-0000-0000-aa0000000006",
         kind: "semantic", title: "Sem", summary: "S", content: "kind-filter-semantic",
         createdBy: USER_A,
       });
       await mem.create({
-        orgId: ORG_A, scopeType: "agent", scopeId: "runtime-agent-6",
+        orgId: ORG_A, scopeType: "agent", scopeId: "a0000000-0000-0000-0000-aa0000000006",
         kind: "episodic", title: "Epi", summary: "S", content: "kind-filter-episodic",
         createdBy: USER_A,
       });
       await mem.create({
-        orgId: ORG_A, scopeType: "agent", scopeId: "runtime-agent-6",
+        orgId: ORG_A, scopeType: "agent", scopeId: "a0000000-0000-0000-0000-aa0000000006",
         kind: "procedural", title: "Proc", summary: "S", content: "kind-filter-procedural",
         createdBy: USER_A,
       });
 
       // Retrieve only semantic (same filter path used by retrieveForRun)
       const semantic = await mem.listForOrg(ORG_A, {
-        scopeType: "agent", scopeId: "runtime-agent-6", status: "active", kind: "semantic",
+        scopeType: "agent", scopeId: "a0000000-0000-0000-0000-aa0000000006", status: "active", kind: "semantic",
       });
       expect(semantic.length).toBe(1);
       expect(semantic[0]!.kind).toBe("semantic");
 
       // Retrieve only procedural
       const procedural = await mem.listForOrg(ORG_A, {
-        scopeType: "agent", scopeId: "runtime-agent-6", status: "active", kind: "procedural",
+        scopeType: "agent", scopeId: "a0000000-0000-0000-0000-aa0000000006", status: "active", kind: "procedural",
       });
       expect(procedural.length).toBe(1);
 
       // All active
       const all = await mem.listForOrg(ORG_A, {
-        scopeType: "agent", scopeId: "runtime-agent-6", status: "active",
+        scopeType: "agent", scopeId: "a0000000-0000-0000-0000-aa0000000006", status: "active",
       });
       expect(all.length).toBe(3);
     });
@@ -332,14 +397,14 @@ describe("Runtime memory behavior (DB-backed)", () => {
         summary: "Run completed with 3 steps",
         content: "Step 1: searched. Step 2: analyzed. Step 3: responded.",
         sourceRunId: "00000000-0000-0000-0000-000000000099",
-        sourceAgentId: "00000000-0000-0000-0000-000000000088",
+        sourceAgentId: AGENT_A,
         createdBy: USER_A,
       });
 
       expect(memory.kind).toBe("episodic");
       expect(memory.scopeType).toBe("agent");
       expect(memory.sourceRunId).toBe("00000000-0000-0000-0000-000000000099");
-      expect(memory.sourceAgentId).toBe("00000000-0000-0000-0000-000000000088");
+      expect(memory.sourceAgentId).toBe(AGENT_A);
       expect(memory.status).toBe("active");
     });
 

@@ -143,20 +143,24 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // Clean up test data
+  // Clean up test data — per-org due to FORCE RLS
   const unscoped = db.unscoped();
-  await unscoped.transaction(async (tx) => {
-    await tx.execute("DELETE FROM browser_sessions WHERE org_id IN ($1, $2)", [ORG_A, ORG_B]);
-    await tx.execute("DELETE FROM audit_events WHERE org_id IN ($1, $2) AND action LIKE 'browser.%'", [ORG_A, ORG_B]);
-  });
+  for (const orgId of [ORG_A, ORG_B]) {
+    await unscoped.transactionWithOrg(orgId, async (tx) => {
+      await tx.execute("DELETE FROM browser_sessions WHERE org_id = $1", [orgId]);
+      await tx.execute("DELETE FROM audit_events WHERE org_id = $1 AND action LIKE 'browser.%'", [orgId]);
+    });
+  }
   await db.destroy();
 });
 
 beforeEach(async () => {
   const unscoped = db.unscoped();
-  await unscoped.transaction(async (tx) => {
-    await tx.execute("DELETE FROM browser_sessions WHERE org_id IN ($1, $2)", [ORG_A, ORG_B]);
-  });
+  for (const orgId of [ORG_A, ORG_B]) {
+    await unscoped.transactionWithOrg(orgId, async (tx) => {
+      await tx.execute("DELETE FROM browser_sessions WHERE org_id = $1", [orgId]);
+    });
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -316,7 +320,7 @@ describe("PgBrowserSessionRepo integration", () => {
         actorType: "user",
         action: "browser.session_created",
         resourceType: "browser_session",
-        resourceId: "test-session-id",
+        resourceId: "a0000000-0000-0000-0000-000000000999",
         metadata: { browserType: "chromium" },
       });
 
@@ -326,7 +330,7 @@ describe("PgBrowserSessionRepo integration", () => {
         actorType: "user",
         action: "browser.action_blocked",
         resourceType: "browser_session",
-        resourceId: "test-session-id",
+        resourceId: "a0000000-0000-0000-0000-000000000999",
         metadata: { actionType: "download_file", reason: "policy_denied" },
       });
 
