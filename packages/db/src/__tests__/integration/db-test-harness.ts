@@ -113,7 +113,7 @@ export async function truncateAllTables(): Promise<void> {
   const db = getTestDb();
   const unscoped = db.unscoped();
   await unscoped.execute(`
-    TRUNCATE TABLE crm_sync_log, outreach_drafts, crm_notes, crm_tasks, crm_deals, crm_contacts, crm_accounts, policy_decisions, approvals, quarantine_records, policies, alert_events, alert_rules, memory_links, memories, browser_sessions, skill_installs, skills, connector_credentials, connector_installs, connectors, run_steps, runs, agent_versions, agents, audit_events, sessions, invitations, projects, memberships, organizations, users CASCADE
+    TRUNCATE TABLE spend_alerts, invoices, usage_events, billing_accounts, crm_sync_log, outreach_drafts, crm_notes, crm_tasks, crm_deals, crm_contacts, crm_accounts, policy_decisions, approvals, quarantine_records, policies, alert_events, alert_rules, memory_links, memories, browser_sessions, skill_installs, skills, connector_credentials, connector_installs, connectors, run_steps, runs, agent_versions, agents, audit_events, sessions, invitations, projects, memberships, organizations, users CASCADE
   `);
 }
 

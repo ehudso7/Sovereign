@@ -28,6 +28,9 @@ import type {
   CrmNoteId,
   OutreachDraftId,
   CrmSyncLogId,
+  BillingAccountId,
+  InvoiceId,
+  SpendAlertId,
 
   OrgRole,
   AgentStatus,
@@ -85,6 +88,10 @@ import type {
   CrmNote,
   OutreachDraft,
   CrmSyncLog,
+  BillingAccount,
+  UsageEvent,
+  Invoice,
+  SpendAlert,
 } from "@sovereign/core";
 
 // ---------------------------------------------------------------------------
@@ -780,4 +787,74 @@ export interface CrmSyncLogRepo {
   getById(id: CrmSyncLogId, orgId: OrgId): Promise<CrmSyncLog | null>;
   listForOrg(orgId: OrgId, filters?: { status?: string; entityType?: string; entityId?: string }): Promise<CrmSyncLog[]>;
   updateStatus(id: CrmSyncLogId, orgId: OrgId, status: string, extras?: { externalCrmId?: string; error?: string; completedAt?: string }): Promise<CrmSyncLog | null>;
+}
+
+// ---------------------------------------------------------------------------
+// Billing Account Repo (Phase 12)
+// ---------------------------------------------------------------------------
+
+export interface BillingAccountRepo {
+  create(input: {
+    orgId: OrgId; plan?: string; status?: string; billingEmail?: string;
+    paymentProvider?: string; providerCustomerId?: string;
+    currentPeriodStart?: string; currentPeriodEnd?: string;
+    trialEndsAt?: string; spendLimitCents?: number; overageAllowed?: boolean;
+    metadata?: Record<string, unknown>; createdBy: UserId;
+  }): Promise<BillingAccount>;
+  getByOrgId(orgId: OrgId): Promise<BillingAccount | null>;
+  update(orgId: OrgId, input: {
+    plan?: string; status?: string; billingEmail?: string;
+    paymentProvider?: string; providerCustomerId?: string;
+    currentPeriodStart?: string; currentPeriodEnd?: string;
+    trialEndsAt?: string; spendLimitCents?: number; overageAllowed?: boolean;
+    metadata?: Record<string, unknown>; updatedBy: UserId;
+  }): Promise<BillingAccount | null>;
+}
+
+// ---------------------------------------------------------------------------
+// Usage Event Repo (Phase 12)
+// ---------------------------------------------------------------------------
+
+export interface UsageEventRepo {
+  create(input: {
+    orgId: OrgId; eventType: string; meter: string; quantity: number;
+    unit: string; sourceType?: string; sourceId?: string;
+    metadata?: Record<string, unknown>; occurredAt?: string;
+  }): Promise<UsageEvent>;
+  listForOrg(orgId: OrgId, filters?: { meter?: string; since?: string; until?: string }): Promise<UsageEvent[]>;
+  aggregateByMeter(orgId: OrgId, periodStart: string, periodEnd: string): Promise<Record<string, number>>;
+}
+
+// ---------------------------------------------------------------------------
+// Invoice Repo (Phase 12)
+// ---------------------------------------------------------------------------
+
+export interface InvoiceRepo {
+  create(input: {
+    orgId: OrgId; billingAccountId: BillingAccountId;
+    providerInvoiceId?: string; status?: string;
+    subtotalCents: number; overageCents: number; totalCents: number;
+    currency?: string; periodStart: string; periodEnd: string;
+    dueAt?: string; lineItems?: unknown[];
+    metadata?: Record<string, unknown>;
+  }): Promise<Invoice>;
+  getById(id: InvoiceId, orgId: OrgId): Promise<Invoice | null>;
+  listForOrg(orgId: OrgId, filters?: { status?: string }): Promise<Invoice[]>;
+  update(id: InvoiceId, orgId: OrgId, input: {
+    status?: string; providerInvoiceId?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<Invoice | null>;
+}
+
+// ---------------------------------------------------------------------------
+// Spend Alert Repo (Phase 12)
+// ---------------------------------------------------------------------------
+
+export interface SpendAlertRepo {
+  create(input: {
+    orgId: OrgId; thresholdCents: number; createdBy: UserId;
+  }): Promise<SpendAlert>;
+  listForOrg(orgId: OrgId, filters?: { status?: string }): Promise<SpendAlert[]>;
+  trigger(id: SpendAlertId, orgId: OrgId, currentSpendCents: number): Promise<SpendAlert | null>;
+  acknowledge(id: SpendAlertId, orgId: OrgId, userId: UserId): Promise<SpendAlert | null>;
 }

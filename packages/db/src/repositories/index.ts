@@ -31,6 +31,10 @@ export type {
   CrmNoteRepo,
   OutreachDraftRepo,
   CrmSyncLogRepo,
+  BillingAccountRepo,
+  UsageEventRepo,
+  InvoiceRepo,
+  SpendAlertRepo,
 } from "./types.js";
 
 export { PgUserRepo } from "./pg-user.repo.js";
@@ -68,3 +72,9 @@ export {
   PgOutreachDraftRepo,
   PgCrmSyncLogRepo,
 } from "./pg-revenue.repo.js";
+export {
+  PgBillingAccountRepo,
+  PgUsageEventRepo,
+  PgInvoiceRepo,
+  PgSpendAlertRepo,
+} from "./pg-billing.repo.js";

@@ -988,5 +988,59 @@ Grand total: 795 tests (587 unit + 208 integration)
 - [x] Lint, typecheck, build, unit tests pass
 - [x] No Phase 12 work done
 
-### Phase 12–14
+### Phase 12 — Billing and Usage ✅
+
+#### A. Data Model
+- [x] Migration 011_phase12_billing.sql (billing_accounts, usage_events, invoices, spend_alerts with RLS)
+- [x] BillingAccountId, UsageEventId, InvoiceId, SpendAlertId branded types
+- [x] BillingAccount, UsageEvent, Invoice, SpendAlert, PlanDefinition entities
+- [x] PgBillingAccountRepo, PgUsageEventRepo, PgInvoiceRepo, PgSpendAlertRepo implementations
+- [x] All 4 tables RLS-protected
+
+#### B. Plan Catalog (3 plans, 5 meters)
+- [x] free ($0): 50 runs, 100K tokens, 100 calls, 10 sessions, 100MB; no overage
+- [x] team ($99/mo): 1K runs, 5M tokens, 5K calls, 200 sessions, 10GB; overage allowed
+- [x] enterprise ($499/mo): unlimited on all meters
+
+#### C. API Endpoints (13 endpoints)
+- [x] GET /api/v1/billing/account
+- [x] PATCH /api/v1/billing/account
+- [x] GET /api/v1/billing/plans
+- [x] POST /api/v1/billing/account/change-plan
+- [x] GET /api/v1/billing/usage
+- [x] GET /api/v1/billing/invoice-preview
+- [x] GET /api/v1/billing/invoices
+- [x] GET /api/v1/billing/invoices/:invoiceId
+- [x] POST /api/v1/billing/entitlement-check
+- [x] GET /api/v1/billing/alerts
+- [x] POST /api/v1/billing/alerts
+- [x] POST /api/v1/billing/alerts/:alertId/acknowledge
+- [x] POST /api/v1/billing/provider/sync
+
+#### D. Permission Model
+- [x] billing:read — all roles
+- [x] billing:write — org_owner, org_admin, org_billing_admin
+- [x] billing:manage_plan — org_owner, org_billing_admin
+- [x] billing:sync — org_owner, org_billing_admin
+
+#### E. Audit Events (11 new)
+- [x] billing.account_created/updated, billing.plan_changed
+- [x] billing.invoice_generated, billing.enforcement_blocked
+- [x] billing.alert_triggered/acknowledged
+- [x] billing.sync_requested/completed/failed
+
+#### F. Web UI (4 pages + nav)
+- [x] /billing — overview, /billing/invoices — list, /billing/invoices/[id] — detail
+- [x] "Billing" nav link
+
+#### G. Testing
+- [x] billing-routes.test.ts — 32 unit tests
+- [x] billing.test.ts — 11 PostgreSQL integration tests
+
+#### H. Final Totals
+- Unit: 619 (81 core + 498 api + 10 orch + 17 browser + 13 mcp)
+- Integration: 219 across 12 suites
+- Grand total: 838
+
+### Phase 13–14
 _See ROADMAP.md for full phase details._

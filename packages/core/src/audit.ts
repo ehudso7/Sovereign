@@ -96,7 +96,18 @@ export type AuditAction =
   | "outreach.generated"
   | "revenue.sync_requested"
   | "revenue.sync_completed"
-  | "revenue.sync_failed";
+  | "revenue.sync_failed"
+  | "billing.account_created"
+  | "billing.account_updated"
+  | "billing.plan_changed"
+  | "billing.usage_recorded"
+  | "billing.invoice_generated"
+  | "billing.enforcement_blocked"
+  | "billing.alert_triggered"
+  | "billing.alert_acknowledged"
+  | "billing.sync_requested"
+  | "billing.sync_completed"
+  | "billing.sync_failed";
 
 // ---------------------------------------------------------------------------
 // Audit actor types
