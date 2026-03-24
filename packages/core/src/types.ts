@@ -61,6 +61,14 @@ export const toCrmTaskId = (id: string): CrmTaskId => id as CrmTaskId;
 export const toCrmNoteId = (id: string): CrmNoteId => id as CrmNoteId;
 export const toOutreachDraftId = (id: string): OutreachDraftId => id as OutreachDraftId;
 export const toCrmSyncLogId = (id: string): CrmSyncLogId => id as CrmSyncLogId;
+export type BillingAccountId = Brand<string, "BillingAccountId">;
+export type UsageEventId = Brand<string, "UsageEventId">;
+export type InvoiceId = Brand<string, "InvoiceId">;
+export type SpendAlertId = Brand<string, "SpendAlertId">;
+export const toBillingAccountId = (id: string): BillingAccountId => id as BillingAccountId;
+export const toUsageEventId = (id: string): UsageEventId => id as UsageEventId;
+export const toInvoiceId = (id: string): InvoiceId => id as InvoiceId;
+export const toSpendAlertId = (id: string): SpendAlertId => id as SpendAlertId;
 
 // ---------------------------------------------------------------------------
 // Tenant context – threaded through every request

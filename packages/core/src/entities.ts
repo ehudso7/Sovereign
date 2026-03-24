@@ -30,6 +30,10 @@ import type {
   CrmNoteId,
   OutreachDraftId,
   CrmSyncLogId,
+  BillingAccountId,
+  UsageEventId,
+  InvoiceId,
+  SpendAlertId,
 } from "./types.js";
 import type { MembershipId, InvitationId, OrgRole } from "./auth.js";
 
@@ -894,4 +898,127 @@ export interface CrmSyncLog {
   readonly createdBy: UserId;
   readonly createdAt: ISODateString;
   readonly completedAt: ISODateString | null;
+}
+
+// ---------------------------------------------------------------------------
+// Billing Account (Phase 12)
+// ---------------------------------------------------------------------------
+
+export type BillingAccountStatus = "active" | "past_due" | "canceled" | "suspended";
+export type BillingPlan = "free" | "team" | "enterprise";
+export type OveragePolicy = "block" | "allow_overage";
+
+export interface BillingAccount {
+  readonly id: BillingAccountId;
+  readonly orgId: OrgId;
+  readonly plan: BillingPlan;
+  readonly status: BillingAccountStatus;
+  readonly billingEmail: string | null;
+  readonly paymentProvider: string;
+  readonly providerCustomerId: string | null;
+  readonly currentPeriodStart: ISODateString;
+  readonly currentPeriodEnd: ISODateString;
+  readonly trialEndsAt: ISODateString | null;
+  readonly spendLimitCents: number | null;
+  readonly overageAllowed: boolean;
+  readonly metadata: Record<string, unknown>;
+  readonly createdBy: UserId;
+  readonly updatedBy: UserId;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+// ---------------------------------------------------------------------------
+// Usage Event (Phase 12)
+// ---------------------------------------------------------------------------
+
+export type UsageMeter = "agent_runs" | "llm_tokens" | "connector_calls" | "browser_sessions" | "storage_bytes";
+
+export interface UsageEvent {
+  readonly id: UsageEventId;
+  readonly orgId: OrgId;
+  readonly eventType: string;
+  readonly meter: UsageMeter;
+  readonly quantity: number;
+  readonly unit: string;
+  readonly sourceType: string | null;
+  readonly sourceId: string | null;
+  readonly metadata: Record<string, unknown>;
+  readonly occurredAt: ISODateString;
+  readonly createdAt: ISODateString;
+}
+
+// ---------------------------------------------------------------------------
+// Invoice (Phase 12)
+// ---------------------------------------------------------------------------
+
+export type InvoiceStatus = "draft" | "open" | "paid" | "void";
+
+export interface InvoiceLineItem {
+  readonly description: string;
+  readonly meter: string;
+  readonly quantity: number;
+  readonly unitPriceCents: number;
+  readonly totalCents: number;
+}
+
+export interface Invoice {
+  readonly id: InvoiceId;
+  readonly orgId: OrgId;
+  readonly billingAccountId: BillingAccountId;
+  readonly providerInvoiceId: string | null;
+  readonly status: InvoiceStatus;
+  readonly subtotalCents: number;
+  readonly overageCents: number;
+  readonly totalCents: number;
+  readonly currency: string;
+  readonly periodStart: ISODateString;
+  readonly periodEnd: ISODateString;
+  readonly dueAt: ISODateString | null;
+  readonly lineItems: readonly InvoiceLineItem[];
+  readonly metadata: Record<string, unknown>;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+// ---------------------------------------------------------------------------
+// Spend Alert (Phase 12)
+// ---------------------------------------------------------------------------
+
+export type SpendAlertStatus = "active" | "triggered" | "acknowledged";
+
+export interface SpendAlert {
+  readonly id: SpendAlertId;
+  readonly orgId: OrgId;
+  readonly thresholdCents: number;
+  readonly currentSpendCents: number;
+  readonly status: SpendAlertStatus;
+  readonly triggeredAt: ISODateString | null;
+  readonly acknowledgedBy: UserId | null;
+  readonly acknowledgedAt: ISODateString | null;
+  readonly metadata: Record<string, unknown>;
+  readonly createdBy: UserId;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+// ---------------------------------------------------------------------------
+// Plan Catalog (Phase 12)
+// ---------------------------------------------------------------------------
+
+export interface PlanAllowance {
+  readonly meter: UsageMeter;
+  readonly included: number;
+  readonly overageUnitPriceCents: number;
+}
+
+export interface PlanDefinition {
+  readonly id: BillingPlan;
+  readonly name: string;
+  readonly description: string;
+  readonly basePriceCents: number;
+  readonly interval: "monthly";
+  readonly allowances: readonly PlanAllowance[];
+  readonly overageAllowed: boolean;
+  readonly isPublic: boolean;
 }

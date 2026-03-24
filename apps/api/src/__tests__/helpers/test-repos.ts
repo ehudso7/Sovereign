@@ -83,6 +83,9 @@ import type {
   CrmNoteId,
   OutreachDraftId,
   CrmSyncLogId,
+  BillingAccountId,
+  InvoiceId,
+  SpendAlertId,
   CrmAccount,
   CrmContact,
   CrmDeal,
@@ -90,6 +93,10 @@ import type {
   CrmNote,
   OutreachDraft,
   CrmSyncLog,
+  BillingAccount,
+  UsageEvent,
+  Invoice,
+  SpendAlert,
 } from "@sovereign/core";
 
 import {
@@ -124,6 +131,10 @@ import {
   toCrmNoteId,
   toOutreachDraftId,
   toCrmSyncLogId,
+  toBillingAccountId,
+  toUsageEventId,
+  toInvoiceId,
+  toSpendAlertId,
 } from "@sovereign/core";
 
 import type {
@@ -142,6 +153,10 @@ import type {
   CrmNoteRepo,
   OutreachDraftRepo,
   CrmSyncLogRepo,
+  BillingAccountRepo,
+  UsageEventRepo,
+  InvoiceRepo,
+  SpendAlertRepo,
   SessionRepo,
   ProjectRepo,
   AuditRepo,
@@ -2356,6 +2371,104 @@ export class TestCrmSyncLogRepo implements CrmSyncLogRepo {
   }
 }
 
+// ---------------------------------------------------------------------------
+// In-memory Billing repos (Phase 12)
+// ---------------------------------------------------------------------------
+
+export class TestBillingAccountRepo implements BillingAccountRepo {
+  private items: BillingAccount[] = [];
+  reset() { this.items = []; }
+  async create(input: { orgId: OrgId; plan?: string; status?: string; billingEmail?: string; paymentProvider?: string; providerCustomerId?: string; currentPeriodStart?: string; currentPeriodEnd?: string; trialEndsAt?: string; spendLimitCents?: number; overageAllowed?: boolean; metadata?: Record<string, unknown>; createdBy: UserId }): Promise<BillingAccount> {
+    const now = toISODateString(new Date());
+    const periodStart = input.currentPeriodStart ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+    const periodEnd = input.currentPeriodEnd ?? new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString();
+    const a: BillingAccount = { id: toBillingAccountId(randomUUID()), orgId: input.orgId, plan: (input.plan ?? "free") as BillingAccount["plan"], status: (input.status ?? "active") as BillingAccount["status"], billingEmail: input.billingEmail ?? null, paymentProvider: input.paymentProvider ?? "local", providerCustomerId: input.providerCustomerId ?? null, currentPeriodStart: toISODateString(periodStart), currentPeriodEnd: toISODateString(periodEnd), trialEndsAt: input.trialEndsAt ? toISODateString(input.trialEndsAt) : null, spendLimitCents: input.spendLimitCents ?? null, overageAllowed: input.overageAllowed ?? false, metadata: input.metadata ?? {}, createdBy: input.createdBy, updatedBy: input.createdBy, createdAt: now, updatedAt: now };
+    this.items.push(a);
+    return a;
+  }
+  async getByOrgId(orgId: OrgId): Promise<BillingAccount | null> { return this.items.find(a => a.orgId === orgId) ?? null; }
+  async update(orgId: OrgId, input: { plan?: string; status?: string; billingEmail?: string; paymentProvider?: string; providerCustomerId?: string; currentPeriodStart?: string; currentPeriodEnd?: string; trialEndsAt?: string; spendLimitCents?: number; overageAllowed?: boolean; metadata?: Record<string, unknown>; updatedBy: UserId }): Promise<BillingAccount | null> {
+    const idx = this.items.findIndex(a => a.orgId === orgId);
+    if (idx === -1) return null;
+    const old = this.items[idx]!;
+    const updated = { ...old, ...Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined)), updatedAt: toISODateString(new Date()) } as BillingAccount;
+    this.items[idx] = updated;
+    return updated;
+  }
+}
+
+export class TestUsageEventRepo implements UsageEventRepo {
+  private items: UsageEvent[] = [];
+  reset() { this.items = []; }
+  async create(input: { orgId: OrgId; eventType: string; meter: string; quantity: number; unit: string; sourceType?: string; sourceId?: string; metadata?: Record<string, unknown>; occurredAt?: string }): Promise<UsageEvent> {
+    const now = toISODateString(new Date());
+    const e: UsageEvent = { id: toUsageEventId(randomUUID()), orgId: input.orgId, eventType: input.eventType, meter: input.meter as UsageEvent["meter"], quantity: input.quantity, unit: input.unit, sourceType: input.sourceType ?? null, sourceId: input.sourceId ?? null, metadata: input.metadata ?? {}, occurredAt: input.occurredAt ? toISODateString(input.occurredAt) : now, createdAt: now };
+    this.items.push(e);
+    return e;
+  }
+  async listForOrg(orgId: OrgId, filters?: { meter?: string; since?: string; until?: string }): Promise<UsageEvent[]> {
+    return this.items.filter(e => e.orgId === orgId && (!filters?.meter || e.meter === filters.meter) && (!filters?.since || e.occurredAt >= filters.since) && (!filters?.until || e.occurredAt < filters.until));
+  }
+  async aggregateByMeter(orgId: OrgId, periodStart: string, periodEnd: string): Promise<Record<string, number>> {
+    const result: Record<string, number> = {};
+    for (const e of this.items) {
+      if (e.orgId === orgId && e.occurredAt >= periodStart && e.occurredAt < periodEnd) {
+        result[e.meter] = (result[e.meter] ?? 0) + e.quantity;
+      }
+    }
+    return result;
+  }
+}
+
+export class TestInvoiceRepo implements InvoiceRepo {
+  private items: Invoice[] = [];
+  reset() { this.items = []; }
+  async create(input: { orgId: OrgId; billingAccountId: BillingAccountId; providerInvoiceId?: string; status?: string; subtotalCents: number; overageCents: number; totalCents: number; currency?: string; periodStart: string; periodEnd: string; dueAt?: string; lineItems?: unknown[]; metadata?: Record<string, unknown> }): Promise<Invoice> {
+    const now = toISODateString(new Date());
+    const inv: Invoice = { id: toInvoiceId(randomUUID()), orgId: input.orgId, billingAccountId: input.billingAccountId, providerInvoiceId: input.providerInvoiceId ?? null, status: (input.status ?? "draft") as Invoice["status"], subtotalCents: input.subtotalCents, overageCents: input.overageCents, totalCents: input.totalCents, currency: input.currency ?? "USD", periodStart: toISODateString(input.periodStart), periodEnd: toISODateString(input.periodEnd), dueAt: input.dueAt ? toISODateString(input.dueAt) : null, lineItems: (input.lineItems ?? []) as Invoice["lineItems"], metadata: input.metadata ?? {}, createdAt: now, updatedAt: now };
+    this.items.push(inv);
+    return inv;
+  }
+  async getById(id: InvoiceId, orgId: OrgId): Promise<Invoice | null> { return this.items.find(i => i.id === id && i.orgId === orgId) ?? null; }
+  async listForOrg(orgId: OrgId, filters?: { status?: string }): Promise<Invoice[]> { return this.items.filter(i => i.orgId === orgId && (!filters?.status || i.status === filters.status)); }
+  async update(id: InvoiceId, orgId: OrgId, input: { status?: string; providerInvoiceId?: string; metadata?: Record<string, unknown> }): Promise<Invoice | null> {
+    const idx = this.items.findIndex(i => i.id === id && i.orgId === orgId);
+    if (idx === -1) return null;
+    const old = this.items[idx]!;
+    const updated = { ...old, ...Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined)), updatedAt: toISODateString(new Date()) } as Invoice;
+    this.items[idx] = updated;
+    return updated;
+  }
+}
+
+export class TestSpendAlertRepo implements SpendAlertRepo {
+  private items: SpendAlert[] = [];
+  reset() { this.items = []; }
+  async create(input: { orgId: OrgId; thresholdCents: number; createdBy: UserId }): Promise<SpendAlert> {
+    const now = toISODateString(new Date());
+    const a: SpendAlert = { id: toSpendAlertId(randomUUID()), orgId: input.orgId, thresholdCents: input.thresholdCents, currentSpendCents: 0, status: "active" as SpendAlert["status"], triggeredAt: null, acknowledgedBy: null, acknowledgedAt: null, metadata: {}, createdBy: input.createdBy, createdAt: now, updatedAt: now };
+    this.items.push(a);
+    return a;
+  }
+  async listForOrg(orgId: OrgId, filters?: { status?: string }): Promise<SpendAlert[]> { return this.items.filter(a => a.orgId === orgId && (!filters?.status || a.status === filters.status)); }
+  async trigger(id: SpendAlertId, orgId: OrgId, currentSpendCents: number): Promise<SpendAlert | null> {
+    const idx = this.items.findIndex(a => a.id === id && a.orgId === orgId);
+    if (idx === -1) return null;
+    const old = this.items[idx]!;
+    const updated = { ...old, status: "triggered" as SpendAlert["status"], currentSpendCents, triggeredAt: toISODateString(new Date()), updatedAt: toISODateString(new Date()) };
+    this.items[idx] = updated;
+    return updated;
+  }
+  async acknowledge(id: SpendAlertId, orgId: OrgId, userId: UserId): Promise<SpendAlert | null> {
+    const idx = this.items.findIndex(a => a.id === id && a.orgId === orgId && a.status === "triggered");
+    if (idx === -1) return null;
+    const old = this.items[idx]!;
+    const updated = { ...old, status: "acknowledged" as SpendAlert["status"], acknowledgedBy: userId, acknowledgedAt: toISODateString(new Date()), updatedAt: toISODateString(new Date()) };
+    this.items[idx] = updated;
+    return updated;
+  }
+}
+
 export interface TestRepos {
   users: TestUserRepo;
   orgs: TestOrgRepo;
@@ -2389,6 +2502,10 @@ export interface TestRepos {
   crmNotes: TestCrmNoteRepo;
   outreachDrafts: TestOutreachDraftRepo;
   crmSyncLog: TestCrmSyncLogRepo;
+  billingAccounts: TestBillingAccountRepo;
+  usageEvents: TestUsageEventRepo;
+  invoices: TestInvoiceRepo;
+  spendAlerts: TestSpendAlertRepo;
 }
 
 /**
@@ -2427,6 +2544,10 @@ export function createTestRepos(): TestRepos {
   const crmNotes = new TestCrmNoteRepo();
   const outreachDrafts = new TestOutreachDraftRepo();
   const crmSyncLog = new TestCrmSyncLogRepo();
+  const billingAccounts = new TestBillingAccountRepo();
+  const usageEvents = new TestUsageEventRepo();
+  const invoices = new TestInvoiceRepo();
+  const spendAlerts = new TestSpendAlertRepo();
 
   // Wire cross-repo references
   memberships._setUserRepo(users);
@@ -2465,6 +2586,10 @@ export function createTestRepos(): TestRepos {
     crmNotes,
     outreachDrafts,
     crmSyncLog,
+    billingAccounts,
+    usageEvents,
+    invoices,
+    spendAlerts,
   };
 }
 
@@ -2504,4 +2629,8 @@ export function resetAllRepos(repos: TestRepos): void {
   repos.crmNotes.reset();
   repos.outreachDrafts.reset();
   repos.crmSyncLog.reset();
+  repos.billingAccounts.reset();
+  repos.usageEvents.reset();
+  repos.invoices.reset();
+  repos.spendAlerts.reset();
 }

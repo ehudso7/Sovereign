@@ -307,9 +307,9 @@ Phases execute in strict order. No feature jumping. No shiny-object detours.
 
 ---
 
-## Phase 12 — Billing and Usage
+## Phase 12 — Billing and Usage ✅
 
-**Status**: Not started
+**Status**: Complete
 
 **Goal**: Real customers can pay and you can meter usage.
 
