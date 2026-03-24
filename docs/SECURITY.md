@@ -198,6 +198,14 @@ Role management rules:
 - Secret resolution is audited without exposing secret values
 - No raw secrets appear in policy decisions, approval records, or audit payloads
 
+### Runtime Enforcement Boundaries (Phase 10 Remediation — implemented)
+Policy evaluation is enforced at the following runtime boundaries:
+- **Run execution**: `enforceRunPolicy` activity called in Temporal workflow before `markRunning` — deny/quarantined/require_approval blocks the entire run
+- **Connector tool use**: `executeToolCall` activity evaluates policy before executing any tool — deny/quarantined returns POLICY_DENIED error, require_approval returns APPROVAL_REQUIRED error
+- **Browser risky actions**: `checkActionPolicy` integrates with PgPolicyService — risky actions (upload_file, download_file) are evaluated via policy engine before session metadata fallback
+- **Memory governance**: `retrieveMemories` and `writeEpisodicMemory` activities check policy — deny/quarantined/require_approval silently blocks memory operations
+- **Secret resolution**: `secret.resolved` audit event emitted when connector credentials are decrypted — actual secret value is never included in audit payload
+
 ### Memory Security (Phase 8 — implemented)
 - Every memory write is attributable (createdBy, sourceRunId, sourceAgentId)
 - Memory reads scoped to org via RLS + repo-level org_id filtering

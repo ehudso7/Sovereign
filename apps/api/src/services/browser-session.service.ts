@@ -21,15 +21,28 @@ import type {
   BrowserAction,
   Result,
   AuditEmitter,
+  PolicyDecisionResult,
 } from "@sovereign/core";
 import type { BrowserSessionRepo, RunRepo } from "@sovereign/db";
+import type { PgPolicyService } from "./policy.service.js";
 
 export class PgBrowserSessionService {
+  private _policyService: PgPolicyService | null = null;
+
   constructor(
     private readonly sessionRepo: BrowserSessionRepo,
     private readonly runRepo: RunRepo,
     private readonly audit: AuditEmitter,
   ) {}
+
+  /**
+   * Attach a policy service for runtime enforcement of browser actions.
+   * When attached, risky actions are evaluated via the policy engine
+   * in addition to session metadata flags.
+   */
+  setPolicyService(policyService: PgPolicyService): void {
+    this._policyService = policyService;
+  }
 
   // ---------------------------------------------------------------------------
   // createSession
@@ -249,14 +262,43 @@ export class PgBrowserSessionService {
     sessionId: BrowserSessionId,
     orgId: OrgId,
     actorId: UserId,
-  ): Promise<Result<{ allowed: boolean }>> {
+  ): Promise<Result<{ allowed: boolean; policyDecision?: PolicyDecisionResult }>> {
     const isRisky = (RISKY_BROWSER_ACTIONS as readonly string[]).includes(action.type);
 
     if (!isRisky) {
       return ok({ allowed: true });
     }
 
-    // Policy decision: risky actions are denied by default unless metadata allows them
+    // 1. Policy engine evaluation (if policy service is attached)
+    if (this._policyService) {
+      const evalResult = await this._policyService.evaluate({
+        orgId,
+        subjectType: "browser_session",
+        subjectId: sessionId,
+        actionType: `browser.${action.type}`,
+        requestedBy: actorId,
+        context: { sessionId, actionType: action.type },
+      });
+
+      if (evalResult.ok) {
+        const { decision } = evalResult.value;
+        if (decision === "deny" || decision === "quarantined" || decision === "require_approval") {
+          await this.audit.emit({
+            orgId,
+            actorId,
+            actorType: "user",
+            action: "browser.action_blocked",
+            resourceType: "browser_session",
+            resourceId: sessionId,
+            metadata: { actionType: action.type, reason: "policy_denied", policyDecision: decision },
+          });
+          return ok({ allowed: false, policyDecision: decision });
+        }
+        // Policy says allow — proceed with session metadata check below
+      }
+    }
+
+    // 2. Session metadata fallback: risky actions denied unless metadata allows them
     const session = await this.sessionRepo.getById(sessionId, orgId);
     if (!session) return err(AppError.notFound("BrowserSession", sessionId));
 

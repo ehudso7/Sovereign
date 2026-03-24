@@ -40,6 +40,7 @@ const {
   const mockActivities = {
     startRun: vi.fn(),
     markRunning: vi.fn(),
+    enforceRunPolicy: vi.fn(),
     executeAgent: vi.fn(),
     recordRunSteps: vi.fn(),
     completeRun: vi.fn(),
@@ -117,6 +118,10 @@ function resetAll() {
   mockActivities.startRun.mockReset().mockImplementation(async (p: unknown) => {
     activityCalls.push({ name: "startRun", args: p });
   });
+  mockActivities.enforceRunPolicy.mockReset().mockImplementation(async (p: unknown) => {
+    activityCalls.push({ name: "enforceRunPolicy", args: p });
+    return { decision: "allow", policyId: null, reason: "No matching policy — default allow", policyDecisionId: "pd-mock" };
+  });
   mockActivities.markRunning.mockReset().mockImplementation(async (p: unknown) => {
     activityCalls.push({ name: "markRunning", args: p });
   });
@@ -182,6 +187,7 @@ describe("runAgentWorkflow — signal behavior", () => {
     const names = activityCalls.map((c) => c.name);
     expect(names).toEqual([
       "startRun",
+      "enforceRunPolicy",
       "markRunning",
       "executeAgent",
       "recordRunSteps",
@@ -271,19 +277,26 @@ describe("runAgentWorkflow — signal behavior", () => {
 
     mockActivities.startRun.mockImplementationOnce(async (p: unknown) => {
       activityCalls.push({ name: "startRun", args: p });
-      statuses.push(queryStatus());
+      statuses.push(queryStatus()); // "starting"
+    });
+
+    mockActivities.enforceRunPolicy.mockImplementationOnce(async (p: unknown) => {
+      activityCalls.push({ name: "enforceRunPolicy", args: p });
+      statuses.push(queryStatus()); // still "starting" (policy check happens before markRunning)
+      return { decision: "allow", policyId: null, reason: "Default allow", policyDecisionId: "pd-mock" };
     });
 
     mockActivities.executeAgent.mockImplementationOnce(async (p: unknown) => {
       activityCalls.push({ name: "executeAgent", args: p });
-      statuses.push(queryStatus());
+      statuses.push(queryStatus()); // "running"
       return defaultExecuteResult();
     });
 
     await runAgentWorkflow(defaultInput);
 
     expect(statuses[0]).toBe("starting");  // During startRun
-    expect(statuses[1]).toBe("running");   // During executeAgent
+    expect(statuses[1]).toBe("starting");  // During enforceRunPolicy (before markRunning)
+    expect(statuses[2]).toBe("running");   // During executeAgent
     expect(queryStatus()).toBe("completed"); // After workflow ends
   });
 
@@ -304,5 +317,75 @@ describe("runAgentWorkflow — signal behavior", () => {
     expect(names).toContain("failRun");
     expect(names).not.toContain("completeRun");
     expect(queryStatus()).toBe("failed");
+  });
+
+  // -------------------------------------------------------------------------
+  // Policy enforcement at run boundary (Phase 10 remediation)
+  // -------------------------------------------------------------------------
+
+  it("blocks run when enforceRunPolicy returns deny", async () => {
+    mockActivities.enforceRunPolicy.mockImplementationOnce(async (p: unknown) => {
+      activityCalls.push({ name: "enforceRunPolicy", args: p });
+      return { decision: "deny", policyId: "p-1", reason: "Blocked by policy", policyDecisionId: "pd-1" };
+    });
+
+    await runAgentWorkflow(defaultInput);
+
+    const names = activityCalls.map((c) => c.name);
+    expect(names).toContain("failRun");
+    expect(names).not.toContain("markRunning");
+    expect(names).not.toContain("executeAgent");
+
+    const failCall = activityCalls.find((c) => c.name === "failRun");
+    expect((failCall!.args as { error: { code: string } }).error.code).toBe("POLICY_DENIED");
+    expect(queryStatus()).toBe("failed");
+  });
+
+  it("blocks run when enforceRunPolicy returns quarantined", async () => {
+    mockActivities.enforceRunPolicy.mockImplementationOnce(async (p: unknown) => {
+      activityCalls.push({ name: "enforceRunPolicy", args: p });
+      return { decision: "quarantined", policyId: null, reason: "Subject is quarantined", policyDecisionId: "pd-2" };
+    });
+
+    await runAgentWorkflow(defaultInput);
+
+    const names = activityCalls.map((c) => c.name);
+    expect(names).toContain("failRun");
+    expect(names).not.toContain("executeAgent");
+
+    const failCall = activityCalls.find((c) => c.name === "failRun");
+    expect((failCall!.args as { error: { code: string } }).error.code).toBe("POLICY_DENIED");
+  });
+
+  it("blocks run when enforceRunPolicy returns require_approval", async () => {
+    mockActivities.enforceRunPolicy.mockImplementationOnce(async (p: unknown) => {
+      activityCalls.push({ name: "enforceRunPolicy", args: p });
+      return { decision: "require_approval", policyId: "p-1", reason: "Approval required", policyDecisionId: "pd-3", approvalId: "appr-1" };
+    });
+
+    await runAgentWorkflow(defaultInput);
+
+    const names = activityCalls.map((c) => c.name);
+    expect(names).toContain("failRun");
+    expect(names).not.toContain("executeAgent");
+
+    const failCall = activityCalls.find((c) => c.name === "failRun");
+    expect((failCall!.args as { error: { code: string } }).error.code).toBe("APPROVAL_REQUIRED");
+  });
+
+  it("allows run when enforceRunPolicy returns allow", async () => {
+    // Default mock already returns allow, but be explicit
+    mockActivities.enforceRunPolicy.mockImplementationOnce(async (p: unknown) => {
+      activityCalls.push({ name: "enforceRunPolicy", args: p });
+      return { decision: "allow", policyId: null, reason: "Default allow", policyDecisionId: "pd-4" };
+    });
+
+    await runAgentWorkflow(defaultInput);
+
+    const names = activityCalls.map((c) => c.name);
+    expect(names).toContain("markRunning");
+    expect(names).toContain("executeAgent");
+    expect(names).toContain("completeRun");
+    expect(queryStatus()).toBe("completed");
   });
 });

@@ -204,7 +204,10 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     const runRepo = new PgRunRepo(tenantDb);
     const auditRepo = new PgAuditRepo(tenantDb);
     const auditEmitter = new PgAuditEmitter(auditRepo);
-    return new PgBrowserSessionService(sessionRepo, runRepo, auditEmitter);
+    const service = new PgBrowserSessionService(sessionRepo, runRepo, auditEmitter);
+    // Attach policy service for runtime enforcement of browser risky actions
+    service.setPolicyService(policyForOrg(orgId));
+    return service;
   };
 
   // Factory for org-scoped memory service

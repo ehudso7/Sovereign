@@ -718,5 +718,84 @@ Integration tests (190 total across 10 suites):
 
 Grand total: 688 tests (498 unit + 190 integration)
 
+### Phase 10 Remediation — Runtime Enforcement Proof ✅
+
+#### A. Runtime Enforcement at Required Boundaries
+- [x] Run execution boundary: `enforceRunPolicy` activity added to Temporal workflow, called before `markRunning`
+  - Blocks with POLICY_DENIED if policy returns deny/quarantined
+  - Blocks with APPROVAL_REQUIRED if policy returns require_approval
+  - Allow proceeds normally to execution
+- [x] Connector tool use boundary: `executeToolCall` activity now calls `evaluatePolicyAtBoundary` before executing tool
+  - Blocks tool execution if denied/quarantined
+  - Returns APPROVAL_REQUIRED error if approval needed
+  - Secret resolution audit event emitted on credential decryption
+- [x] Browser risky actions boundary: `checkActionPolicy` upgraded with PgPolicyService integration
+  - Policy service evaluation runs before metadata fallback
+  - Deny/quarantined/require_approval decisions block the action
+  - Policy service automatically wired via `setPolicyService()` in service registry
+- [x] Memory governance boundary: `retrieveMemories` and `writeEpisodicMemory` activities check policy
+  - Memory read blocked (returns empty) if deny/quarantined/require_approval
+  - Memory write blocked (silently skips) if not allowed
+- [x] Secret resolution: audit trail added in `executeToolCall` for credential decryption
+  - `secret.resolved` event emitted with secretType, resolvedFor — never includes actual secret value
+
+#### B. Approval-Gated Action Proof
+- [x] require_approval policy blocks action and creates approval record
+- [x] Pending approval blocks re-evaluation (still returns require_approval)
+- [x] Approved approval changes status, decidedBy, decidedAt set
+- [x] Denied approval stays blocked; cannot re-approve after denial
+- [x] Expired approval cannot be approved (status no longer pending)
+- [x] Approval-gated connector tool use creates approval and blocks until approved
+- [x] Full audit trail: approval.requested → approval.approved/denied
+
+#### C. Quarantine Enforcement Proof
+- [x] Quarantined agent cannot execute runs (returns "quarantined")
+- [x] Quarantined connector cannot be used for tool calls
+- [x] Quarantined subject cannot bypass via alternate action type
+- [x] Release from quarantine restores allowed execution path
+- [x] Quarantine overrides allow policies (quarantine > deny > require_approval > allow)
+- [x] Quarantine audit events: quarantine.entered, quarantine.released
+
+#### D. Worker/Runtime Tests
+- [x] runtime-enforcement.test.ts — 34 tests proving blocked vs allowed behavior:
+  - Run execution: 5 tests (allow, deny, quarantine, require_approval, audit)
+  - Connector tool use: 4 tests (allow, deny, quarantine, wildcard)
+  - Browser risky actions: 4 tests (non-risky allow, policy deny, quarantine block, audit)
+  - Memory governance: 4 tests (read allow, read deny, write deny, wildcard)
+  - Approval lifecycle: 7 tests (pending blocks, approved proceeds, denied stays blocked, expired blocks, connector approval, audit trail)
+  - Quarantine enforcement: 6 tests (agent blocked, connector blocked, no bypass, release restores, quarantine overrides allow, audit)
+  - Cross-boundary: 4 tests (org-wide lockdown, tenant scoping, disabled policy, priority ordering)
+- [x] run-workflow.test.ts — 4 new workflow tests (deny blocks, quarantine blocks, require_approval blocks, allow proceeds)
+
+#### E. Final Verified Totals
+Unit tests (536 total across 5 packages):
+- @sovereign/core: 81 tests (3 files)
+- @sovereign/api: 415 tests (24 files) — +34 runtime enforcement tests
+- @sovereign/worker-orchestrator: 10 tests (1 file) — +4 workflow policy tests
+- @sovereign/worker-browser: 17 tests (2 files)
+- @sovereign/gateway-mcp: 13 tests (1 file)
+
+Integration tests (190 total across 10 suites, requires PostgreSQL):
+- policy-engine.test.ts: 21
+- mission-control.test.ts: 29
+- connector-hub.test.ts: 26
+- repositories.test.ts: 28
+- run-engine.test.ts: 19
+- memory-engine.test.ts: 17
+- rls-tenant-isolation.test.ts: 17
+- agent-studio.test.ts: 16
+- browser-sessions.test.ts: 9
+- migrations.test.ts: 8
+
+Grand total: 726 tests (536 unit + 190 integration)
+
+#### F. Exit Gates
+- [x] Runtime enforcement proven at run execution, connector tool use, browser risky actions, memory governance, secret resolution
+- [x] Approval-gated action behavior proven end-to-end (pending blocks, approved proceeds, denied stays blocked, expired blocks)
+- [x] Quarantine blocking/release behavior proven in runtime paths
+- [x] Worker/runtime tests exist for blocked vs allowed behavior (38 new tests)
+- [x] Lint, typecheck, build, unit tests pass
+- [x] No Phase 11 work done
+
 ### Phase 11–14
 _See ROADMAP.md for full phase details._

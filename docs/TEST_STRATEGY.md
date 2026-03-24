@@ -152,6 +152,26 @@
 - **Location**: `packages/db/src/__tests__/integration/policy-engine.test.ts`
 - **Coverage**: Policy CRUD, policy decision persistence, approval lifecycle, quarantine lifecycle, tenant isolation, audit evidence
 
+### Runtime Enforcement Tests (Phase 10 Remediation)
+- **Scope**: Proves policy evaluation is enforced at all runtime boundaries (not just API endpoints)
+- **Runner**: Vitest with in-memory test repos
+- **Location**: `apps/api/src/__tests__/routes/runtime-enforcement.test.ts` (34 tests)
+- **Coverage**:
+  - Run execution: allow/deny/quarantine/require_approval at run boundary
+  - Connector tool use: allow/deny/quarantine/wildcard at tool execution boundary
+  - Browser risky actions: policy-integrated enforcement for upload/download with audit
+  - Memory governance: read/write blocked by deny policies
+  - Approval lifecycle: pending blocks, approved proceeds, denied stays blocked, expired blocks
+  - Quarantine enforcement: blocked subjects, no bypass via alternate paths, release restores access
+  - Cross-boundary: org-wide lockdown, tenant scoping, disabled policies, priority ordering
+  - Secret resolution audit: verified no secret values in audit payload
+
+### Workflow Policy Enforcement Tests
+- **Scope**: Temporal workflow-level proof that policy blocks run execution
+- **Runner**: Vitest with mocked Temporal primitives
+- **Location**: `apps/worker-orchestrator/src/__tests__/run-workflow.test.ts` (4 new tests)
+- **Coverage**: Deny blocks run, quarantine blocks run, require_approval blocks run, allow proceeds normally
+
 ### Chaos Tests
 - **Scope**: Worker restart during runs, DB failover, network partition
 - **Approach**: Kill workers mid-run, verify recovery

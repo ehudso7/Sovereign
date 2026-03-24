@@ -24,6 +24,8 @@ import type {
   RetrieveMemoriesParams,
   RetrieveMemoriesResult,
   WriteEpisodicMemoryParams,
+  EnforceRunPolicyParams,
+  PolicyEnforcementResult,
 } from "../activities/run-activities.js";
 
 // ---------------------------------------------------------------------------
@@ -33,6 +35,7 @@ import type {
 const activities = proxyActivities<{
   startRun: (params: StartRunParams) => Promise<void>;
   markRunning: (params: StartRunParams) => Promise<void>;
+  enforceRunPolicy: (params: EnforceRunPolicyParams) => Promise<PolicyEnforcementResult>;
   executeAgent: (params: ExecuteAgentParams) => Promise<ExecuteAgentResult>;
   recordRunSteps: (params: RecordStepsParams) => Promise<void>;
   completeRun: (params: CompleteRunParams) => Promise<void>;
@@ -118,6 +121,40 @@ export async function runAgentWorkflow(params: RunWorkflowInput): Promise<void> 
         orgId: params.orgId,
         error: { code: "CANCELLED", message: "Run cancelled before execution" },
       });
+      return;
+    }
+
+    // 1.5. Enforce run execution policy — blocks if denied/quarantined
+    const policyResult = await activities.enforceRunPolicy({
+      runId: params.runId,
+      orgId: params.orgId,
+      agentId: params.agentId ?? "",
+      triggeredBy: params.triggeredBy,
+    });
+
+    if (policyResult.decision === "deny" || policyResult.decision === "quarantined") {
+      await activities.failRun({
+        runId: params.runId,
+        orgId: params.orgId,
+        error: {
+          code: "POLICY_DENIED",
+          message: `Run blocked by policy: ${policyResult.reason}`,
+        },
+      });
+      currentStatus = "failed";
+      return;
+    }
+
+    if (policyResult.decision === "require_approval") {
+      await activities.failRun({
+        runId: params.runId,
+        orgId: params.orgId,
+        error: {
+          code: "APPROVAL_REQUIRED",
+          message: `Run requires approval: ${policyResult.reason}`,
+        },
+      });
+      currentStatus = "failed";
       return;
     }
 

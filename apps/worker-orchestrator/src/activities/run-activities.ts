@@ -2,8 +2,8 @@
 // Temporal activities for run execution
 // ---------------------------------------------------------------------------
 
-import { initDb, PgRunRepo, PgRunStepRepo, PgAuditRepo, PgConnectorInstallRepo, PgConnectorCredentialRepo, PgMemoryRepo, PgMemoryLinkRepo } from "@sovereign/db";
-import type { OrgId, ISODateString, MemoryConfig, Memory } from "@sovereign/core";
+import { initDb, PgRunRepo, PgRunStepRepo, PgAuditRepo, PgConnectorInstallRepo, PgConnectorCredentialRepo, PgMemoryRepo, PgMemoryLinkRepo, PgPolicyRepo, PgPolicyDecisionRepo, PgApprovalRepo, PgQuarantineRecordRepo } from "@sovereign/db";
+import type { OrgId, UserId, ISODateString, MemoryConfig, Memory, PolicyDecisionResult, Policy } from "@sovereign/core";
 import { toRunId, toISODateString, decryptSecret } from "@sovereign/core";
 import { executeTool, listToolsForConnector } from "@sovereign/gateway-mcp";
 
@@ -21,6 +21,307 @@ function getDb() {
     });
   }
   return _db;
+}
+
+// ---------------------------------------------------------------------------
+// Policy enforcement helper — evaluates policy at runtime boundaries
+// ---------------------------------------------------------------------------
+
+const SEVERITY_ORDER: Record<string, number> = {
+  quarantine: 4,
+  deny: 3,
+  require_approval: 2,
+  allow: 1,
+};
+
+export interface PolicyEnforcementInput {
+  orgId: string;
+  subjectType: string;
+  subjectId?: string;
+  actionType: string;
+  requestedBy?: string;
+  context?: Record<string, unknown>;
+}
+
+export interface PolicyEnforcementResult {
+  decision: PolicyDecisionResult;
+  policyId: string | null;
+  reason: string;
+  policyDecisionId: string;
+  approvalId?: string;
+}
+
+/**
+ * Evaluate policy at a runtime boundary. This is the core enforcement gate
+ * that blocks execution when policy dictates deny/quarantine/require_approval.
+ */
+export async function evaluatePolicyAtBoundary(
+  input: PolicyEnforcementInput,
+): Promise<PolicyEnforcementResult> {
+  const db = getDb();
+  const tenantDb = db.forTenant(input.orgId as OrgId);
+  const policyRepo = new PgPolicyRepo(tenantDb);
+  const decisionRepo = new PgPolicyDecisionRepo(tenantDb);
+  const approvalRepo = new PgApprovalRepo(tenantDb);
+  const quarantineRepo = new PgQuarantineRecordRepo(tenantDb);
+  const auditRepo = new PgAuditRepo(tenantDb);
+
+  // 1. Quarantine check — quarantined subjects are blocked regardless of policy
+  if (input.subjectId) {
+    const quarantine = await quarantineRepo.getActiveForSubject(
+      input.orgId as OrgId,
+      input.subjectType,
+      input.subjectId,
+    );
+    if (quarantine) {
+      const decision = await decisionRepo.create({
+        orgId: input.orgId as OrgId,
+        subjectType: input.subjectType,
+        subjectId: input.subjectId,
+        actionType: input.actionType,
+        result: "quarantined",
+        reason: `Subject is quarantined: ${quarantine.reason}`,
+        metadata: { quarantineId: quarantine.id, ...input.context },
+        requestedBy: input.requestedBy,
+      });
+      await auditRepo.emit({
+        orgId: input.orgId as OrgId,
+        actorType: input.requestedBy ? "user" : "system",
+        actorId: input.requestedBy as UserId | undefined,
+        action: "policy.decision",
+        resourceType: input.subjectType,
+        resourceId: input.subjectId,
+        metadata: { actionType: input.actionType, result: "quarantined", policyDecisionId: decision.id },
+      });
+      return {
+        decision: "quarantined",
+        policyId: null,
+        reason: `Subject is quarantined: ${quarantine.reason}`,
+        policyDecisionId: decision.id,
+      };
+    }
+  }
+
+  // 2. Fetch active policies matching scope + org-wide
+  const scopedPolicies = await policyRepo.listForOrg(input.orgId as OrgId, {
+    status: "active",
+    scopeType: input.subjectType,
+  });
+  const orgPolicies = await policyRepo.listForOrg(input.orgId as OrgId, {
+    status: "active",
+    scopeType: "org",
+  });
+  const allPolicies = [...scopedPolicies, ...orgPolicies].sort(
+    (a, b) => b.priority - a.priority,
+  );
+
+  // 3. Find the most restrictive matching policy
+  let matchedPolicy: Policy | null = null;
+  let matchedResult: PolicyDecisionResult = "allow";
+
+  for (const policy of allPolicies) {
+    if (policy.scopeId && policy.scopeId !== input.subjectId) continue;
+
+    const rules = policy.rules as Array<{ actionPattern: string }>;
+    const matches =
+      rules.length === 0 ||
+      rules.some((rule) => {
+        if (rule.actionPattern === "*") return true;
+        if (rule.actionPattern === input.actionType) return true;
+        if (rule.actionPattern.endsWith(".*")) {
+          const prefix = rule.actionPattern.slice(0, -2);
+          return input.actionType.startsWith(prefix + ".");
+        }
+        return false;
+      });
+
+    if (matches) {
+      const severity = SEVERITY_ORDER[policy.enforcementMode] ?? 0;
+      const currentSeverity = SEVERITY_ORDER[matchedResult] ?? 0;
+      if (severity > currentSeverity) {
+        matchedResult = policy.enforcementMode as PolicyDecisionResult;
+        matchedPolicy = policy;
+      }
+    }
+  }
+
+  // 4. Record decision
+  const decision = await decisionRepo.create({
+    orgId: input.orgId as OrgId,
+    policyId: matchedPolicy?.id,
+    subjectType: input.subjectType,
+    subjectId: input.subjectId,
+    actionType: input.actionType,
+    result: matchedResult,
+    reason: matchedPolicy
+      ? `Matched policy "${matchedPolicy.name}" (${matchedPolicy.enforcementMode})`
+      : "No matching policy — default allow",
+    metadata: input.context ?? {},
+    requestedBy: input.requestedBy,
+  });
+
+  await auditRepo.emit({
+    orgId: input.orgId as OrgId,
+    actorType: input.requestedBy ? "user" : "system",
+    actorId: input.requestedBy as UserId | undefined,
+    action: "policy.decision",
+    resourceType: input.subjectType,
+    resourceId: input.subjectId,
+    metadata: {
+      actionType: input.actionType,
+      result: matchedResult,
+      policyId: matchedPolicy?.id ?? null,
+      policyDecisionId: decision.id,
+    },
+  });
+
+  // 5. Create approval request if require_approval
+  let approvalId: string | undefined;
+  if (matchedResult === "require_approval" && input.requestedBy) {
+    const approval = await approvalRepo.create({
+      orgId: input.orgId as OrgId,
+      subjectType: input.subjectType,
+      subjectId: input.subjectId,
+      actionType: input.actionType,
+      requestNote: `Policy "${matchedPolicy?.name}" requires approval for ${input.actionType}`,
+      requestedBy: input.requestedBy as UserId,
+      policyDecisionId: decision.id,
+    });
+    approvalId = approval.id;
+
+    await auditRepo.emit({
+      orgId: input.orgId as OrgId,
+      actorId: input.requestedBy as UserId,
+      actorType: "user",
+      action: "approval.requested",
+      resourceType: "approval",
+      resourceId: approval.id,
+      metadata: { subjectType: input.subjectType, subjectId: input.subjectId, actionType: input.actionType },
+    });
+  }
+
+  return {
+    decision: matchedResult,
+    policyId: matchedPolicy?.id ?? null,
+    reason: decision.reason,
+    policyDecisionId: decision.id,
+    approvalId,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Activity: Enforce policy before run execution
+// ---------------------------------------------------------------------------
+
+export interface EnforceRunPolicyParams {
+  runId: string;
+  orgId: string;
+  agentId: string;
+  triggeredBy?: string;
+}
+
+export async function enforceRunPolicy(
+  params: EnforceRunPolicyParams,
+): Promise<PolicyEnforcementResult> {
+  return evaluatePolicyAtBoundary({
+    orgId: params.orgId,
+    subjectType: "run",
+    subjectId: params.agentId,
+    actionType: "run.execute",
+    requestedBy: params.triggeredBy,
+    context: { runId: params.runId, agentId: params.agentId },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Activity: Enforce policy before connector tool use
+// ---------------------------------------------------------------------------
+
+export interface EnforceToolPolicyParams {
+  runId: string;
+  orgId: string;
+  connectorSlug: string;
+  toolName: string;
+  triggeredBy?: string;
+}
+
+export async function enforceToolPolicy(
+  params: EnforceToolPolicyParams,
+): Promise<PolicyEnforcementResult> {
+  return evaluatePolicyAtBoundary({
+    orgId: params.orgId,
+    subjectType: "connector",
+    subjectId: params.connectorSlug,
+    actionType: "connector.use",
+    requestedBy: params.triggeredBy,
+    context: { runId: params.runId, toolName: params.toolName },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Activity: Enforce policy before memory operations
+// ---------------------------------------------------------------------------
+
+export interface EnforceMemoryPolicyParams {
+  runId: string;
+  orgId: string;
+  actionType: string; // "memory.read" or "memory.write"
+  triggeredBy?: string;
+}
+
+export async function enforceMemoryPolicy(
+  params: EnforceMemoryPolicyParams,
+): Promise<PolicyEnforcementResult> {
+  return evaluatePolicyAtBoundary({
+    orgId: params.orgId,
+    subjectType: "memory",
+    actionType: params.actionType,
+    requestedBy: params.triggeredBy,
+    context: { runId: params.runId },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Activity: Check approval status (for approval-gated actions)
+// ---------------------------------------------------------------------------
+
+export interface CheckApprovalParams {
+  orgId: string;
+  approvalId: string;
+}
+
+export interface CheckApprovalResult {
+  status: string;
+  decidedBy: string | null;
+}
+
+export async function checkApprovalStatus(
+  params: CheckApprovalParams,
+): Promise<CheckApprovalResult> {
+  const db = getDb();
+  const tenantDb = db.forTenant(params.orgId as OrgId);
+  const approvalRepo = new PgApprovalRepo(tenantDb);
+
+  const approval = await approvalRepo.getById(
+    params.approvalId as import("@sovereign/core").ApprovalId,
+    params.orgId as OrgId,
+  );
+  if (!approval) {
+    return { status: "not_found", decidedBy: null };
+  }
+
+  // Check for expiry
+  if (approval.status === "pending" && approval.expiresAt) {
+    const expiresAtMs = new Date(approval.expiresAt).getTime();
+    if (expiresAtMs < Date.now()) {
+      return { status: "expired", decidedBy: null };
+    }
+  }
+
+  return {
+    status: approval.status,
+    decidedBy: approval.decidedBy,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -328,9 +629,41 @@ export async function executeToolCall(params: ExecuteToolCallParams): Promise<Ex
   const db = getDb();
   const tenantDb = db.forTenant(params.orgId as OrgId);
 
-  // Attempt to get credentials from DB
+  // --- Policy enforcement: check connector tool use is allowed ---
+  const policyResult = await evaluatePolicyAtBoundary({
+    orgId: params.orgId,
+    subjectType: "connector",
+    subjectId: params.connectorSlug,
+    actionType: "connector.use",
+    context: { runId: params.runId, toolName: params.toolName },
+  });
+
+  if (policyResult.decision === "deny" || policyResult.decision === "quarantined") {
+    return {
+      output: {},
+      error: {
+        code: "POLICY_DENIED",
+        message: `Tool use blocked by policy: ${policyResult.reason}`,
+      },
+      latencyMs: 0,
+    };
+  }
+
+  if (policyResult.decision === "require_approval") {
+    return {
+      output: {},
+      error: {
+        code: "APPROVAL_REQUIRED",
+        message: `Tool use requires approval: ${policyResult.reason}`,
+      },
+      latencyMs: 0,
+    };
+  }
+
+  // --- Credential resolution with audit ---
   const installRepo = new PgConnectorInstallRepo(tenantDb);
   const credentialRepo = new PgConnectorCredentialRepo(tenantDb);
+  const auditRepo = new PgAuditRepo(tenantDb);
 
   let credentials: Record<string, unknown> | undefined;
 
@@ -343,6 +676,20 @@ export async function executeToolCall(params: ExecuteToolCallParams): Promise<Ex
     if (cred) {
       const decrypted = decryptSecret(cred.encryptedData);
       credentials = { apiKey: decrypted };
+
+      // Audit the secret resolution (never log the actual value)
+      await auditRepo.emit({
+        orgId: params.orgId as OrgId,
+        actorType: "system",
+        action: "secret.resolved",
+        resourceType: "secret",
+        resourceId: install.id,
+        metadata: {
+          secretType: "connector_credential",
+          resolvedFor: params.runId,
+          connectorSlug: params.connectorSlug,
+        },
+      });
     }
   }
 
@@ -533,6 +880,23 @@ export async function retrieveMemories(params: RetrieveMemoriesParams): Promise<
     return { memories: [], count: 0 };
   }
 
+  // --- Policy enforcement: check memory read is allowed ---
+  const policyResult = await evaluatePolicyAtBoundary({
+    orgId: params.orgId,
+    subjectType: "memory",
+    actionType: "memory.read",
+    context: { runId: params.runId, agentId: params.agentId },
+  });
+
+  if (policyResult.decision === "deny" || policyResult.decision === "quarantined") {
+    return { memories: [], count: 0 };
+  }
+
+  if (policyResult.decision === "require_approval") {
+    // Memory read blocked pending approval — silently skip
+    return { memories: [], count: 0 };
+  }
+
   const db = getDb();
   const tenantDb = db.forTenant(params.orgId as OrgId);
   const memoryRepo = new PgMemoryRepo(tenantDb);
@@ -599,6 +963,19 @@ export async function writeEpisodicMemory(params: WriteEpisodicMemoryParams): Pr
   if (!params.memoryConfig || params.memoryConfig.mode === "none") return;
   if (params.memoryConfig.writeEnabled === false) return;
   if (params.memoryConfig.autoWriteEpisodic === false) return;
+
+  // --- Policy enforcement: check memory write is allowed ---
+  const policyResult = await evaluatePolicyAtBoundary({
+    orgId: params.orgId,
+    subjectType: "memory",
+    actionType: "memory.write",
+    context: { runId: params.runId, agentId: params.agentId },
+  });
+
+  if (policyResult.decision !== "allow") {
+    // Memory write blocked by policy — silently skip (non-critical path)
+    return;
+  }
 
   const db = getDb();
   const tenantDb = db.forTenant(params.orgId as OrgId);
