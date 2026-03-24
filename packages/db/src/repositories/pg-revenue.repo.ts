@@ -272,8 +272,9 @@ export class PgCrmAccountRepo implements CrmAccountRepo {
       if (input.notes !== undefined) { sets.push(`notes = $${idx}`); params.push(input.notes); idx++; }
       if (input.externalCrmId !== undefined) { sets.push(`external_crm_id = $${idx}`); params.push(input.externalCrmId); idx++; }
       if (input.metadata !== undefined) { sets.push(`metadata = $${idx}`); params.push(JSON.stringify(input.metadata)); idx++; }
+      params.push(this.db.orgId);
       const row = await tx.queryOne<AccountRow>(
-        `UPDATE crm_accounts SET ${sets.join(", ")} WHERE id = $1 AND org_id = '${this.db.orgId}' RETURNING *`,
+        `UPDATE crm_accounts SET ${sets.join(", ")} WHERE id = $1 AND org_id = $${idx} RETURNING *`,
         params,
       );
       return row ? toAccount(row) : null;
@@ -362,8 +363,9 @@ export class PgCrmContactRepo implements CrmContactRepo {
       if (input.ownerId !== undefined) { sets.push(`owner_id = $${idx}`); params.push(input.ownerId); idx++; }
       if (input.externalCrmId !== undefined) { sets.push(`external_crm_id = $${idx}`); params.push(input.externalCrmId); idx++; }
       if (input.metadata !== undefined) { sets.push(`metadata = $${idx}`); params.push(JSON.stringify(input.metadata)); idx++; }
+      params.push(this.db.orgId);
       const row = await tx.queryOne<ContactRow>(
-        `UPDATE crm_contacts SET ${sets.join(", ")} WHERE id = $1 AND org_id = '${this.db.orgId}' RETURNING *`,
+        `UPDATE crm_contacts SET ${sets.join(", ")} WHERE id = $1 AND org_id = $${idx} RETURNING *`,
         params,
       );
       return row ? toContact(row) : null;
@@ -454,8 +456,9 @@ export class PgCrmDealRepo implements CrmDealRepo {
       if (input.notes !== undefined) { sets.push(`notes = $${idx}`); params.push(input.notes); idx++; }
       if (input.externalCrmId !== undefined) { sets.push(`external_crm_id = $${idx}`); params.push(input.externalCrmId); idx++; }
       if (input.metadata !== undefined) { sets.push(`metadata = $${idx}`); params.push(JSON.stringify(input.metadata)); idx++; }
+      params.push(this.db.orgId);
       const row = await tx.queryOne<DealRow>(
-        `UPDATE crm_deals SET ${sets.join(", ")} WHERE id = $1 AND org_id = '${this.db.orgId}' RETURNING *`,
+        `UPDATE crm_deals SET ${sets.join(", ")} WHERE id = $1 AND org_id = $${idx} RETURNING *`,
         params,
       );
       return row ? toDeal(row) : null;
@@ -545,8 +548,9 @@ export class PgCrmTaskRepo implements CrmTaskRepo {
       if (input.linkedEntityId !== undefined) { sets.push(`linked_entity_id = $${idx}`); params.push(input.linkedEntityId); idx++; }
       if (input.ownerId !== undefined) { sets.push(`owner_id = $${idx}`); params.push(input.ownerId); idx++; }
       if (input.metadata !== undefined) { sets.push(`metadata = $${idx}`); params.push(JSON.stringify(input.metadata)); idx++; }
+      params.push(this.db.orgId);
       const row = await tx.queryOne<TaskRow>(
-        `UPDATE crm_tasks SET ${sets.join(", ")} WHERE id = $1 AND org_id = '${this.db.orgId}' RETURNING *`,
+        `UPDATE crm_tasks SET ${sets.join(", ")} WHERE id = $1 AND org_id = $${idx} RETURNING *`,
         params,
       );
       return row ? toTask(row) : null;
@@ -629,8 +633,9 @@ export class PgCrmNoteRepo implements CrmNoteRepo {
       if (input.content !== undefined) { sets.push(`content = $${idx}`); params.push(input.content); idx++; }
       if (input.noteType !== undefined) { sets.push(`note_type = $${idx}`); params.push(input.noteType); idx++; }
       if (input.metadata !== undefined) { sets.push(`metadata = $${idx}`); params.push(JSON.stringify(input.metadata)); idx++; }
+      params.push(this.db.orgId);
       const row = await tx.queryOne<NoteRow>(
-        `UPDATE crm_notes SET ${sets.join(", ")} WHERE id = $1 AND org_id = '${this.db.orgId}' RETURNING *`,
+        `UPDATE crm_notes SET ${sets.join(", ")} WHERE id = $1 AND org_id = $${idx} RETURNING *`,
         params,
       );
       return row ? toNote(row) : null;
@@ -713,8 +718,9 @@ export class PgOutreachDraftRepo implements OutreachDraftRepo {
       if (input.approvalStatus !== undefined) { sets.push(`approval_status = $${idx}`); params.push(input.approvalStatus); idx++; }
       if (input.approvalId !== undefined) { sets.push(`approval_id = $${idx}`); params.push(input.approvalId); idx++; }
       if (input.metadata !== undefined) { sets.push(`metadata = $${idx}`); params.push(JSON.stringify(input.metadata)); idx++; }
+      params.push(this.db.orgId);
       const row = await tx.queryOne<DraftRow>(
-        `UPDATE outreach_drafts SET ${sets.join(", ")} WHERE id = $1 AND org_id = '${this.db.orgId}' RETURNING *`,
+        `UPDATE outreach_drafts SET ${sets.join(", ")} WHERE id = $1 AND org_id = $${idx} RETURNING *`,
         params,
       );
       return row ? toDraft(row) : null;
@@ -792,8 +798,9 @@ export class PgCrmSyncLogRepo implements CrmSyncLogRepo {
       if (extras?.externalCrmId !== undefined) { sets.push(`external_crm_id = $${idx}`); params.push(extras.externalCrmId); idx++; }
       if (extras?.error !== undefined) { sets.push(`error = $${idx}`); params.push(extras.error); idx++; }
       if (extras?.completedAt !== undefined) { sets.push(`completed_at = $${idx}`); params.push(extras.completedAt); idx++; }
+      params.push(this.db.orgId);
       const row = await tx.queryOne<SyncLogRow>(
-        `UPDATE crm_sync_log SET ${sets.join(", ")} WHERE id = $1 AND org_id = '${this.db.orgId}' RETURNING *`,
+        `UPDATE crm_sync_log SET ${sets.join(", ")} WHERE id = $1 AND org_id = $${idx} RETURNING *`,
         params,
       );
       return row ? toSyncLog(row) : null;

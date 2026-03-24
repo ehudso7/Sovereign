@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./test-harness": "./src/__tests__/integration/db-test-harness.ts"
   },
   "scripts": {
     "build": "tsc && cp -r src/migrations dist/migrations",

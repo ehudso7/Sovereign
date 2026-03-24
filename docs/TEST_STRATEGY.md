@@ -249,6 +249,38 @@ describe('AgentService', () => {
 });
 ```
 
+## E2E Tests (Phase 14)
+
+Full API-level end-to-end tests using Fastify `.inject()` against real PostgreSQL.
+
+**Location**: `apps/api/src/__tests__/e2e/`, `apps/api/src/__tests__/load/`, `apps/api/src/__tests__/resilience/`
+
+**Run**: `pnpm test:e2e`
+
+**Suites**:
+- `critical-flows.e2e.test.ts` — 14 describe blocks covering all critical user flows
+- `api-load.test.ts` — Load/stress verification for concurrent operations
+- `worker-resilience.test.ts` — State durability across app restarts, concurrent writes
+
+**Covered flows**:
+- Auth / session bootstrap and logout
+- Onboarding progress and dismiss
+- Agent creation → versioning → publish
+- Run creation and listing
+- Connector catalog → install → revoke
+- Memory CRUD and search
+- Mission Control overview and alerts
+- Policy deny / approval / quarantine
+- Revenue workspace CRUD
+- Billing access
+- Docs / support / admin surfaces
+- Tenant isolation (cross-org data leakage)
+- Error handling (no internal leakage)
+- Health check
+- Concurrent request handling (50+ concurrent)
+- State durability (app restart)
+- Deduplication under concurrent writes
+
 ## Coverage Rules
 
 - New business logic code must include tests
@@ -264,4 +296,5 @@ REDIS_URL=redis://localhost:6380
 TEMPORAL_ADDRESS=localhost:7234
 WORKOS_API_KEY=test_key
 WORKOS_CLIENT_ID=test_client
+SOVEREIGN_SECRET_KEY=test-secret-key-for-testing-32chars!!
 ```

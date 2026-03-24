@@ -193,8 +193,9 @@ export class PgBillingAccountRepo implements BillingAccountRepo {
       if (input.spendLimitCents !== undefined) { sets.push(`spend_limit_cents = $${idx}`); params.push(input.spendLimitCents); idx++; }
       if (input.overageAllowed !== undefined) { sets.push(`overage_allowed = $${idx}`); params.push(input.overageAllowed); idx++; }
       if (input.metadata !== undefined) { sets.push(`metadata = $${idx}`); params.push(JSON.stringify(input.metadata)); idx++; }
+      params.push(this.db.orgId);
       const row = await tx.queryOne<BillingAccountRow>(
-        `UPDATE billing_accounts SET ${sets.join(", ")} WHERE org_id = '${this.db.orgId}' RETURNING *`,
+        `UPDATE billing_accounts SET ${sets.join(", ")} WHERE org_id = $${idx} RETURNING *`,
         params,
       );
       return row ? toBillingAccount(row) : null;
@@ -321,8 +322,9 @@ export class PgInvoiceRepo implements InvoiceRepo {
       if (input.status !== undefined) { sets.push(`status = $${idx}`); params.push(input.status); idx++; }
       if (input.providerInvoiceId !== undefined) { sets.push(`provider_invoice_id = $${idx}`); params.push(input.providerInvoiceId); idx++; }
       if (input.metadata !== undefined) { sets.push(`metadata = $${idx}`); params.push(JSON.stringify(input.metadata)); idx++; }
+      params.push(this.db.orgId);
       const row = await tx.queryOne<InvoiceRow>(
-        `UPDATE invoices SET ${sets.join(", ")} WHERE id = $1 AND org_id = '${this.db.orgId}' RETURNING *`, params,
+        `UPDATE invoices SET ${sets.join(", ")} WHERE id = $1 AND org_id = $${idx} RETURNING *`, params,
       );
       return row ? toInvoice(row) : null;
     });
@@ -365,8 +367,8 @@ export class PgSpendAlertRepo implements SpendAlertRepo {
     return this.db.transaction(async (tx) => {
       const row = await tx.queryOne<SpendAlertRow>(
         `UPDATE spend_alerts SET status = 'triggered', current_spend_cents = $2, triggered_at = now(), updated_at = now()
-         WHERE id = $1 AND org_id = '${this.db.orgId}' RETURNING *`,
-        [id, currentSpendCents],
+         WHERE id = $1 AND org_id = $3 RETURNING *`,
+        [id, currentSpendCents, this.db.orgId],
       );
       return row ? toSpendAlert(row) : null;
     });
@@ -376,8 +378,8 @@ export class PgSpendAlertRepo implements SpendAlertRepo {
     return this.db.transaction(async (tx) => {
       const row = await tx.queryOne<SpendAlertRow>(
         `UPDATE spend_alerts SET status = 'acknowledged', acknowledged_by = $2, acknowledged_at = now(), updated_at = now()
-         WHERE id = $1 AND org_id = '${this.db.orgId}' AND status = 'triggered' RETURNING *`,
-        [id, userId],
+         WHERE id = $1 AND org_id = $3 AND status = 'triggered' RETURNING *`,
+        [id, userId, this.db.orgId],
       );
       return row ? toSpendAlert(row) : null;
     });

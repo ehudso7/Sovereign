@@ -1174,5 +1174,105 @@ Grand total: 795 tests (587 unit + 208 integration)
 - Integration: 237 across 13 suites (+18 new in onboarding-support-admin.test.ts)
 - Grand total: 886
 
-### Phase 14
-_See ROADMAP.md for full phase details._
+### Phase 14 — Release Hardening ✅
+
+#### A. E2E Test Hardening
+- [x] critical-flows.e2e.test.ts — 14 describe blocks covering all critical flows
+  - Auth / session / org bootstrap (4 tests)
+  - Onboarding flow (2 tests)
+  - Agent lifecycle: create → version → publish (1 test)
+  - Run lifecycle: create → list → detail (1 test)
+  - Connector lifecycle: catalog → install → revoke (1 test)
+  - Memory lifecycle: create → get → search (1 test)
+  - Mission Control: overview + alerts (2 tests)
+  - Policy enforcement: deny + approval + quarantine (3 tests)
+  - Revenue workspace: account → contact → deal → task (1 test)
+  - Billing enforcement (2 tests)
+  - Docs / support / admin surface access (6 tests)
+  - Tenant isolation: agents, memories, policies cross-org (3 tests)
+  - Health check (1 test)
+  - Error handling: no internal detail leakage (2 tests)
+
+#### B. Load / Stress Verification
+- [x] api-load.test.ts — 6 load scenarios
+  - 50 concurrent health checks
+  - 20 concurrent bootstrap requests
+  - 10 sequential run creations + 10 concurrent listings
+  - 10 concurrent mission control overview requests
+  - 20 memory creations + 5 concurrent searches
+  - 10 concurrent billing reads
+
+#### C. Chaos / Resilience Verification
+- [x] worker-resilience.test.ts — 6 resilience scenarios
+  - Run state survives app close/reopen
+  - Session token remains valid after app rebuild
+  - Concurrent run creations produce no corrupt state
+  - Memory deduplication under concurrent writes
+  - Concurrent policy creates produce distinct policies
+  - Repeated 404s return stable error shape
+
+#### D. Security Review and Fixes
+- [x] Fixed 11 SQL injection vulnerabilities (OrgId string interpolation → parameterized)
+  - pg-billing.repo.ts: 4 UPDATE queries fixed
+  - pg-revenue.repo.ts: 7 UPDATE queries fixed
+- [x] Added security headers to all API responses (X-Content-Type-Options, X-Frame-Options, HSTS, etc.)
+- [x] Extracted buildApp() from index.ts for testability
+- [x] Updated docs/SECURITY.md with fix details
+
+#### E. Backup / Restore Readiness
+- [x] docs/BACKUP_RESTORE.md — full backup/restore procedures
+  - pg_dump full/schema/data backup commands
+  - WAL archiving for point-in-time recovery
+  - Restore procedure with verification steps
+  - Object storage backup via S3 sync
+  - Backup encryption with GPG
+  - RTO/RPO targets documented
+  - Quarterly drill schedule
+
+#### F. Deploy / Rollback Readiness
+- [x] docs/ROLLBACK_PLAN.md — complete rollback procedures
+  - Application rollback steps
+  - Database migration rollback
+  - Blue-green deployment rollback
+  - Worker/orchestrator rollback (Temporal durable state)
+  - Post-rollback verification checklist
+
+#### G. Production SLO / Operational Readiness
+- [x] docs/SLO.md — minimal launch SLOs
+  - API uptime: 99.9% monthly
+  - Latency targets per endpoint category
+  - Run queue wait time: < 30s p95
+  - Day-1 alert thresholds
+  - Monitoring approach
+
+#### H. Launch Checklist and Runbooks
+- [x] docs/LAUNCH_CHECKLIST.md — pre-launch, post-launch, first-week
+- [x] docs/ROLLBACK_PLAN.md
+- [x] docs/BACKUP_RESTORE.md
+- [x] docs/ENVIRONMENT.md — all required env vars documented
+- [x] docs/SUPPORT_ESCALATION.md — severity levels, escalation paths, common issues
+
+#### I. Security Fixes
+- [x] 11 SQL injection fixes (see D above)
+- [x] Security headers added
+- [x] No new feature scope
+
+#### J. Admin/Support Hardening
+- [x] Verified: support diagnostics returns safe metadata only
+- [x] Verified: admin endpoints require permission checks
+- [x] Verified: error responses do not leak internals (E2E test)
+- [x] Verified: tenant isolation holds across onboarding/support/admin (E2E test)
+
+#### K. Testing
+- [x] E2E suite: ~30 tests in critical-flows.e2e.test.ts
+- [x] Load suite: 6 tests in api-load.test.ts
+- [x] Resilience suite: 6 tests in worker-resilience.test.ts
+- [x] Existing unit tests updated for buildApp() refactor
+
+#### L. Docs Updated
+- [x] TASKS.md
+- [x] docs/SECURITY.md — Phase 14 fixes section
+- [x] docs/TEST_STRATEGY.md — E2E test layer added
+- [x] .github/workflows/ci.yml — E2E job added
+- [x] turbo.json — test:e2e task added
+- [x] New docs: LAUNCH_CHECKLIST.md, ROLLBACK_PLAN.md, BACKUP_RESTORE.md, ENVIRONMENT.md, SUPPORT_ESCALATION.md, SLO.md

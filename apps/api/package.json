@@ -8,7 +8,8 @@
     "start": "node dist/index.js",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --exclude 'src/__tests__/e2e/**' --exclude 'src/__tests__/load/**' --exclude 'src/__tests__/resilience/**'",
+    "test:e2e": "vitest run src/__tests__/e2e/ src/__tests__/load/ src/__tests__/resilience/"
   },
   "dependencies": {
     "fastify": "^5.0.0",

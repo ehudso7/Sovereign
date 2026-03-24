@@ -289,6 +289,22 @@ Policy evaluation is enforced at the following runtime boundaries:
 - Audit trail retention: minimum 1 year
 - Right to deletion supported (with audit preservation)
 
+## Security Headers (Phase 14)
+
+All API responses include:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `X-XSS-Protection: 0` (modern CSP preferred)
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Cache-Control: no-store`
+- `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` (production only)
+
+## Phase 14 Security Fixes
+
+1. **SQL injection via OrgId interpolation** — Fixed 11 UPDATE queries in pg-billing.repo.ts and pg-revenue.repo.ts that used string interpolation for org_id instead of parameterized queries.
+2. **Security headers** — Added standard security headers to all API responses.
+3. **E2E security tests** — Added tenant isolation verification and error leakage tests to the E2E suite.
+
 ## Security Review Cadence
 
 - Dependency audit: weekly (automated)
