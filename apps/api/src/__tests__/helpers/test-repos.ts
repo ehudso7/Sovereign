@@ -68,6 +68,14 @@ import type {
   AlertConditionType,
   AlertSeverity,
   AlertStatus,
+  Policy,
+  PolicyDecision,
+  Approval,
+  QuarantineRecord,
+  PolicyId,
+  PolicyDecisionId,
+  ApprovalId,
+  QuarantineRecordId,
 } from "@sovereign/core";
 
 import {
@@ -91,6 +99,10 @@ import {
   toMemoryLinkId,
   toAlertRuleId,
   toAlertEventId,
+  toPolicyId,
+  toPolicyDecisionId,
+  toApprovalId,
+  toQuarantineRecordId,
 } from "@sovereign/core";
 
 import type {
@@ -98,6 +110,10 @@ import type {
   OrgRepo,
   MembershipRepo,
   InvitationRepo,
+  PolicyRepo,
+  PolicyDecisionRepo,
+  ApprovalRepo,
+  QuarantineRecordRepo,
   SessionRepo,
   ProjectRepo,
   AuditRepo,
@@ -1804,6 +1820,355 @@ export class TestAlertEventRepo implements AlertEventRepo {
   reset(): void { this.store.clear(); }
 }
 
+// ---------------------------------------------------------------------------
+// TestPolicyRepo
+// ---------------------------------------------------------------------------
+
+export class TestPolicyRepo implements PolicyRepo {
+  private readonly store = new Map<string, Policy>();
+
+  async create(input: {
+    orgId: OrgId;
+    name: string;
+    description?: string;
+    policyType: string;
+    enforcementMode: string;
+    scopeType: string;
+    scopeId?: string;
+    rules?: unknown[];
+    priority?: number;
+    createdBy: UserId;
+  }): Promise<Policy> {
+    const ts = now();
+    const policy: Policy = {
+      id: toPolicyId(randomUUID()),
+      orgId: input.orgId,
+      name: input.name,
+      description: input.description ?? "",
+      policyType: input.policyType as Policy["policyType"],
+      status: "active" as Policy["status"],
+      enforcementMode: input.enforcementMode as Policy["enforcementMode"],
+      scopeType: input.scopeType as Policy["scopeType"],
+      scopeId: input.scopeId ?? null,
+      rules: (input.rules ?? []) as Policy["rules"],
+      priority: input.priority ?? 0,
+      createdBy: input.createdBy,
+      updatedBy: null,
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.store.set(policy.id, policy);
+    return policy;
+  }
+
+  async getById(id: PolicyId, orgId: OrgId): Promise<Policy | null> {
+    const p = this.store.get(id);
+    return p && p.orgId === orgId ? p : null;
+  }
+
+  async listForOrg(
+    orgId: OrgId,
+    filters?: { status?: string; scopeType?: string; policyType?: string },
+  ): Promise<Policy[]> {
+    return [...this.store.values()].filter((p) => {
+      if (p.orgId !== orgId) return false;
+      if (filters?.status !== undefined && p.status !== filters.status) return false;
+      if (filters?.scopeType !== undefined && p.scopeType !== filters.scopeType) return false;
+      if (filters?.policyType !== undefined && p.policyType !== filters.policyType) return false;
+      return true;
+    }).sort((a, b) => b.priority - a.priority);
+  }
+
+  async update(
+    id: PolicyId,
+    orgId: OrgId,
+    input: {
+      name?: string;
+      description?: string;
+      rules?: unknown[];
+      priority?: number;
+      status?: string;
+      enforcementMode?: string;
+      updatedBy: UserId;
+    },
+  ): Promise<Policy | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return null;
+    const updated: Policy = {
+      ...existing,
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.rules !== undefined ? { rules: input.rules as Policy["rules"] } : {}),
+      ...(input.priority !== undefined ? { priority: input.priority } : {}),
+      ...(input.status !== undefined ? { status: input.status as Policy["status"] } : {}),
+      ...(input.enforcementMode !== undefined ? { enforcementMode: input.enforcementMode as Policy["enforcementMode"] } : {}),
+      updatedBy: input.updatedBy,
+      updatedAt: now(),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async delete(id: PolicyId, orgId: OrgId): Promise<boolean> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId) return false;
+    return this.store.delete(id);
+  }
+
+  reset(): void { this.store.clear(); }
+}
+
+// ---------------------------------------------------------------------------
+// TestPolicyDecisionRepo
+// ---------------------------------------------------------------------------
+
+export class TestPolicyDecisionRepo implements PolicyDecisionRepo {
+  private readonly store = new Map<string, PolicyDecision>();
+
+  async create(input: {
+    orgId: OrgId;
+    policyId?: string;
+    subjectType: string;
+    subjectId?: string;
+    actionType: string;
+    result: string;
+    reason?: string;
+    metadata?: Record<string, unknown>;
+    requestedBy?: string;
+    approvalId?: string;
+  }): Promise<PolicyDecision> {
+    const decision: PolicyDecision = {
+      id: toPolicyDecisionId(randomUUID()),
+      orgId: input.orgId,
+      policyId: input.policyId ? toPolicyId(input.policyId) : null,
+      subjectType: input.subjectType,
+      subjectId: input.subjectId ?? null,
+      actionType: input.actionType,
+      result: input.result as PolicyDecision["result"],
+      reason: input.reason ?? "",
+      metadata: input.metadata ?? {},
+      requestedBy: input.requestedBy ? toUserId(input.requestedBy) : null,
+      approvalId: input.approvalId ? toApprovalId(input.approvalId) : null,
+      evaluatedAt: now(),
+    };
+    this.store.set(decision.id, decision);
+    return decision;
+  }
+
+  async getById(id: PolicyDecisionId, orgId: OrgId): Promise<PolicyDecision | null> {
+    const d = this.store.get(id);
+    return d && d.orgId === orgId ? d : null;
+  }
+
+  async listForOrg(
+    orgId: OrgId,
+    filters?: { result?: string; subjectType?: string; actionType?: string; limit?: number },
+  ): Promise<PolicyDecision[]> {
+    let results = [...this.store.values()].filter((d) => {
+      if (d.orgId !== orgId) return false;
+      if (filters?.result !== undefined && d.result !== filters.result) return false;
+      if (filters?.subjectType !== undefined && d.subjectType !== filters.subjectType) return false;
+      if (filters?.actionType !== undefined && d.actionType !== filters.actionType) return false;
+      return true;
+    });
+    if (filters?.limit !== undefined) results = results.slice(0, filters.limit);
+    return results;
+  }
+
+  reset(): void { this.store.clear(); }
+}
+
+// ---------------------------------------------------------------------------
+// TestApprovalRepo
+// ---------------------------------------------------------------------------
+
+export class TestApprovalRepo implements ApprovalRepo {
+  private readonly store = new Map<string, Approval>();
+
+  async create(input: {
+    orgId: OrgId;
+    subjectType: string;
+    subjectId?: string;
+    actionType: string;
+    requestNote?: string;
+    requestedBy: UserId;
+    policyDecisionId?: string;
+    expiresAt?: string;
+  }): Promise<Approval> {
+    const ts = now();
+    const approval: Approval = {
+      id: toApprovalId(randomUUID()),
+      orgId: input.orgId,
+      subjectType: input.subjectType,
+      subjectId: input.subjectId ?? null,
+      actionType: input.actionType,
+      status: "pending" as Approval["status"],
+      requestNote: input.requestNote ?? "",
+      decisionNote: "",
+      requestedBy: input.requestedBy,
+      decidedBy: null,
+      policyDecisionId: input.policyDecisionId ? toPolicyDecisionId(input.policyDecisionId) : null,
+      expiresAt: input.expiresAt ? toISODateString(input.expiresAt) : null,
+      decidedAt: null,
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.store.set(approval.id, approval);
+    return approval;
+  }
+
+  async getById(id: ApprovalId, orgId: OrgId): Promise<Approval | null> {
+    const a = this.store.get(id);
+    return a && a.orgId === orgId ? a : null;
+  }
+
+  async listForOrg(
+    orgId: OrgId,
+    filters?: { status?: string; subjectType?: string; limit?: number },
+  ): Promise<Approval[]> {
+    let results = [...this.store.values()].filter((a) => {
+      if (a.orgId !== orgId) return false;
+      if (filters?.status !== undefined && a.status !== filters.status) return false;
+      if (filters?.subjectType !== undefined && a.subjectType !== filters.subjectType) return false;
+      return true;
+    });
+    if (filters?.limit !== undefined) results = results.slice(0, filters.limit);
+    return results;
+  }
+
+  async decide(
+    id: ApprovalId,
+    orgId: OrgId,
+    input: { status: "approved" | "denied"; decidedBy: UserId; decisionNote?: string },
+  ): Promise<Approval | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId || existing.status !== "pending") return null;
+    const updated: Approval = {
+      ...existing,
+      status: input.status,
+      decidedBy: input.decidedBy,
+      decisionNote: input.decisionNote ?? "",
+      decidedAt: now(),
+      updatedAt: now(),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async cancel(id: ApprovalId, orgId: OrgId): Promise<Approval | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId || existing.status !== "pending") return null;
+    const updated: Approval = {
+      ...existing,
+      status: "cancelled" as Approval["status"],
+      updatedAt: now(),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  async expirePending(orgId: OrgId): Promise<number> {
+    const nowMs = Date.now();
+    let count = 0;
+    for (const [key, a] of this.store.entries()) {
+      if (a.orgId === orgId && a.status === "pending" && a.expiresAt && new Date(a.expiresAt).getTime() < nowMs) {
+        this.store.set(key, { ...a, status: "expired" as Approval["status"], updatedAt: now() });
+        count++;
+      }
+    }
+    return count;
+  }
+
+  reset(): void { this.store.clear(); }
+}
+
+// ---------------------------------------------------------------------------
+// TestQuarantineRecordRepo
+// ---------------------------------------------------------------------------
+
+export class TestQuarantineRecordRepo implements QuarantineRecordRepo {
+  private readonly store = new Map<string, QuarantineRecord>();
+
+  async create(input: {
+    orgId: OrgId;
+    subjectType: string;
+    subjectId: string;
+    reason: string;
+    quarantinedBy: UserId;
+    policyDecisionId?: string;
+  }): Promise<QuarantineRecord> {
+    const ts = now();
+    const record: QuarantineRecord = {
+      id: toQuarantineRecordId(randomUUID()),
+      orgId: input.orgId,
+      subjectType: input.subjectType,
+      subjectId: input.subjectId,
+      reason: input.reason,
+      status: "active" as QuarantineRecord["status"],
+      policyDecisionId: input.policyDecisionId ? toPolicyDecisionId(input.policyDecisionId) : null,
+      quarantinedBy: input.quarantinedBy,
+      releasedBy: null,
+      releasedAt: null,
+      releaseNote: "",
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.store.set(record.id, record);
+    return record;
+  }
+
+  async getById(id: QuarantineRecordId, orgId: OrgId): Promise<QuarantineRecord | null> {
+    const r = this.store.get(id);
+    return r && r.orgId === orgId ? r : null;
+  }
+
+  async listForOrg(
+    orgId: OrgId,
+    filters?: { status?: string; subjectType?: string },
+  ): Promise<QuarantineRecord[]> {
+    return [...this.store.values()].filter((r) => {
+      if (r.orgId !== orgId) return false;
+      if (filters?.status !== undefined && r.status !== filters.status) return false;
+      if (filters?.subjectType !== undefined && r.subjectType !== filters.subjectType) return false;
+      return true;
+    });
+  }
+
+  async getActiveForSubject(
+    orgId: OrgId,
+    subjectType: string,
+    subjectId: string,
+  ): Promise<QuarantineRecord | null> {
+    for (const r of this.store.values()) {
+      if (r.orgId === orgId && r.subjectType === subjectType && r.subjectId === subjectId && r.status === "active") {
+        return r;
+      }
+    }
+    return null;
+  }
+
+  async release(
+    id: QuarantineRecordId,
+    orgId: OrgId,
+    input: { releasedBy: UserId; releaseNote?: string },
+  ): Promise<QuarantineRecord | null> {
+    const existing = this.store.get(id);
+    if (!existing || existing.orgId !== orgId || existing.status !== "active") return null;
+    const updated: QuarantineRecord = {
+      ...existing,
+      status: "released" as QuarantineRecord["status"],
+      releasedBy: input.releasedBy,
+      releasedAt: now(),
+      releaseNote: input.releaseNote ?? "",
+      updatedAt: now(),
+    };
+    this.store.set(id, updated);
+    return updated;
+  }
+
+  reset(): void { this.store.clear(); }
+}
+
 export interface TestRepos {
   users: TestUserRepo;
   orgs: TestOrgRepo;
@@ -1826,6 +2191,10 @@ export interface TestRepos {
   memoryLinks: TestMemoryLinkRepo;
   alertRules: TestAlertRuleRepo;
   alertEvents: TestAlertEventRepo;
+  policyRepo: TestPolicyRepo;
+  policyDecisions: TestPolicyDecisionRepo;
+  approvals: TestApprovalRepo;
+  quarantine: TestQuarantineRecordRepo;
 }
 
 /**
@@ -1853,6 +2222,10 @@ export function createTestRepos(): TestRepos {
   const memoryLinks = new TestMemoryLinkRepo();
   const alertRules = new TestAlertRuleRepo();
   const alertEvents = new TestAlertEventRepo();
+  const policyRepo = new TestPolicyRepo();
+  const policyDecisions = new TestPolicyDecisionRepo();
+  const approvals = new TestApprovalRepo();
+  const quarantine = new TestQuarantineRecordRepo();
 
   // Wire cross-repo references
   memberships._setUserRepo(users);
@@ -1880,6 +2253,10 @@ export function createTestRepos(): TestRepos {
     memoryLinks,
     alertRules,
     alertEvents,
+    policyRepo,
+    policyDecisions,
+    approvals,
+    quarantine,
   };
 }
 
@@ -1908,4 +2285,8 @@ export function resetAllRepos(repos: TestRepos): void {
   repos.memoryLinks.reset();
   repos.alertRules.reset();
   repos.alertEvents.reset();
+  repos.policyRepo.reset();
+  repos.policyDecisions.reset();
+  repos.approvals.reset();
+  repos.quarantine.reset();
 }

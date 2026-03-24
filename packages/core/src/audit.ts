@@ -69,7 +69,21 @@ export type AuditAction =
   | "memory.deleted"
   | "memory.promoted"
   | "memory.retrieved_for_run"
-  | "alert.acknowledged";
+  | "alert.acknowledged"
+  | "policy.created"
+  | "policy.updated"
+  | "policy.disabled"
+  | "policy.enabled"
+  | "policy.archived"
+  | "policy.decision"
+  | "approval.requested"
+  | "approval.approved"
+  | "approval.denied"
+  | "approval.expired"
+  | "approval.cancelled"
+  | "quarantine.entered"
+  | "quarantine.released"
+  | "secret.resolved";
 
 // ---------------------------------------------------------------------------
 // Audit actor types

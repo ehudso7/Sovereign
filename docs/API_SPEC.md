@@ -428,33 +428,69 @@ List alerts. Query: `?status=&severity=&conditionType=&limit=`
 Acknowledge an open alert.
 - Auth: observability:alerts
 
-## Policy Endpoints
+## Policy Endpoints (Phase 10 — implemented)
 
 ### GET /api/v1/policies
-List policies.
+List policies. Auth: policy:read. Query: `?status=&scopeType=&policyType=`
 
 ### POST /api/v1/policies
-Create a policy.
+Create a policy. Auth: policy:write.
+Body: `{ name, description?, policyType, enforcementMode, scopeType, scopeId?, rules?, priority? }`
 
 ### GET /api/v1/policies/:policyId
-Get policy details.
+Get policy detail. Auth: policy:read.
 
 ### PATCH /api/v1/policies/:policyId
-Update policy.
+Update policy. Auth: policy:write.
+Body: `{ name?, description?, rules?, priority?, enforcementMode? }`
 
-### DELETE /api/v1/policies/:policyId
-Delete policy.
+### POST /api/v1/policies/:policyId/disable
+Disable a policy. Auth: policy:write.
+
+### POST /api/v1/policies/:policyId/enable
+Enable a disabled policy. Auth: policy:write.
 
 ### POST /api/v1/policies/evaluate
-Test policy evaluation.
+Test policy evaluation. Auth: policy:read.
+Body: `{ subjectType, subjectId?, actionType, context? }`
+Returns: `{ decision, policyId, reason, approvalId?, policyDecisionId }`
 
-## Audit Endpoints
+## Approval Endpoints (Phase 10 — implemented)
+
+### GET /api/v1/approvals
+List approvals. Auth: approval:read. Query: `?status=&subjectType=&limit=`
+
+### GET /api/v1/approvals/:approvalId
+Get approval detail. Auth: approval:read.
+
+### POST /api/v1/approvals/:approvalId/approve
+Approve a pending request. Auth: approval:decide.
+Body: `{ note? }`
+
+### POST /api/v1/approvals/:approvalId/deny
+Deny a pending request. Auth: approval:decide.
+Body: `{ note? }`
+
+## Quarantine Endpoints (Phase 10 — implemented)
+
+### GET /api/v1/quarantine
+List quarantine records. Auth: quarantine:read. Query: `?status=&subjectType=`
+
+### POST /api/v1/quarantine
+Quarantine a subject. Auth: quarantine:manage.
+Body: `{ subjectType, subjectId, reason }`
+
+### POST /api/v1/quarantine/:recordId/release
+Release from quarantine. Auth: quarantine:manage.
+Body: `{ note? }`
+
+## Audit Endpoints (Phase 10 — implemented)
 
 ### GET /api/v1/audit
-Query audit events (filterable by resource, actor, action, time range).
+Query audit events. Auth: audit:read. Query: `?action=&resourceType=&resourceId=&actorId=&limit=`
 
 ### GET /api/v1/audit/:eventId
-Get audit event details.
+Get audit event detail. Auth: audit:read.
 
 ## Browser Session Endpoints (Phase 7 — implemented)
 

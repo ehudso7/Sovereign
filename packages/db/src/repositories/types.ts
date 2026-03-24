@@ -17,6 +17,10 @@ import type {
   BrowserSessionId,
   AlertRuleId,
   AlertEventId,
+  PolicyId,
+  PolicyDecisionId,
+  ApprovalId,
+  QuarantineRecordId,
 
   OrgRole,
   AgentStatus,
@@ -63,6 +67,10 @@ import type {
   AlertRule,
   AlertEvent,
   ISODateString,
+  Policy,
+  PolicyDecision,
+  Approval,
+  QuarantineRecord,
 } from "@sovereign/core";
 
 // ---------------------------------------------------------------------------
@@ -497,4 +505,77 @@ export interface AlertEventRepo {
   acknowledge(id: AlertEventId, orgId: OrgId, userId: UserId): Promise<AlertEvent | null>;
   resolve(id: AlertEventId, orgId: OrgId): Promise<AlertEvent | null>;
   countByStatus(orgId: OrgId): Promise<Record<string, number>>;
+}
+
+// ---------------------------------------------------------------------------
+// Policy repositories (Phase 10)
+// ---------------------------------------------------------------------------
+
+export interface PolicyRepo {
+  create(input: {
+    orgId: OrgId;
+    name: string;
+    description?: string;
+    policyType: string;
+    enforcementMode: string;
+    scopeType: string;
+    scopeId?: string;
+    rules?: unknown[];
+    priority?: number;
+    createdBy: UserId;
+  }): Promise<Policy>;
+  getById(id: PolicyId, orgId: OrgId): Promise<Policy | null>;
+  listForOrg(orgId: OrgId, filters?: { status?: string; scopeType?: string; policyType?: string }): Promise<Policy[]>;
+  update(id: PolicyId, orgId: OrgId, input: { name?: string; description?: string; rules?: unknown[]; priority?: number; status?: string; enforcementMode?: string; updatedBy: UserId }): Promise<Policy | null>;
+  delete(id: PolicyId, orgId: OrgId): Promise<boolean>;
+}
+
+export interface PolicyDecisionRepo {
+  create(input: {
+    orgId: OrgId;
+    policyId?: string;
+    subjectType: string;
+    subjectId?: string;
+    actionType: string;
+    result: string;
+    reason?: string;
+    metadata?: Record<string, unknown>;
+    requestedBy?: string;
+    approvalId?: string;
+  }): Promise<PolicyDecision>;
+  getById(id: PolicyDecisionId, orgId: OrgId): Promise<PolicyDecision | null>;
+  listForOrg(orgId: OrgId, filters?: { result?: string; subjectType?: string; actionType?: string; limit?: number }): Promise<PolicyDecision[]>;
+}
+
+export interface ApprovalRepo {
+  create(input: {
+    orgId: OrgId;
+    subjectType: string;
+    subjectId?: string;
+    actionType: string;
+    requestNote?: string;
+    requestedBy: UserId;
+    policyDecisionId?: string;
+    expiresAt?: string;
+  }): Promise<Approval>;
+  getById(id: ApprovalId, orgId: OrgId): Promise<Approval | null>;
+  listForOrg(orgId: OrgId, filters?: { status?: string; subjectType?: string; limit?: number }): Promise<Approval[]>;
+  decide(id: ApprovalId, orgId: OrgId, input: { status: "approved" | "denied"; decidedBy: UserId; decisionNote?: string }): Promise<Approval | null>;
+  cancel(id: ApprovalId, orgId: OrgId): Promise<Approval | null>;
+  expirePending(orgId: OrgId): Promise<number>;
+}
+
+export interface QuarantineRecordRepo {
+  create(input: {
+    orgId: OrgId;
+    subjectType: string;
+    subjectId: string;
+    reason: string;
+    quarantinedBy: UserId;
+    policyDecisionId?: string;
+  }): Promise<QuarantineRecord>;
+  getById(id: QuarantineRecordId, orgId: OrgId): Promise<QuarantineRecord | null>;
+  listForOrg(orgId: OrgId, filters?: { status?: string; subjectType?: string }): Promise<QuarantineRecord[]>;
+  getActiveForSubject(orgId: OrgId, subjectType: string, subjectId: string): Promise<QuarantineRecord | null>;
+  release(id: QuarantineRecordId, orgId: OrgId, input: { releasedBy: UserId; releaseNote?: string }): Promise<QuarantineRecord | null>;
 }

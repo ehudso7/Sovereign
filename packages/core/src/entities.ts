@@ -19,6 +19,10 @@ import type {
   AlertRuleId,
   AlertEventId,
   ISODateString,
+  PolicyId,
+  ApprovalId,
+  PolicyDecisionId,
+  QuarantineRecordId,
 } from "./types.js";
 import type { MembershipId, InvitationId, OrgRole } from "./auth.js";
 
@@ -621,6 +625,101 @@ export interface AlertEvent {
   readonly acknowledgedAt: ISODateString | null;
   readonly resolvedAt: ISODateString | null;
   readonly metadata: Record<string, unknown>;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+// ---------------------------------------------------------------------------
+// Policy entities (Phase 10)
+// ---------------------------------------------------------------------------
+
+export type PolicyType = "access_control" | "deny" | "require_approval" | "quarantine" | "budget_cap" | "content_filter";
+export type PolicyStatus = "active" | "disabled" | "archived";
+export type EnforcementMode = "allow" | "deny" | "require_approval" | "quarantine";
+export type PolicyScopeType = "org" | "project" | "agent" | "connector" | "browser" | "memory" | "run";
+
+export interface PolicyRule {
+  readonly actionPattern: string;  // e.g., "connector.use", "browser.risky_action", "memory.redact"
+  readonly conditions?: Record<string, unknown>;
+}
+
+export interface Policy {
+  readonly id: PolicyId;
+  readonly orgId: OrgId;
+  readonly name: string;
+  readonly description: string;
+  readonly policyType: PolicyType;
+  readonly status: PolicyStatus;
+  readonly enforcementMode: EnforcementMode;
+  readonly scopeType: PolicyScopeType;
+  readonly scopeId: string | null;
+  readonly rules: readonly PolicyRule[];
+  readonly priority: number;
+  readonly createdBy: UserId;
+  readonly updatedBy: UserId | null;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+export type PolicyDecisionResult = "allow" | "deny" | "require_approval" | "quarantined";
+
+export interface PolicyDecision {
+  readonly id: PolicyDecisionId;
+  readonly orgId: OrgId;
+  readonly policyId: PolicyId | null;
+  readonly subjectType: string;
+  readonly subjectId: string | null;
+  readonly actionType: string;
+  readonly result: PolicyDecisionResult;
+  readonly reason: string;
+  readonly metadata: Record<string, unknown>;
+  readonly requestedBy: UserId | null;
+  readonly approvalId: ApprovalId | null;
+  readonly evaluatedAt: ISODateString;
+}
+
+// ---------------------------------------------------------------------------
+// Approval entities (Phase 10)
+// ---------------------------------------------------------------------------
+
+export type ApprovalStatus = "pending" | "approved" | "denied" | "expired" | "cancelled";
+
+export interface Approval {
+  readonly id: ApprovalId;
+  readonly orgId: OrgId;
+  readonly subjectType: string;
+  readonly subjectId: string | null;
+  readonly actionType: string;
+  readonly status: ApprovalStatus;
+  readonly requestNote: string;
+  readonly decisionNote: string;
+  readonly requestedBy: UserId;
+  readonly decidedBy: UserId | null;
+  readonly policyDecisionId: PolicyDecisionId | null;
+  readonly expiresAt: ISODateString | null;
+  readonly decidedAt: ISODateString | null;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+// ---------------------------------------------------------------------------
+// Quarantine entities (Phase 10)
+// ---------------------------------------------------------------------------
+
+export type QuarantineStatus = "active" | "released";
+
+export interface QuarantineRecord {
+  readonly id: QuarantineRecordId;
+  readonly orgId: OrgId;
+  readonly subjectType: string;
+  readonly subjectId: string;
+  readonly reason: string;
+  readonly status: QuarantineStatus;
+  readonly policyDecisionId: PolicyDecisionId | null;
+  readonly quarantinedBy: UserId;
+  readonly releasedBy: UserId | null;
+  readonly releasedAt: ISODateString | null;
+  readonly releaseNote: string;
   readonly createdAt: ISODateString;
   readonly updatedAt: ISODateString;
 }

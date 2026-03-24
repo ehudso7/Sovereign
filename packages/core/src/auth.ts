@@ -99,7 +99,14 @@ export type Permission =
   | "memory:redact"
   | "memory:delete"
   | "observability:read"
-  | "observability:alerts";
+  | "observability:alerts"
+  | "policy:read"
+  | "policy:write"
+  | "approval:read"
+  | "approval:decide"
+  | "audit:read"
+  | "quarantine:read"
+  | "quarantine:manage";
 
 const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   org_owner: [
@@ -141,6 +148,13 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "memory:delete",
     "observability:read",
     "observability:alerts",
+    "policy:read",
+    "policy:write",
+    "approval:read",
+    "approval:decide",
+    "audit:read",
+    "quarantine:read",
+    "quarantine:manage",
   ],
   org_admin: [
     "org:read",
@@ -177,6 +191,13 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "memory:delete",
     "observability:read",
     "observability:alerts",
+    "policy:read",
+    "policy:write",
+    "approval:read",
+    "approval:decide",
+    "audit:read",
+    "quarantine:read",
+    "quarantine:manage",
   ],
   org_member: [
     "org:read",
@@ -190,6 +211,10 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "memory:read",
     "memory:write",
     "observability:read",
+    "policy:read",
+    "approval:read",
+    "audit:read",
+    "quarantine:read",
   ],
   org_billing_admin: [
     "org:read",
@@ -202,6 +227,8 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "browser:read",
     "memory:read",
     "observability:read",
+    "policy:read",
+    "audit:read",
   ],
   org_security_admin: [
     "org:read",
@@ -217,6 +244,13 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "memory:review",
     "observability:read",
     "observability:alerts",
+    "policy:read",
+    "policy:write",
+    "approval:read",
+    "approval:decide",
+    "audit:read",
+    "quarantine:read",
+    "quarantine:manage",
   ],
 };
 

@@ -177,6 +177,27 @@ Role management rules:
 | observability:read | Y | Y | Y | Y | Y |
 | observability:alerts | Y | Y | - | - | Y |
 
+#### Policy/Approval/Audit Permissions (Phase 10)
+| Permission | org_owner | org_admin | org_member | org_billing_admin | org_security_admin |
+|------------|:---------:|:---------:|:----------:|:-----------------:|:------------------:|
+| policy:read | Y | Y | Y | Y | Y |
+| policy:write | Y | Y | - | - | Y |
+| approval:read | Y | Y | Y | Y | Y |
+| approval:decide | Y | Y | - | - | Y |
+| audit:read | Y | Y | Y | - | Y |
+| quarantine:read | Y | Y | Y | Y | Y |
+| quarantine:manage | Y | Y | - | - | Y |
+
+### Policy Engine Security (Phase 10 — implemented)
+- Policies are org-scoped with RLS enforcement
+- Policy evaluation is deterministic: quarantine > deny > require_approval > allow
+- Higher priority policies evaluated first
+- Policy decisions are persisted as immutable audit evidence
+- Approval workflow blocks actions until explicitly approved or denied
+- Quarantined subjects are blocked from all risky execution paths
+- Secret resolution is audited without exposing secret values
+- No raw secrets appear in policy decisions, approval records, or audit payloads
+
 ### Memory Security (Phase 8 — implemented)
 - Every memory write is attributable (createdBy, sourceRunId, sourceAgentId)
 - Memory reads scoped to org via RLS + repo-level org_id filtering

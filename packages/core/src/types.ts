@@ -41,6 +41,12 @@ export const toMemoryId = (id: string): MemoryId => id as MemoryId;
 export const toMemoryLinkId = (id: string): MemoryLinkId => id as MemoryLinkId;
 export const toAlertRuleId = (id: string): AlertRuleId => id as AlertRuleId;
 export const toAlertEventId = (id: string): AlertEventId => id as AlertEventId;
+export type ApprovalId = Brand<string, "ApprovalId">;
+export type PolicyDecisionId = Brand<string, "PolicyDecisionId">;
+export type QuarantineRecordId = Brand<string, "QuarantineRecordId">;
+export const toApprovalId = (id: string): ApprovalId => id as ApprovalId;
+export const toPolicyDecisionId = (id: string): PolicyDecisionId => id as PolicyDecisionId;
+export const toQuarantineRecordId = (id: string): QuarantineRecordId => id as QuarantineRecordId;
 
 // ---------------------------------------------------------------------------
 // Tenant context – threaded through every request

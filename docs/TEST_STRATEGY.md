@@ -140,6 +140,18 @@
 - **Location**: `packages/db/src/__tests__/integration/mission-control.test.ts`
 - **Coverage**: Alert rule CRUD (create, list/filter, update, delete), alert event CRUD (create, list with filters, acknowledge, resolve, countByStatus), alert deduplication via resourceId, overview metrics computed from persisted runs (status counts, token aggregation, cost, queue wait, duration, failure rate, open alerts, recent failures), run list filters (status, agentId, projectId), run detail/timeline (ordered steps, tool usage aggregation), browser session linkage (runId-based, runsWithBrowser count), tool usage via audit events (distinct runs), memory usage via audit events (distinct runs, no double-count), tenant isolation across all mission control queries (alert rules, alert events, acknowledge, runs, browser sessions, audit events)
 
+### Policy Engine Route Tests
+- **Scope**: Service-level contract tests for policy, approval, quarantine, audit endpoints
+- **Runner**: Vitest with in-memory test repos
+- **Location**: `apps/api/src/__tests__/routes/policy-routes.test.ts`
+- **Coverage**: Policy CRUD, evaluation (allow/deny/require_approval/quarantine outcomes), approval workflow, quarantine lifecycle, permission enforcement, tenant isolation, audit evidence
+
+### Policy Engine Integration Tests (DB-Backed)
+- **Scope**: PostgreSQL-backed proof for policy, approval, quarantine persistence and tenant isolation
+- **Runner**: Vitest with real PostgreSQL (test harness)
+- **Location**: `packages/db/src/__tests__/integration/policy-engine.test.ts`
+- **Coverage**: Policy CRUD, policy decision persistence, approval lifecycle, quarantine lifecycle, tenant isolation, audit evidence
+
 ### Chaos Tests
 - **Scope**: Worker restart during runs, DB failover, network partition
 - **Approach**: Kill workers mid-run, verify recovery

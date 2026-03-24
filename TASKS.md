@@ -625,5 +625,98 @@ Grand total: 619 tests (450 unit + 169 integration)
 - [x] Lint, typecheck, build, unit tests, and integration tests pass
 - [x] No Phase 10 work was done
 
-### Phase 10–14
+### Phase 10 — Policy, Safety, Secrets, Audit ✅
+
+#### A. Data Model
+- [x] Migration 009_phase10_policies.sql (policies, policy_decisions, approvals, quarantine_records with RLS)
+- [x] Policy, PolicyDecision, Approval, QuarantineRecord entities in @sovereign/core
+- [x] ApprovalId, PolicyDecisionId, QuarantineRecordId branded types
+- [x] PgPolicyRepo, PgPolicyDecisionRepo, PgApprovalRepo, PgQuarantineRecordRepo implementations
+
+#### B. Policy Engine
+- [x] PgPolicyService with deterministic evaluation: quarantine > deny > require_approval > allow
+- [x] Priority-based policy matching (higher priority wins within same enforcement level)
+- [x] Scope-aware: org-wide and subject-specific policies
+- [x] Action pattern matching with glob support (e.g., "connector.*")
+- [x] Automatic approval request creation on require_approval decisions
+- [x] Quarantine check blocks before policy evaluation
+
+#### C. Secret Brokering
+- [x] Existing AES-256-GCM encryption preserved from Phase 6
+- [x] Secret resolution audit trail via secret.resolved events (value never exposed)
+- [x] recordSecretResolution() method for audit-safe evidence
+
+#### D. Approval Workflow
+- [x] Create/list/approve/deny approvals
+- [x] Pending status enforcement (can't re-decide)
+- [x] expirePending() for automatic expiry
+- [x] Linked to policy decisions via policyDecisionId
+- [x] Audit trail: approval.requested, approval.approved, approval.denied
+
+#### E. Quarantine
+- [x] Quarantine subjects (agents, runs)
+- [x] Active quarantine blocks policy evaluation (returns "quarantined")
+- [x] Release with permission gating
+- [x] getActiveForSubject() check at evaluation boundary
+- [x] Audit trail: quarantine.entered, quarantine.released
+
+#### F. API Endpoints (15 endpoints)
+- [x] GET/POST /api/v1/policies, GET/PATCH /api/v1/policies/:id
+- [x] POST /api/v1/policies/:id/disable, POST /api/v1/policies/:id/enable
+- [x] POST /api/v1/policies/evaluate
+- [x] GET /api/v1/approvals, GET /api/v1/approvals/:id
+- [x] POST /api/v1/approvals/:id/approve, POST /api/v1/approvals/:id/deny
+- [x] GET/POST /api/v1/quarantine, POST /api/v1/quarantine/:id/release
+- [x] GET /api/v1/audit, GET /api/v1/audit/:eventId
+
+#### G. Permission Model
+- [x] policy:read (all roles), policy:write (owner/admin/security_admin)
+- [x] approval:read (all roles), approval:decide (owner/admin/security_admin)
+- [x] audit:read (owner/admin/member/security_admin)
+- [x] quarantine:read (all roles), quarantine:manage (owner/admin/security_admin)
+
+#### H. Audit Events (14 new)
+- [x] policy.created, policy.updated, policy.disabled, policy.enabled, policy.archived
+- [x] policy.decision
+- [x] approval.requested, approval.approved, approval.denied, approval.expired, approval.cancelled
+- [x] quarantine.entered, quarantine.released
+- [x] secret.resolved
+
+#### I. Web UI (6 pages + nav)
+- [x] /policies — list with status filter, enable/disable actions
+- [x] /policies/new — create form
+- [x] /policies/[policyId] — detail with edit and status controls
+- [x] /approvals — list with approve/deny controls
+- [x] /quarantine — list with release controls
+- [x] /audit — log viewer with action filter
+- [x] Navigation links in AppShell
+
+#### J. Testing
+- [x] policy-routes.test.ts — 48 route/service tests
+- [x] policy-engine.test.ts — 21 PostgreSQL integration tests
+- [x] TestPolicyRepo, TestPolicyDecisionRepo, TestApprovalRepo, TestQuarantineRecordRepo in-memory repos
+
+#### K. Final Verified Totals
+Unit tests (498 total):
+- @sovereign/core: 81
+- @sovereign/api: 381 (48 new policy route tests)
+- @sovereign/worker-orchestrator: 6
+- @sovereign/worker-browser: 17
+- @sovereign/gateway-mcp: 13
+
+Integration tests (190 total across 10 suites):
+- policy-engine.test.ts: 21 (NEW)
+- mission-control.test.ts: 29
+- connector-hub.test.ts: 26
+- repositories.test.ts: 28
+- run-engine.test.ts: 19
+- memory-engine.test.ts: 17
+- rls-tenant-isolation.test.ts: 17
+- agent-studio.test.ts: 16
+- browser-sessions.test.ts: 9
+- migrations.test.ts: 8
+
+Grand total: 688 tests (498 unit + 190 integration)
+
+### Phase 11–14
 _See ROADMAP.md for full phase details._

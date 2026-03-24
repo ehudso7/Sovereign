@@ -33,6 +33,10 @@ export type {
   MemoryLinkRepo,
   AlertRuleRepo,
   AlertEventRepo,
+  PolicyRepo,
+  PolicyDecisionRepo,
+  ApprovalRepo,
+  QuarantineRecordRepo,
 } from "./repositories/index.js";
 
 export {
@@ -57,4 +61,8 @@ export {
   PgMemoryLinkRepo,
   PgAlertRuleRepo,
   PgAlertEventRepo,
+  PgPolicyRepo,
+  PgPolicyDecisionRepo,
+  PgApprovalRepo,
+  PgQuarantineRecordRepo,
 } from "./repositories/index.js";

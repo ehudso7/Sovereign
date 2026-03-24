@@ -15,7 +15,7 @@ import type {
   AuthConfig,
   OrgId,
 } from "@sovereign/core";
-import { PgBrowserSessionRepo, PgMemoryRepo, PgMemoryLinkRepo, PgAlertRuleRepo, PgAlertEventRepo } from "@sovereign/db";
+import { PgBrowserSessionRepo, PgMemoryRepo, PgMemoryLinkRepo, PgAlertRuleRepo, PgAlertEventRepo, PgPolicyRepo, PgPolicyDecisionRepo, PgApprovalRepo, PgQuarantineRecordRepo } from "@sovereign/db";
 import {
   type DatabaseClient,
   PgUserRepo,
@@ -49,6 +49,7 @@ import { PgSkillService } from "./skill.service.js";
 import { PgBrowserSessionService } from "./browser-session.service.js";
 import { PgMemoryService } from "./memory.service.js";
 import { MissionControlService } from "./mission-control.service.js";
+import { PgPolicyService } from "./policy.service.js";
 import { BUILTIN_CONNECTORS, BUILTIN_SKILLS } from "@sovereign/gateway-mcp";
 
 export interface ServiceRegistry {
@@ -78,6 +79,8 @@ export interface ServiceRegistry {
   memoryForOrg: (orgId: OrgId) => PgMemoryService;
   /** Get a mission control service scoped to a specific org */
   missionControlForOrg: (orgId: OrgId) => MissionControlService;
+  /** Get a policy service scoped to a specific org */
+  policyForOrg: (orgId: OrgId) => PgPolicyService;
 }
 
 let _registry: ServiceRegistry | null = null;
@@ -230,6 +233,18 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     );
   };
 
+  // Factory for org-scoped policy service
+  const policyForOrg = (orgId: OrgId): PgPolicyService => {
+    const tenantDb = db.forTenant(orgId);
+    const policyRepo = new PgPolicyRepo(tenantDb);
+    const decisionRepo = new PgPolicyDecisionRepo(tenantDb);
+    const approvalRepo = new PgApprovalRepo(tenantDb);
+    const quarantineRepo = new PgQuarantineRecordRepo(tenantDb);
+    const auditRepo = new PgAuditRepo(tenantDb);
+    const auditEmitter = new PgAuditEmitter(auditRepo);
+    return new PgPolicyService(policyRepo, decisionRepo, approvalRepo, quarantineRepo, auditEmitter);
+  };
+
   // Default audit emitter uses unscoped DB for cross-org operations (like org.created)
   // Services that need org-scoped audit will use auditForOrg
   const defaultAuditRepo = new PgAuditRepo(db.forTenant("00000000-0000-0000-0000-000000000000" as OrgId));
@@ -270,6 +285,7 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     browserSessionForOrg,
     memoryForOrg,
     missionControlForOrg,
+    policyForOrg,
   };
 
   // Seed catalog asynchronously (non-blocking, log errors)

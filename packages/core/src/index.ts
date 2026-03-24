@@ -14,6 +14,9 @@ export type {
   RunId,
   ConnectorId,
   PolicyId,
+  ApprovalId,
+  PolicyDecisionId,
+  QuarantineRecordId,
   SkillId,
   SkillVersionId,
   ConnectorInstallId,
@@ -55,6 +58,9 @@ export {
   toMemoryLinkId,
   toAlertRuleId,
   toAlertEventId,
+  toApprovalId,
+  toPolicyDecisionId,
+  toQuarantineRecordId,
   // Result helpers
   ok,
   err,
@@ -170,6 +176,18 @@ export type {
   AlertStatus,
   AlertRule,
   AlertEvent,
+  PolicyType,
+  PolicyStatus,
+  EnforcementMode,
+  PolicyScopeType,
+  PolicyRule,
+  Policy,
+  PolicyDecisionResult,
+  PolicyDecision,
+  ApprovalStatus,
+  Approval,
+  QuarantineStatus,
+  QuarantineRecord,
 } from "./entities.js";
 
 export { RISKY_BROWSER_ACTIONS } from "./entities.js";

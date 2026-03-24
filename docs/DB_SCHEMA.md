@@ -390,6 +390,87 @@ Status values: open, acknowledged, resolved
 Indexes: (org_id, status), (org_id, created_at), (org_id, condition_type)
 RLS: tenant-scoped via org_id = app.current_org_id
 
+## Phase 10 Tables
+
+### Policies Table (Phase 10)
+| Column | Type | Constraints |
+|--------|------|------------|
+| id | UUID | PK, default gen_random_uuid() |
+| org_id | UUID | FK → organizations, NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| description | TEXT | NOT NULL, default '' |
+| policy_type | VARCHAR(50) | NOT NULL |
+| status | VARCHAR(50) | NOT NULL, default 'active' |
+| enforcement_mode | VARCHAR(50) | NOT NULL |
+| scope_type | VARCHAR(50) | NOT NULL |
+| scope_id | UUID | nullable |
+| rules | JSONB | NOT NULL, default '[]' |
+| priority | INTEGER | NOT NULL, default 0 |
+| created_by | UUID | FK → users, NOT NULL |
+| updated_by | UUID | FK → users, nullable |
+| created_at | TIMESTAMPTZ | NOT NULL, default now() |
+| updated_at | TIMESTAMPTZ | NOT NULL, default now() |
+
+RLS: org_id scoped. Indexes: org_id, (org_id, status), (org_id, scope_type, scope_id).
+
+### Policy Decisions Table (Phase 10)
+| Column | Type | Constraints |
+|--------|------|------------|
+| id | UUID | PK, default gen_random_uuid() |
+| org_id | UUID | FK → organizations, NOT NULL |
+| policy_id | UUID | FK → policies, nullable |
+| subject_type | VARCHAR(100) | NOT NULL |
+| subject_id | UUID | nullable |
+| action_type | VARCHAR(100) | NOT NULL |
+| result | VARCHAR(50) | NOT NULL |
+| reason | TEXT | NOT NULL, default '' |
+| metadata | JSONB | NOT NULL, default '{}' |
+| requested_by | UUID | FK → users, nullable |
+| approval_id | UUID | FK → approvals, nullable |
+| evaluated_at | TIMESTAMPTZ | NOT NULL, default now() |
+
+RLS: org_id scoped.
+
+### Approvals Table (Phase 10)
+| Column | Type | Constraints |
+|--------|------|------------|
+| id | UUID | PK, default gen_random_uuid() |
+| org_id | UUID | FK → organizations, NOT NULL |
+| subject_type | VARCHAR(100) | NOT NULL |
+| subject_id | UUID | nullable |
+| action_type | VARCHAR(100) | NOT NULL |
+| status | VARCHAR(50) | NOT NULL, default 'pending' |
+| request_note | TEXT | NOT NULL, default '' |
+| decision_note | TEXT | NOT NULL, default '' |
+| requested_by | UUID | FK → users, NOT NULL |
+| decided_by | UUID | FK → users, nullable |
+| policy_decision_id | UUID | FK → policy_decisions, nullable |
+| expires_at | TIMESTAMPTZ | nullable |
+| decided_at | TIMESTAMPTZ | nullable |
+| created_at | TIMESTAMPTZ | NOT NULL, default now() |
+| updated_at | TIMESTAMPTZ | NOT NULL, default now() |
+
+RLS: org_id scoped.
+
+### Quarantine Records Table (Phase 10)
+| Column | Type | Constraints |
+|--------|------|------------|
+| id | UUID | PK, default gen_random_uuid() |
+| org_id | UUID | FK → organizations, NOT NULL |
+| subject_type | VARCHAR(100) | NOT NULL |
+| subject_id | UUID | NOT NULL |
+| reason | TEXT | NOT NULL, default '' |
+| status | VARCHAR(50) | NOT NULL, default 'active' |
+| policy_decision_id | UUID | FK → policy_decisions, nullable |
+| quarantined_by | UUID | FK → users, NOT NULL |
+| released_by | UUID | FK → users, nullable |
+| released_at | TIMESTAMPTZ | nullable |
+| release_note | TEXT | NOT NULL, default '' |
+| created_at | TIMESTAMPTZ | NOT NULL, default now() |
+| updated_at | TIMESTAMPTZ | NOT NULL, default now() |
+
+RLS: org_id scoped.
+
 ## Policy Tables
 
 ### policies

@@ -20,6 +20,10 @@ export type {
   MemoryLinkRepo,
   AlertRuleRepo,
   AlertEventRepo,
+  PolicyRepo,
+  PolicyDecisionRepo,
+  ApprovalRepo,
+  QuarantineRecordRepo,
 } from "./types.js";
 
 export { PgUserRepo } from "./pg-user.repo.js";
@@ -42,3 +46,9 @@ export { PgBrowserSessionRepo } from "./pg-browser-session.repo.js";
 export { PgMemoryRepo } from "./pg-memory.repo.js";
 export { PgMemoryLinkRepo } from "./pg-memory-link.repo.js";
 export { PgAlertRuleRepo, PgAlertEventRepo } from "./pg-alert.repo.js";
+export {
+  PgPolicyRepo,
+  PgPolicyDecisionRepo,
+  PgApprovalRepo,
+  PgQuarantineRecordRepo,
+} from "./pg-policy.repo.js";
