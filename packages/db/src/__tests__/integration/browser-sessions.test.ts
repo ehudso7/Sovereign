@@ -17,13 +17,9 @@ import {
   toISODateString,
 } from "@sovereign/core";
 import type { OrgId, UserId, RunId, AgentId, ProjectId, AgentVersionId } from "@sovereign/core";
-import { DatabaseClient } from "../../client.js";
 import { PgBrowserSessionRepo } from "../../repositories/pg-browser-session.repo.js";
 import { PgAuditRepo } from "../../repositories/pg-audit.repo.js";
-
-const DB_URL = process.env.DATABASE_URL ?? "postgresql://sovereign:sovereign_dev@localhost:5432/sovereign";
-
-let db: DatabaseClient;
+import { setupTestDb, teardownTestDb, getTestDb } from "./db-test-harness.js";
 
 const ORG_A = toOrgId("a0000000-0000-0000-0000-000000000001");
 const ORG_B = toOrgId("b0000000-0000-0000-0000-000000000002");
@@ -39,7 +35,7 @@ let projectIdA: ProjectId;
 // ---------------------------------------------------------------------------
 
 async function ensureOrg(orgId: OrgId, slug: string): Promise<void> {
-  const unscoped = db.unscoped();
+  const unscoped = getTestDb().unscoped();
   await unscoped.transaction(async (tx) => {
     const existing = await tx.queryOne("SELECT id FROM organizations WHERE id = $1", [orgId]);
     if (!existing) {
@@ -52,7 +48,7 @@ async function ensureOrg(orgId: OrgId, slug: string): Promise<void> {
 }
 
 async function ensureUser(userId: UserId, email: string): Promise<void> {
-  const unscoped = db.unscoped();
+  const unscoped = getTestDb().unscoped();
   await unscoped.transaction(async (tx) => {
     const existing = await tx.queryOne("SELECT id FROM users WHERE id = $1", [userId]);
     if (!existing) {
@@ -65,7 +61,7 @@ async function ensureUser(userId: UserId, email: string): Promise<void> {
 }
 
 async function ensureProject(projectId: ProjectId, orgId: OrgId, slug: string): Promise<void> {
-  const unscoped = db.unscoped();
+  const unscoped = getTestDb().unscoped();
   await unscoped.transactionWithOrg(orgId, async (tx) => {
     const existing = await tx.queryOne("SELECT id FROM projects WHERE id = $1", [projectId]);
     if (!existing) {
@@ -78,7 +74,7 @@ async function ensureProject(projectId: ProjectId, orgId: OrgId, slug: string): 
 }
 
 async function ensureAgent(agentId: AgentId, orgId: OrgId, projectId: ProjectId, userId: UserId): Promise<void> {
-  const unscoped = db.unscoped();
+  const unscoped = getTestDb().unscoped();
   await unscoped.transactionWithOrg(orgId, async (tx) => {
     const existing = await tx.queryOne("SELECT id FROM agents WHERE id = $1", [agentId]);
     if (!existing) {
@@ -91,7 +87,7 @@ async function ensureAgent(agentId: AgentId, orgId: OrgId, projectId: ProjectId,
 }
 
 async function ensureAgentVersion(versionId: AgentVersionId, orgId: OrgId, agentId: AgentId, userId: UserId): Promise<void> {
-  const unscoped = db.unscoped();
+  const unscoped = getTestDb().unscoped();
   await unscoped.transactionWithOrg(orgId, async (tx) => {
     const existing = await tx.queryOne("SELECT id FROM agent_versions WHERE id = $1", [versionId]);
     if (!existing) {
@@ -105,7 +101,7 @@ async function ensureAgentVersion(versionId: AgentVersionId, orgId: OrgId, agent
 }
 
 async function ensureRun(runId: RunId, orgId: OrgId, projectId: ProjectId, agentId: AgentId, versionId: AgentVersionId, userId: UserId): Promise<void> {
-  const unscoped = db.unscoped();
+  const unscoped = getTestDb().unscoped();
   await unscoped.transactionWithOrg(orgId, async (tx) => {
     const existing = await tx.queryOne("SELECT id FROM runs WHERE id = $1", [runId]);
     if (!existing) {
@@ -123,7 +119,7 @@ async function ensureRun(runId: RunId, orgId: OrgId, projectId: ProjectId, agent
 // ---------------------------------------------------------------------------
 
 beforeAll(async () => {
-  db = new DatabaseClient({ url: DB_URL, maxConnections: 3 });
+  await setupTestDb();
 
   // Ensure test orgs, users, and prerequisite data exist
   await ensureOrg(ORG_A, "browser-test-a");
@@ -140,22 +136,15 @@ beforeAll(async () => {
   await ensureAgent(agentIdA, ORG_A, projectIdA, USER_A);
   await ensureAgentVersion(versionId, ORG_A, agentIdA, USER_A);
   await ensureRun(runIdA, ORG_A, projectIdA, agentIdA, versionId, USER_A);
-});
+}, 30_000);
 
 afterAll(async () => {
   // Clean up test data — per-org due to FORCE RLS
-  const unscoped = db.unscoped();
-  for (const orgId of [ORG_A, ORG_B]) {
-    await unscoped.transactionWithOrg(orgId, async (tx) => {
-      await tx.execute("DELETE FROM browser_sessions WHERE org_id = $1", [orgId]);
-      await tx.execute("DELETE FROM audit_events WHERE org_id = $1 AND action LIKE 'browser.%'", [orgId]);
-    });
-  }
-  await db.destroy();
-});
+  await teardownTestDb();
+}, 30_000);
 
 beforeEach(async () => {
-  const unscoped = db.unscoped();
+  const unscoped = getTestDb().unscoped();
   for (const orgId of [ORG_A, ORG_B]) {
     await unscoped.transactionWithOrg(orgId, async (tx) => {
       await tx.execute("DELETE FROM browser_sessions WHERE org_id = $1", [orgId]);
@@ -170,7 +159,7 @@ beforeEach(async () => {
 describe("PgBrowserSessionRepo integration", () => {
   describe("create and retrieve", () => {
     it("creates a browser session and retrieves it", async () => {
-      const tenantDb = db.forTenant(ORG_A);
+      const tenantDb = getTestDb().forTenant(ORG_A);
       const repo = new PgBrowserSessionRepo(tenantDb);
 
       const session = await repo.create({
@@ -195,7 +184,7 @@ describe("PgBrowserSessionRepo integration", () => {
 
   describe("listForOrg", () => {
     it("lists sessions with filters", async () => {
-      const tenantDb = db.forTenant(ORG_A);
+      const tenantDb = getTestDb().forTenant(ORG_A);
       const repo = new PgBrowserSessionRepo(tenantDb);
 
       await repo.create({ orgId: ORG_A, runId: runIdA, agentId: agentIdA, createdBy: USER_A });
@@ -214,7 +203,7 @@ describe("PgBrowserSessionRepo integration", () => {
 
   describe("updateStatus", () => {
     it("updates status and extras", async () => {
-      const tenantDb = db.forTenant(ORG_A);
+      const tenantDb = getTestDb().forTenant(ORG_A);
       const repo = new PgBrowserSessionRepo(tenantDb);
 
       const session = await repo.create({ orgId: ORG_A, runId: runIdA, agentId: agentIdA, createdBy: USER_A });
@@ -229,7 +218,7 @@ describe("PgBrowserSessionRepo integration", () => {
     });
 
     it("updates takeover fields", async () => {
-      const tenantDb = db.forTenant(ORG_A);
+      const tenantDb = getTestDb().forTenant(ORG_A);
       const repo = new PgBrowserSessionRepo(tenantDb);
 
       const session = await repo.create({ orgId: ORG_A, runId: runIdA, agentId: agentIdA, createdBy: USER_A });
@@ -248,13 +237,13 @@ describe("PgBrowserSessionRepo integration", () => {
 
   describe("tenant isolation", () => {
     it("org B cannot see org A's browser sessions", async () => {
-      const tenantDbA = db.forTenant(ORG_A);
+      const tenantDbA = getTestDb().forTenant(ORG_A);
       const repoA = new PgBrowserSessionRepo(tenantDbA);
 
       const session = await repoA.create({ orgId: ORG_A, runId: runIdA, agentId: agentIdA, createdBy: USER_A });
 
       // Org B tries to read
-      const tenantDbB = db.forTenant(ORG_B);
+      const tenantDbB = getTestDb().forTenant(ORG_B);
       const repoB = new PgBrowserSessionRepo(tenantDbB);
 
       const retrieved = await repoB.getById(session.id, ORG_B);
@@ -265,12 +254,12 @@ describe("PgBrowserSessionRepo integration", () => {
     });
 
     it("org B cannot update org A's sessions", async () => {
-      const tenantDbA = db.forTenant(ORG_A);
+      const tenantDbA = getTestDb().forTenant(ORG_A);
       const repoA = new PgBrowserSessionRepo(tenantDbA);
 
       const session = await repoA.create({ orgId: ORG_A, runId: runIdA, agentId: agentIdA, createdBy: USER_A });
 
-      const tenantDbB = db.forTenant(ORG_B);
+      const tenantDbB = getTestDb().forTenant(ORG_B);
       const repoB = new PgBrowserSessionRepo(tenantDbB);
 
       const result = await repoB.updateStatus(session.id, ORG_B, "failed");
@@ -278,12 +267,12 @@ describe("PgBrowserSessionRepo integration", () => {
     });
 
     it("org B cannot delete org A's sessions", async () => {
-      const tenantDbA = db.forTenant(ORG_A);
+      const tenantDbA = getTestDb().forTenant(ORG_A);
       const repoA = new PgBrowserSessionRepo(tenantDbA);
 
       const session = await repoA.create({ orgId: ORG_A, runId: runIdA, agentId: agentIdA, createdBy: USER_A });
 
-      const tenantDbB = db.forTenant(ORG_B);
+      const tenantDbB = getTestDb().forTenant(ORG_B);
       const repoB = new PgBrowserSessionRepo(tenantDbB);
 
       const deleted = await repoB.delete(session.id, ORG_B);
@@ -297,7 +286,7 @@ describe("PgBrowserSessionRepo integration", () => {
 
   describe("delete", () => {
     it("deletes a browser session", async () => {
-      const tenantDb = db.forTenant(ORG_A);
+      const tenantDb = getTestDb().forTenant(ORG_A);
       const repo = new PgBrowserSessionRepo(tenantDb);
 
       const session = await repo.create({ orgId: ORG_A, runId: runIdA, agentId: agentIdA, createdBy: USER_A });
@@ -311,7 +300,7 @@ describe("PgBrowserSessionRepo integration", () => {
 
   describe("audit event persistence", () => {
     it("persists browser audit events", async () => {
-      const tenantDb = db.forTenant(ORG_A);
+      const tenantDb = getTestDb().forTenant(ORG_A);
       const auditRepo = new PgAuditRepo(tenantDb);
 
       await auditRepo.emit({

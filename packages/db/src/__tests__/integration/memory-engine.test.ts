@@ -5,21 +5,17 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { toOrgId, toUserId, toProjectId, toAgentId, toAgentVersionId, toRunId } from "@sovereign/core";
 import type { OrgId, UserId } from "@sovereign/core";
-import { DatabaseClient } from "../../client.js";
 import { PgMemoryRepo } from "../../repositories/pg-memory.repo.js";
 import { PgMemoryLinkRepo } from "../../repositories/pg-memory-link.repo.js";
 import { PgAuditRepo } from "../../repositories/pg-audit.repo.js";
-
-const DB_URL = process.env.DATABASE_URL ?? "postgresql://sovereign:sovereign_dev@localhost:5432/sovereign";
-
-let db: DatabaseClient;
+import { setupTestDb, teardownTestDb, getTestDb } from "./db-test-harness.js";
 
 const ORG_A = toOrgId("a0000000-0000-0000-0000-000000000001");
 const ORG_B = toOrgId("b0000000-0000-0000-0000-000000000002");
 const USER_A = toUserId("a0000000-0000-0000-0000-000000000010");
 
 async function ensureOrg(orgId: OrgId, slug: string): Promise<void> {
-  const unscoped = db.unscoped();
+  const unscoped = getTestDb().unscoped();
   await unscoped.transaction(async (tx) => {
     const existing = await tx.queryOne("SELECT id FROM organizations WHERE id = $1", [orgId]);
     if (!existing) {
@@ -29,7 +25,7 @@ async function ensureOrg(orgId: OrgId, slug: string): Promise<void> {
 }
 
 async function ensureUser(userId: UserId, email: string): Promise<void> {
-  const unscoped = db.unscoped();
+  const unscoped = getTestDb().unscoped();
   await unscoped.transaction(async (tx) => {
     const existing = await tx.queryOne("SELECT id FROM users WHERE id = $1", [userId]);
     if (!existing) {
@@ -51,7 +47,7 @@ const RUN_IDS = [
 ];
 
 async function ensurePrerequisites(): Promise<void> {
-  const unscoped = db.unscoped();
+  const unscoped = getTestDb().unscoped();
   // Project (RLS-protected)
   await unscoped.transactionWithOrg(ORG_A, async (tx) => {
     const existing = await tx.queryOne("SELECT id FROM projects WHERE id = $1", [PROJECT_A]);
@@ -99,26 +95,19 @@ async function ensurePrerequisites(): Promise<void> {
 }
 
 beforeAll(async () => {
-  db = new DatabaseClient({ url: DB_URL, maxConnections: 3 });
+  await setupTestDb();
   await ensureOrg(ORG_A, "memory-test-a");
   await ensureOrg(ORG_B, "memory-test-b");
   await ensureUser(USER_A, "memory-a@test.com");
   await ensurePrerequisites();
-});
+}, 30_000);
 
 afterAll(async () => {
-  const unscoped = db.unscoped();
-  for (const orgId of [ORG_A, ORG_B]) {
-    await unscoped.transactionWithOrg(orgId, async (tx) => {
-      await tx.execute("DELETE FROM memory_links WHERE org_id = $1", [orgId]);
-      await tx.execute("DELETE FROM memories WHERE org_id = $1", [orgId]);
-    });
-  }
-  await db.destroy();
+  await teardownTestDb();
 });
 
 beforeEach(async () => {
-  const unscoped = db.unscoped();
+  const unscoped = getTestDb().unscoped();
   for (const orgId of [ORG_A, ORG_B]) {
     await unscoped.transactionWithOrg(orgId, async (tx) => {
       await tx.execute("DELETE FROM memory_links WHERE org_id = $1", [orgId]);
@@ -130,7 +119,7 @@ beforeEach(async () => {
 describe("PgMemoryRepo integration", () => {
   describe("create and retrieve", () => {
     it("creates and retrieves a memory", async () => {
-      const repo = new PgMemoryRepo(db.forTenant(ORG_A));
+      const repo = new PgMemoryRepo(getTestDb().forTenant(ORG_A));
       const memory = await repo.create({
         orgId: ORG_A, scopeType: "org", scopeId: ORG_A,
         kind: "semantic", title: "Test", summary: "A test", content: "Content here",
@@ -149,7 +138,7 @@ describe("PgMemoryRepo integration", () => {
 
   describe("listForOrg with filters", () => {
     it("filters by kind and status", async () => {
-      const repo = new PgMemoryRepo(db.forTenant(ORG_A));
+      const repo = new PgMemoryRepo(getTestDb().forTenant(ORG_A));
       await repo.create({ orgId: ORG_A, scopeType: "org", scopeId: ORG_A, kind: "semantic", title: "S", summary: "", content: "A", createdBy: USER_A });
       await repo.create({ orgId: ORG_A, scopeType: "org", scopeId: ORG_A, kind: "episodic", title: "E", summary: "", content: "B", createdBy: USER_A });
 
@@ -163,7 +152,7 @@ describe("PgMemoryRepo integration", () => {
 
   describe("search", () => {
     it("finds matching memories and excludes non-active", async () => {
-      const repo = new PgMemoryRepo(db.forTenant(ORG_A));
+      const repo = new PgMemoryRepo(getTestDb().forTenant(ORG_A));
       const m1 = await repo.create({ orgId: ORG_A, scopeType: "org", scopeId: ORG_A, kind: "semantic", title: "Blue sky", summary: "", content: "The sky is blue", createdBy: USER_A });
       await repo.create({ orgId: ORG_A, scopeType: "org", scopeId: ORG_A, kind: "semantic", title: "Green grass", summary: "", content: "Grass is green", createdBy: USER_A });
 
@@ -180,7 +169,7 @@ describe("PgMemoryRepo integration", () => {
 
   describe("updateStatus", () => {
     it("redacts with content replacement", async () => {
-      const repo = new PgMemoryRepo(db.forTenant(ORG_A));
+      const repo = new PgMemoryRepo(getTestDb().forTenant(ORG_A));
       const m = await repo.create({ orgId: ORG_A, scopeType: "org", scopeId: ORG_A, kind: "semantic", title: "Secret", summary: "", content: "sensitive", createdBy: USER_A });
 
       const updated = await repo.updateStatus(m.id, ORG_A, "redacted", { content: "[REDACTED]", contentHash: "redacted" });
@@ -191,7 +180,7 @@ describe("PgMemoryRepo integration", () => {
 
   describe("dedup by content hash", () => {
     it("finds existing memory by content hash", async () => {
-      const repo = new PgMemoryRepo(db.forTenant(ORG_A));
+      const repo = new PgMemoryRepo(getTestDb().forTenant(ORG_A));
       const m = await repo.create({ orgId: ORG_A, scopeType: "org", scopeId: ORG_A, kind: "semantic", title: "First", summary: "", content: "unique content", createdBy: USER_A });
 
       const found = await repo.getByContentHash(ORG_A, m.contentHash);
@@ -202,10 +191,10 @@ describe("PgMemoryRepo integration", () => {
 
   describe("tenant isolation", () => {
     it("org B cannot see org A's memories", async () => {
-      const repoA = new PgMemoryRepo(db.forTenant(ORG_A));
+      const repoA = new PgMemoryRepo(getTestDb().forTenant(ORG_A));
       const m = await repoA.create({ orgId: ORG_A, scopeType: "org", scopeId: ORG_A, kind: "semantic", title: "A only", summary: "", content: "private", createdBy: USER_A });
 
-      const repoB = new PgMemoryRepo(db.forTenant(ORG_B));
+      const repoB = new PgMemoryRepo(getTestDb().forTenant(ORG_B));
       const retrieved = await repoB.getById(m.id, ORG_B);
       expect(retrieved).toBeNull();
 
@@ -217,8 +206,8 @@ describe("PgMemoryRepo integration", () => {
 
 describe("PgMemoryLinkRepo integration", () => {
   it("creates and lists links", async () => {
-    const memRepo = new PgMemoryRepo(db.forTenant(ORG_A));
-    const linkRepo = new PgMemoryLinkRepo(db.forTenant(ORG_A));
+    const memRepo = new PgMemoryRepo(getTestDb().forTenant(ORG_A));
+    const linkRepo = new PgMemoryLinkRepo(getTestDb().forTenant(ORG_A));
 
     const memory = await memRepo.create({ orgId: ORG_A, scopeType: "org", scopeId: ORG_A, kind: "episodic", title: "Episode", summary: "", content: "data", createdBy: USER_A });
 
@@ -238,7 +227,7 @@ describe("PgMemoryLinkRepo integration", () => {
 
 describe("Memory audit events", () => {
   it("persists memory audit events", async () => {
-    const auditRepo = new PgAuditRepo(db.forTenant(ORG_A));
+    const auditRepo = new PgAuditRepo(getTestDb().forTenant(ORG_A));
 
     await auditRepo.emit({
       orgId: ORG_A, actorId: USER_A, actorType: "user",
@@ -269,9 +258,9 @@ describe("Runtime memory behavior (DB-backed)", () => {
    */
   function reposFor(orgId: OrgId) {
     return {
-      mem: new PgMemoryRepo(db.forTenant(orgId)),
-      links: new PgMemoryLinkRepo(db.forTenant(orgId)),
-      audit: new PgAuditRepo(db.forTenant(orgId)),
+      mem: new PgMemoryRepo(getTestDb().forTenant(orgId)),
+      links: new PgMemoryLinkRepo(getTestDb().forTenant(orgId)),
+      audit: new PgAuditRepo(getTestDb().forTenant(orgId)),
     };
   }
 

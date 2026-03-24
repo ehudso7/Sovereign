@@ -236,13 +236,9 @@ describe("E2E Critical Flows", () => {
     it("lists catalog → installs → revokes connector", async () => {
       const { token } = await bootstrap();
 
-      // List catalog
-      const catalogRes = await app.inject({ method: "GET", url: "/api/v1/connectors/catalog", headers: auth(token) });
+      // List catalog (also serves as installed list)
+      const catalogRes = await app.inject({ method: "GET", url: "/api/v1/connectors", headers: auth(token) });
       expect(catalogRes.statusCode).toBe(200);
-
-      // List installed (should be empty)
-      const installedRes = await app.inject({ method: "GET", url: "/api/v1/connectors", headers: auth(token) });
-      expect(installedRes.statusCode).toBe(200);
 
       // If catalog has connectors, install one
       const catalog = catalogRes.json().data;
@@ -269,11 +265,11 @@ describe("E2E Critical Flows", () => {
 
   describe("Memory Lifecycle", () => {
     it("creates and retrieves a semantic memory", async () => {
-      const { token } = await bootstrap();
+      const { token, orgId } = await bootstrap();
 
       const createRes = await app.inject({
         method: "POST", url: "/api/v1/memories", headers: auth(token),
-        payload: { kind: "semantic", scopeType: "org", title: "E2E Memory", content: "This is test content" },
+        payload: { kind: "semantic", scopeType: "org", scopeId: orgId, title: "E2E Memory", summary: "Test summary", content: "This is test content" },
       });
       expect(createRes.statusCode).toBe(201);
       const memoryId = createRes.json().data.id;
@@ -320,9 +316,8 @@ describe("E2E Critical Flows", () => {
       const createRes = await app.inject({
         method: "POST", url: "/api/v1/policies", headers: auth(token),
         payload: {
-          name: "Block Tool X", policyType: "tool_deny",
-          enforcementMode: "enforce", scopeType: "org",
-          rules: { toolName: "dangerous_tool" },
+          name: "Block Tool X", policyType: "deny",
+          enforcementMode: "deny", scopeType: "org",
         },
       });
       expect(createRes.statusCode).toBe(201);
@@ -344,13 +339,13 @@ describe("E2E Critical Flows", () => {
       await app.inject({
         method: "POST", url: "/api/v1/policies", headers: auth(token),
         payload: {
-          name: "Require Approval", policyType: "approval",
-          enforcementMode: "enforce", scopeType: "org",
+          name: "Require Approval", policyType: "require_approval",
+          enforcementMode: "require_approval", scopeType: "org",
         },
       });
 
       // List approvals (should be empty)
-      const res = await app.inject({ method: "GET", url: "/api/v1/policies/approvals", headers: auth(token) });
+      const res = await app.inject({ method: "GET", url: "/api/v1/approvals", headers: auth(token) });
       expect(res.statusCode).toBe(200);
     });
 
@@ -358,12 +353,12 @@ describe("E2E Critical Flows", () => {
       const { token } = await bootstrap();
 
       const res = await app.inject({
-        method: "POST", url: "/api/v1/policies/quarantine", headers: auth(token),
-        payload: { subjectType: "agent", subjectId: "agt_fake-id", reason: "Misbehaving" },
+        method: "POST", url: "/api/v1/quarantine", headers: auth(token),
+        payload: { subjectType: "agent", subjectId: "00000000-0000-0000-0000-000000000099", reason: "Misbehaving" },
       });
       expect(res.statusCode).toBe(201);
 
-      const listRes = await app.inject({ method: "GET", url: "/api/v1/policies/quarantine", headers: auth(token) });
+      const listRes = await app.inject({ method: "GET", url: "/api/v1/quarantine", headers: auth(token) });
       expect(listRes.statusCode).toBe(200);
       expect(listRes.json().data.length).toBe(1);
     });
@@ -388,7 +383,7 @@ describe("E2E Critical Flows", () => {
       // Create contact
       const contactRes = await app.inject({
         method: "POST", url: "/api/v1/revenue/contacts", headers: auth(token),
-        payload: { email: "jane@acme.com", name: "Jane", accountId },
+        payload: { firstName: "Jane", lastName: "Doe", email: "jane@acme.com", accountId },
       });
       expect(contactRes.statusCode).toBe(201);
 
@@ -508,7 +503,7 @@ describe("E2E Critical Flows", () => {
 
       await app.inject({
         method: "POST", url: "/api/v1/memories", headers: auth(a.token),
-        payload: { kind: "semantic", scopeType: "org", title: "Secret", content: "Secret content" },
+        payload: { kind: "semantic", scopeType: "org", scopeId: a.orgId, title: "Secret", summary: "Secret summary", content: "Secret content" },
       });
 
       const listRes = await app.inject({ method: "GET", url: "/api/v1/memories", headers: auth(b.token) });
@@ -522,7 +517,7 @@ describe("E2E Critical Flows", () => {
 
       await app.inject({
         method: "POST", url: "/api/v1/policies", headers: auth(a.token),
-        payload: { name: "A Policy", policyType: "deny", enforcementMode: "enforce", scopeType: "org" },
+        payload: { name: "A Policy", policyType: "deny", enforcementMode: "deny", scopeType: "org" },
       });
 
       const listRes = await app.inject({ method: "GET", url: "/api/v1/policies", headers: auth(b.token) });

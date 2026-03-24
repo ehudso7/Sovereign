@@ -182,12 +182,14 @@ describe("Worker / Orchestrator Resilience", () => {
   // =========================================================================
 
   it("memory deduplication holds under concurrent identical writes", async () => {
-    const { token } = await bootstrap();
+    const { token, orgId } = await bootstrap();
 
     const payload = {
       kind: "semantic" as const,
       scopeType: "org" as const,
+      scopeId: orgId,
       title: "Dedup Test",
+      summary: "Dedup summary",
       content: "Exact same content for dedup testing",
     };
 
@@ -225,7 +227,7 @@ describe("Worker / Orchestrator Resilience", () => {
       Array.from({ length: 5 }, (_, i) =>
         app.inject({
           method: "POST", url: "/api/v1/policies", headers: auth(token),
-          payload: { name: `Policy ${i}`, policyType: "deny", enforcementMode: "enforce", scopeType: "org" },
+          payload: { name: `Policy ${i}`, policyType: "deny", enforcementMode: "deny", scopeType: "org" },
         }),
       ),
     );
@@ -242,11 +244,16 @@ describe("Worker / Orchestrator Resilience", () => {
   // =========================================================================
 
   it("repeated 404s return stable error shape", async () => {
+    // Use a fresh app (not one rebuilt by previous test) for stable state
+    await app.close();
+    app = buildApp(AUTH_CONFIG, getTestDb());
+    await app.ready();
+
     const { token } = await bootstrap();
 
     const results = await Promise.all(
       Array.from({ length: 10 }, () =>
-        app.inject({ method: "GET", url: "/api/v1/runs/run_nonexistent", headers: auth(token) }),
+        app.inject({ method: "GET", url: "/api/v1/runs/00000000-0000-0000-0000-ffffffffffff", headers: auth(token) }),
       ),
     );
 
