@@ -115,7 +115,12 @@ export type Permission =
   | "billing:read"
   | "billing:write"
   | "billing:manage_plan"
-  | "billing:sync";
+  | "billing:sync"
+  | "onboarding:read"
+  | "onboarding:write"
+  | "docs:read"
+  | "support:read"
+  | "admin:read";
 
 const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   org_owner: [
@@ -173,6 +178,11 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "billing:write",
     "billing:manage_plan",
     "billing:sync",
+    "onboarding:read",
+    "onboarding:write",
+    "docs:read",
+    "support:read",
+    "admin:read",
   ],
   org_admin: [
     "org:read",
@@ -223,6 +233,11 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "outreach:approve",
     "billing:read",
     "billing:write",
+    "onboarding:read",
+    "onboarding:write",
+    "docs:read",
+    "support:read",
+    "admin:read",
   ],
   org_member: [
     "org:read",
@@ -244,6 +259,8 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "revenue:write",
     "outreach:generate",
     "billing:read",
+    "onboarding:read",
+    "docs:read",
   ],
   org_billing_admin: [
     "org:read",
@@ -263,6 +280,9 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "billing:write",
     "billing:manage_plan",
     "billing:sync",
+    "onboarding:read",
+    "docs:read",
+    "support:read",
   ],
   org_security_admin: [
     "org:read",
@@ -288,6 +308,10 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "revenue:read",
     "outreach:approve",
     "billing:read",
+    "onboarding:read",
+    "docs:read",
+    "support:read",
+    "admin:read",
   ],
 };
 

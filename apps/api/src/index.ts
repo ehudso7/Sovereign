@@ -17,6 +17,7 @@ import { missionControlRoutes } from "./routes/mission-control.js";
 import { policyRoutes } from "./routes/policies.js";
 import { revenueRoutes } from "./routes/revenue.js";
 import { billingRoutes } from "./routes/billing.js";
+import { onboardingRoutes } from "./routes/onboarding.js";
 import { devRoutes } from "./routes/dev.js";
 import type { AuthConfig } from "@sovereign/core";
 
@@ -71,6 +72,7 @@ server.register(missionControlRoutes);
 server.register(policyRoutes);
 server.register(revenueRoutes);
 server.register(billingRoutes);
+server.register(onboardingRoutes);
 
 // Dev-only routes
 if (process.env.NODE_ENV !== "production") {

@@ -52,6 +52,7 @@ import { MissionControlService } from "./mission-control.service.js";
 import { PgPolicyService } from "./policy.service.js";
 import { PgRevenueService } from "./revenue.service.js";
 import { PgBillingService } from "./billing.service.js";
+import { PgOnboardingService } from "./onboarding.service.js";
 import { BUILTIN_CONNECTORS, BUILTIN_SKILLS } from "@sovereign/gateway-mcp";
 
 export interface ServiceRegistry {
@@ -86,6 +87,7 @@ export interface ServiceRegistry {
   /** Get a revenue service scoped to a specific org */
   revenueForOrg: (orgId: OrgId) => PgRevenueService;
   billingForOrg: (orgId: OrgId) => PgBillingService;
+  onboardingForOrg: (orgId: OrgId) => PgOnboardingService;
 }
 
 let _registry: ServiceRegistry | null = null;
@@ -287,6 +289,22 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     return new PgBillingService(billingAccountRepo, usageEventRepo, invoiceRepo, spendAlertRepo, auditEmitter);
   };
 
+  // Factory for org-scoped onboarding service
+  const onboardingForOrg = (orgId: OrgId): PgOnboardingService => {
+    const tenantDb = db.forTenant(orgId);
+    const agentRepo = new PgAgentRepo(tenantDb);
+    const runRepo = new PgRunRepo(tenantDb);
+    const connectorInstallRepo = new PgConnectorInstallRepo(tenantDb);
+    const billingAccountRepo = new PgBillingAccountRepo(tenantDb);
+    const policyRepo = new PgPolicyRepo(tenantDb);
+    const projectRepo = new PgProjectRepo(tenantDb);
+    const alertEventRepo = new PgAlertEventRepo(tenantDb);
+    const browserSessionRepo = new PgBrowserSessionRepo(tenantDb);
+    const auditRepo = new PgAuditRepo(tenantDb);
+    const auditEmitter = new PgAuditEmitter(auditRepo);
+    return new PgOnboardingService(agentRepo, runRepo, connectorInstallRepo, billingAccountRepo, policyRepo, membershipRepo, projectRepo, alertEventRepo, browserSessionRepo, auditEmitter);
+  };
+
   // Default audit emitter uses unscoped DB for cross-org operations (like org.created)
   // Services that need org-scoped audit will use auditForOrg
   const defaultAuditRepo = new PgAuditRepo(db.forTenant("00000000-0000-0000-0000-000000000000" as OrgId));
@@ -330,6 +348,7 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     policyForOrg,
     revenueForOrg,
     billingForOrg,
+    onboardingForOrg,
   };
 
   // Seed catalog asynchronously (non-blocking, log errors)

@@ -1075,5 +1075,78 @@ Grand total: 795 tests (587 unit + 208 integration)
 - Integration: 219 across 12 suites
 - Grand total: 848
 
-### Phase 13–14
+### Phase 13 — Docs, Support, Onboarding, Admin ✅
+
+#### A. Onboarding (derived from real platform state)
+- [x] 8-step checklist: org_created, project_created, agent_created, agent_published, run_completed, connector_installed, billing_setup, policy_reviewed
+- [x] All steps derived from actual platform data (agents, runs, connectors, billing, policies, projects)
+- [x] Percentage progress tracked
+- [x] Manual step completion emits onboarding.step_completed audit event
+
+#### B. Docs (in-app, static)
+- [x] 10 categories: getting-started, agents, runs, connectors, browser, memory, mission-control, policies, revenue, billing
+- [x] 12 articles reflecting actual implemented product behavior
+- [x] Category index + article detail via API
+
+#### C. Support Diagnostics
+- [x] Platform summary: agents, published agents, runs, failed runs, connectors, browser sessions, alerts
+- [x] Billing info: plan, status, email (no secrets)
+- [x] Recent failed runs (error messages only, no tokens/credentials)
+- [x] Recent alerts (severity, title, status)
+- [x] Onboarding progress included
+- [x] Secret redaction: no tokens, secrets, passwords, credentials in output
+- [x] Emits support.diagnostics_viewed audit event
+
+#### D. Admin Overview
+- [x] Org counts: members, agents, runs, connectors, policies
+- [x] Billing plan/status
+- [x] Membership list with name, email, role
+- [x] Settings summary: plan, projects, policies, connectors, billing email
+- [x] Links to policies, quarantine, audit, support
+- [x] Emits admin.overview_viewed audit event
+
+#### E. API Endpoints (8 endpoints)
+- [x] GET /api/v1/onboarding
+- [x] POST /api/v1/onboarding/complete
+- [x] GET /api/v1/docs
+- [x] GET /api/v1/docs/:slug
+- [x] GET /api/v1/support/diagnostics
+- [x] GET /api/v1/admin/overview
+- [x] GET /api/v1/admin/memberships
+- [x] GET /api/v1/admin/settings-summary
+
+#### F. Permission Model
+- [x] onboarding:read — all roles
+- [x] onboarding:write — org_owner, org_admin
+- [x] docs:read — all roles
+- [x] support:read — org_owner, org_admin, org_security_admin
+- [x] admin:read — org_owner, org_admin, org_security_admin
+
+#### G. Audit Events (4 new)
+- [x] onboarding.step_completed, onboarding.dismissed
+- [x] support.diagnostics_viewed, admin.overview_viewed
+
+#### H. Web UI (7 pages + nav)
+- [x] /onboarding — checklist with progress bar and action links
+- [x] /docs — category index with article links
+- [x] /docs/[slug] — article detail
+- [x] /support — diagnostics dashboard
+- [x] /admin — overview with members, settings, and quick links
+- [x] Setup/Docs/Support/Admin nav links in AppShell
+
+#### I. Testing
+- [x] onboarding-routes.test.ts — 20 unit tests
+  - Onboarding: 7 tests (initial, agent, published, connector, billing, 100%, audit)
+  - Docs: 3 tests (list, get, not-found)
+  - Support: 4 tests (summary, billing info, secret redaction, audit)
+  - Admin: 3 tests (overview counts, audit, settings)
+  - Tenant isolation: 2 tests (onboarding, admin)
+- [x] No new DB tables needed (derived from existing state)
+
+#### J. Final Totals
+- Unit: 649 (81 core + 528 api + 10 orch + 17 browser + 13 mcp)
+- Integration: 219 across 12 suites (unchanged)
+- Grand total: 868
+
+### Phase 14
 _See ROADMAP.md for full phase details._

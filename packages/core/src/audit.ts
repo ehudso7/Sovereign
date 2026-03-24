@@ -107,7 +107,11 @@ export type AuditAction =
   | "billing.alert_acknowledged"
   | "billing.sync_requested"
   | "billing.sync_completed"
-  | "billing.sync_failed";
+  | "billing.sync_failed"
+  | "onboarding.step_completed"
+  | "onboarding.dismissed"
+  | "support.diagnostics_viewed"
+  | "admin.overview_viewed";
 
 // ---------------------------------------------------------------------------
 // Audit actor types

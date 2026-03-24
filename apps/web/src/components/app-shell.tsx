@@ -49,6 +49,18 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link href="/billing" className="text-gray-600 hover:text-gray-900">
                 Billing
               </Link>
+              <Link href="/onboarding" className="text-gray-600 hover:text-gray-900">
+                Setup
+              </Link>
+              <Link href="/docs" className="text-gray-600 hover:text-gray-900">
+                Docs
+              </Link>
+              <Link href="/support" className="text-gray-600 hover:text-gray-900">
+                Support
+              </Link>
+              <Link href="/admin" className="text-gray-600 hover:text-gray-900">
+                Admin
+              </Link>
               <Link href="/policies" className="text-gray-600 hover:text-gray-900">
                 Policies
               </Link>
