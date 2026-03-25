@@ -1,6 +1,23 @@
 # SOVEREIGN
 
-Multi-tenant agent operating system.
+Production-grade multi-tenant agent operating system. One platform for agent creation, orchestration, tooling, browser automation, memory, policy enforcement, revenue management, and billing.
+
+## Features
+
+| Module | Description |
+|--------|-------------|
+| **Identity & Tenancy** | SSO-ready auth (local + WorkOS), orgs, RBAC (5 roles), row-level security |
+| **Agent Studio** | Create, version, publish agents with goals, tools, budget, approval rules |
+| **Run Engine** | Durable agent execution via Temporal, pause/resume/cancel, step tracking |
+| **Connector Hub** | Install, configure, credential-manage connectors with trust tiers |
+| **Browser Plane** | Playwright-backed browser sessions with screenshot capture and action audit |
+| **Memory Engine** | Semantic/episodic/procedural memory with cross-memory linking |
+| **Mission Control** | Real-time dashboard, alert rules, run monitoring, org overview |
+| **Policy Engine** | OPA-style deny/allow/require_approval/quarantine with runtime enforcement |
+| **Revenue Workspace** | CRM accounts, contacts, deals, tasks, notes, AI outreach drafts, sync |
+| **Billing & Usage** | Plan catalog (free/team/enterprise), metering, invoices, spend alerts |
+| **Onboarding** | 8-step checklist derived from real platform state |
+| **Docs & Support** | In-app documentation, support diagnostics, admin overview |
 
 ## Quick Start
 
@@ -16,6 +33,9 @@ docker compose -f infra/docker/docker-compose.yml up -d
 # Copy environment variables
 cp .env.example .env.local
 
+# Run database migrations
+pnpm db:migrate
+
 # Start development
 pnpm dev
 ```
@@ -29,12 +49,65 @@ pnpm dev
 | `pnpm lint` | Lint all packages |
 | `pnpm typecheck` | TypeScript type checking |
 | `pnpm test` | Run unit tests |
-| `pnpm test:integration` | Run integration tests |
+| `pnpm test:integration` | Run integration tests (requires PostgreSQL) |
+| `pnpm test:e2e` | Run E2E tests (requires PostgreSQL) |
+| `pnpm format` | Format code with Prettier |
+| `pnpm clean` | Remove all build artifacts |
 
 ## Architecture
 
+```
+apps/
+  api/                  — Fastify API server (100+ endpoints)
+  web/                  — Next.js frontend (40+ pages)
+  worker-orchestrator/  — Temporal orchestration worker
+  worker-browser/       — Playwright browser automation worker
+  gateway-mcp/          — MCP connector gateway
+  docs/                 — Documentation site
+
+packages/
+  core/        — Shared types, entities, branded IDs, Result pattern
+  db/          — PostgreSQL client, 30+ repositories, 11 migrations
+  config/      — Shared ESLint, TypeScript, env validation
+  agents/      — Agent runtime abstractions
+  billing/     — Plan definitions and metering
+  connectors/  — Connector abstractions
+  crm/         — CRM sync adapter interface
+  policies/    — Policy engine abstractions
+  observability/ — Logging and metrics
+  testing/     — Shared test utilities
+  ui/          — Shared React components
+```
+
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
 
-## Roadmap
+## Test Coverage
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for the locked phase execution order.
+| Suite | Tests |
+|-------|-------|
+| Unit | 649 |
+| Integration (PostgreSQL) | 240 |
+| E2E | 43 |
+| **Total** | **932** |
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and service boundaries |
+| [ROADMAP.md](docs/ROADMAP.md) | Phase execution order (Phases 0-14, all complete) |
+| [API_SPEC.md](docs/API_SPEC.md) | API endpoint contract |
+| [DB_SCHEMA.md](docs/DB_SCHEMA.md) | Database schema and migrations |
+| [SECURITY.md](docs/SECURITY.md) | Security architecture and policies |
+| [ENVIRONMENT.md](docs/ENVIRONMENT.md) | Environment variables and production enforcement |
+| [TEST_STRATEGY.md](docs/TEST_STRATEGY.md) | Testing pyramid and coverage approach |
+| [LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md) | Pre/post-launch verification |
+| [BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md) | Backup and restore procedures |
+| [ROLLBACK_PLAN.md](docs/ROLLBACK_PLAN.md) | Deploy and rollback procedures |
+| [SLO.md](docs/SLO.md) | Service level objectives |
+| [SUPPORT_ESCALATION.md](docs/SUPPORT_ESCALATION.md) | Incident response and escalation |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
+
+## License
+
+[MIT](LICENSE)

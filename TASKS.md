@@ -1,6 +1,8 @@
 # SOVEREIGN — Tasks
 
-## Current Sprint: Phase 3
+## Current Sprint: Complete
+
+All 15 phases (0-14) are complete. The platform is launch-ready.
 
 ### Remediation — ESLint Baseline ✅
 - [x] Add eslint and typescript-eslint as project dependencies (root + packages/config)
@@ -1275,4 +1277,97 @@ Grand total: 795 tests (587 unit + 208 integration)
 - [x] docs/TEST_STRATEGY.md — E2E test layer added
 - [x] .github/workflows/ci.yml — E2E job added
 - [x] turbo.json — test:e2e task added
+- [x] New docs: LAUNCH_CHECKLIST.md, ROLLBACK_PLAN.md, BACKUP_RESTORE.md, ENVIRONMENT.md, SUPPORT_ESCALATION.md, SLO.md
+
+#### M. Final Verified Totals (pre-verification sprint)
+- Unit: 649 (81 core + 528 api + 10 orch + 17 browser + 13 mcp)
+- Integration: 219 across 12 suites
+- E2E: 42 across 3 suites
+- Grand total: 910
+
+### Phase 14 Final Verification Sprint ✅
+
+#### A. Full PostgreSQL-Backed Verification
+- [x] All 240 integration tests pass against real PostgreSQL 16 (13 suites)
+- [x] All 43 E2E tests pass against real PostgreSQL 16 (3 suites)
+- [x] Fixed E2E test payloads to match actual API schemas (memory, policy, revenue, connector, quarantine)
+- [x] Converted browser-sessions and memory-engine integration tests from raw DB to test harness
+- [x] Fixed migration count assertion (9 → 11 migrations)
+- [x] Fixed revenue workspace UUID fixtures for PostgreSQL UUID columns
+
+#### B. Backup/Restore Drill — Executed and Verified
+- [x] Seeded test data into sovereign_test (org + user records)
+- [x] pg_dump -Fc backup created (153KB, 37 tables, 403 TOC entries)
+- [x] pg_restore to fresh sovereign_restore_drill database
+- [x] Row counts verified: organizations=3, users=3, schema_migrations=11
+- [x] Specific seeded records verified present in restored DB
+- [x] Migration runner confirms idempotent on restored DB (0 applied, 11 skipped)
+
+#### C. Deploy/Rollback Rehearsal — Executed and Verified
+- [x] Fresh sovereign_deploy_drill database created
+- [x] All 11 migrations applied successfully
+- [x] Health check: OK (24ms)
+- [x] Rolled back 011_phase12_billing — billing tables removed, 10 migrations remain
+- [x] Fixed rollbackMigration() bug: DOWN section was found but never executed
+- [x] Fixed DOWN section uncommenting: `-- ` prefixed lines properly stripped
+- [x] Re-applied migration: 1 applied, 10 skipped
+- [x] Post-redeploy health check: OK (23ms)
+
+#### D. Secret Handling Hardening
+- [x] Production mode (NODE_ENV=production) now refuses to start without SESSION_SECRET
+- [x] Production mode refuses to start without SOVEREIGN_SECRET_KEY
+- [x] Dev fallback secret cannot leak into production paths
+- [x] docs/ENVIRONMENT.md updated with enforcement documentation
+
+#### E. Bug Fixes Discovered During Verification
+- [x] Fixed rollbackMigration(): DOWN section regex matched but SQL was never executed
+- [x] Fixed DOWN section processing: uncomments `-- ` prefixed lines before execution
+- [x] Fixed E2E connector test: /api/v1/connectors/catalog → /api/v1/connectors
+- [x] Fixed E2E quarantine test: /api/v1/policies/quarantine → /api/v1/quarantine
+- [x] Fixed E2E approval test: /api/v1/policies/approvals → /api/v1/approvals
+
+#### F. Final Repo Polish
+- [x] CONTRIBUTING.md added (development setup, code standards, PR process)
+- [x] LICENSE added (MIT)
+- [x] README.md updated to reflect full product (features, architecture, test coverage, docs index)
+- [x] TASKS.md updated to reflect all phases complete
+
+#### G. Final Verified Grand Totals
+Unit tests (649 total across 5 packages):
+- @sovereign/core: 81 tests (3 files)
+- @sovereign/api: 528 tests (28 files)
+- @sovereign/worker-orchestrator: 10 tests (1 file)
+- @sovereign/worker-browser: 17 tests (2 files)
+- @sovereign/gateway-mcp: 13 tests (1 file)
+
+Integration tests (240 total across 13 suites):
+- mission-control.test.ts: 29
+- repositories.test.ts: 28
+- connector-hub.test.ts: 26
+- policy-engine.test.ts: 21
+- revenue-workspace.test.ts: 20
+- run-engine.test.ts: 19
+- onboarding-support-admin.test.ts: 19
+- rls-tenant-isolation.test.ts: 17
+- memory-engine.test.ts: 17
+- agent-studio.test.ts: 16
+- billing.test.ts: 11
+- browser-sessions.test.ts: 9
+- migrations.test.ts: 8
+
+E2E tests (43 total across 3 suites):
+- critical-flows.e2e.test.ts: 31
+- api-load.test.ts: 6
+- worker-resilience.test.ts: 6
+
+**Grand total: 932 tests (649 unit + 240 integration + 43 E2E)**
+
+#### H. Exit Gates — All Satisfied
+- [x] Integration tests pass in real PostgreSQL-backed environment
+- [x] E2E tests pass in real PostgreSQL-backed environment
+- [x] Backup/restore drill actually executed and verified
+- [x] Deploy/rollback rehearsal actually executed and verified
+- [x] Production secret handling is safe and explicit
+- [x] No new feature scope was added
+- [x] Lint, typecheck, build, unit, integration, and E2E all pass
 - [x] New docs: LAUNCH_CHECKLIST.md, ROLLBACK_PLAN.md, BACKUP_RESTORE.md, ENVIRONMENT.md, SUPPORT_ESCALATION.md, SLO.md
