@@ -1,0 +1,40 @@
+# Railway project configuration for SOVEREIGN backend services
+# Each service is deployed from the same repo with different Dockerfiles
+# Configure individual services in the Railway dashboard
+
+[build]
+# Railway auto-detects Dockerfile when dockerfilePath is set
+
+[deploy]
+startCommand = ""
+healthcheckPath = ""
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# ─── Service: API ─────────────────────────────────────────────
+# Railway service name: sovereign-api
+# dockerfilePath = infra/docker/Dockerfile.api
+# Port: 3002
+# Health check: /health
+
+# ─── Service: Worker Orchestrator ─────────────────────────────
+# Railway service name: sovereign-worker-orchestrator
+# dockerfilePath = infra/docker/Dockerfile.worker-orchestrator
+# No port exposed (background worker)
+
+# ─── Service: Worker Browser ─────────────────────────────────
+# Railway service name: sovereign-worker-browser
+# dockerfilePath = infra/docker/Dockerfile.worker-browser
+# No port exposed (background worker)
+
+# ─── Service: Gateway MCP ─────────────────────────────────────
+# Railway service name: sovereign-gateway-mcp
+# dockerfilePath = infra/docker/Dockerfile.gateway-mcp
+# Port: 3003
+
+# NOTE: Railway does not support multi-service configs in a single toml.
+# Each service is configured in the Railway dashboard with:
+#   - Custom Dockerfile path
+#   - Shared environment variables (via shared variables)
+#   - Service-specific variables
+# See DEPLOY.md for setup instructions.

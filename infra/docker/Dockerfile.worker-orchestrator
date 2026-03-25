@@ -1,0 +1,31 @@
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+WORKDIR /app
+
+FROM base AS deps
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/worker-orchestrator/package.json ./apps/worker-orchestrator/
+COPY apps/gateway-mcp/package.json ./apps/gateway-mcp/
+COPY packages/core/package.json ./packages/core/
+COPY packages/config/package.json ./packages/config/
+COPY packages/db/package.json ./packages/db/
+COPY packages/agents/package.json ./packages/agents/
+COPY packages/connectors/package.json ./packages/connectors/
+COPY packages/policies/package.json ./packages/policies/
+COPY packages/observability/package.json ./packages/observability/
+RUN pnpm install --frozen-lockfile
+
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/worker-orchestrator/node_modules ./apps/worker-orchestrator/node_modules
+COPY . .
+RUN pnpm build --filter=@sovereign/worker-orchestrator...
+
+FROM base AS runner
+ENV NODE_ENV=production
+COPY --from=builder /app/apps/worker-orchestrator/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/*/dist ./packages/
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD node -e "process.exit(0)"
+CMD ["node", "dist/index.js"]

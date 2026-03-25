@@ -1,0 +1,125 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ─── Gate: CI must pass first ───────────────────────────────
+  ci:
+    name: CI Gate
+    uses: ./.github/workflows/ci.yml
+
+  # ─── Deploy: Frontend (Vercel) ──────────────────────────────
+  deploy-web:
+    name: Deploy Web (Vercel)
+    runs-on: ubuntu-latest
+    needs: [ci]
+    environment:
+      name: ${{ inputs.environment || 'staging' }}
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Vercel
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+        run: |
+          npm i -g vercel@latest
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            URL=$(vercel deploy --prod --token=$VERCEL_TOKEN --yes)
+          else
+            URL=$(vercel deploy --token=$VERCEL_TOKEN --yes)
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+  deploy-docs:
+    name: Deploy Docs (Vercel)
+    runs-on: ubuntu-latest
+    needs: [ci]
+    environment:
+      name: ${{ inputs.environment || 'staging' }}-docs
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Vercel
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_DOCS_PROJECT_ID }}
+        run: |
+          npm i -g vercel@latest
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            URL=$(vercel deploy --prod --token=$VERCEL_TOKEN --yes)
+          else
+            URL=$(vercel deploy --token=$VERCEL_TOKEN --yes)
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+  # ─── Deploy: Backend (Railway) ──────────────────────────────
+  deploy-backend:
+    name: Deploy Backend (Railway)
+    runs-on: ubuntu-latest
+    needs: [ci]
+    environment:
+      name: ${{ inputs.environment || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli
+      - name: Deploy API
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service sovereign-api --detach
+      - name: Deploy Worker Orchestrator
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service sovereign-worker-orchestrator --detach
+      - name: Deploy Worker Browser
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service sovereign-worker-browser --detach
+      - name: Deploy Gateway MCP
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service sovereign-gateway-mcp --detach
+
+  # ─── Post-deploy: Run migrations ───────────────────────────
+  post-deploy:
+    name: Post-Deploy Tasks
+    runs-on: ubuntu-latest
+    needs: [deploy-backend]
+    environment:
+      name: ${{ inputs.environment || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm db:migrate
