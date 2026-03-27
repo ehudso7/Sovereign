@@ -7,47 +7,47 @@
 -- ============================================================================
 
 -- Users table: Optimize authentication lookups
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email_lower ON users (lower(email));
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_created_at ON users (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users (lower(email));
+CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at DESC);
 
 -- Organizations table: Optimize slug lookups and listing
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orgs_slug_lower ON orgs (lower(slug));
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orgs_created_at ON orgs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orgs_slug_lower ON orgs (lower(slug));
+CREATE INDEX IF NOT EXISTS idx_orgs_created_at ON orgs (created_at DESC);
 
 -- Memberships table: Optimize permission checks
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_memberships_user_org ON memberships (user_id, org_id) WHERE accepted = true;
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_memberships_org_role ON memberships (org_id, role) WHERE accepted = true;
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_memberships_created_at ON memberships (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_memberships_user_org ON memberships (user_id, org_id) WHERE accepted = true;
+CREATE INDEX IF NOT EXISTS idx_memberships_org_role ON memberships (org_id, role) WHERE accepted = true;
+CREATE INDEX IF NOT EXISTS idx_memberships_created_at ON memberships (created_at DESC);
 
 -- Sessions table: Optimize session validation
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sessions_token_hash ON sessions USING hash (token);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sessions_user_active ON sessions (user_id, expires_at) WHERE expires_at > NOW();
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sessions_cleanup ON sessions (expires_at) WHERE expires_at < NOW();
+CREATE INDEX IF NOT EXISTS idx_sessions_token_hash ON sessions USING hash (token);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_active ON sessions (user_id, expires_at) WHERE expires_at > NOW();
+CREATE INDEX IF NOT EXISTS idx_sessions_cleanup ON sessions (expires_at) WHERE expires_at < NOW();
 
 -- Audit events: Optimize audit log queries
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_audit_events_org_action ON audit_events (org_id, action, created_at DESC);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_audit_events_actor_created ON audit_events (actor_id, created_at DESC);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_audit_events_resource ON audit_events (resource_type, resource_id, created_at DESC);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_audit_events_created_at_brin ON audit_events USING brin (created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_events_org_action ON audit_events (org_id, action, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_events_actor_created ON audit_events (actor_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_events_resource ON audit_events (resource_type, resource_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_events_created_at_brin ON audit_events USING brin (created_at);
 
 -- Runs table: Optimize workflow tracking
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_runs_org_status ON runs (org_id, status, created_at DESC);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_runs_workflow_status ON runs (workflow_id, status);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_runs_scheduled ON runs (scheduled_for) WHERE status = 'scheduled';
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_runs_active ON runs (org_id, started_at DESC) WHERE status IN ('running', 'paused');
+CREATE INDEX IF NOT EXISTS idx_runs_org_status ON runs (org_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_runs_workflow_status ON runs (workflow_id, status);
+CREATE INDEX IF NOT EXISTS idx_runs_scheduled ON runs (scheduled_for) WHERE status = 'scheduled';
+CREATE INDEX IF NOT EXISTS idx_runs_active ON runs (org_id, started_at DESC) WHERE status IN ('running', 'paused');
 
 -- Projects table: Optimize project queries
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_projects_org_slug ON projects (org_id, slug);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_projects_org_created ON projects (org_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_projects_org_slug ON projects (org_id, slug);
+CREATE INDEX IF NOT EXISTS idx_projects_org_created ON projects (org_id, created_at DESC);
 
 -- Agents table: Optimize agent lookups
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_agents_org_slug ON agents (org_id, slug);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_agents_org_status ON agents (org_id, status) WHERE deleted_at IS NULL;
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_agents_published ON agents (published_version_id) WHERE published_version_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_agents_org_slug ON agents (org_id, slug);
+CREATE INDEX IF NOT EXISTS idx_agents_org_status ON agents (org_id, status) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_agents_published ON agents (published_version_id) WHERE published_version_id IS NOT NULL;
 
 -- Browser sessions: Optimize active session queries
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_browser_sessions_org_status ON browser_sessions (org_id, status, created_at DESC);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_browser_sessions_active ON browser_sessions (org_id, last_activity) WHERE status = 'connected';
+CREATE INDEX IF NOT EXISTS idx_browser_sessions_org_status ON browser_sessions (org_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_browser_sessions_active ON browser_sessions (org_id, last_activity) WHERE status = 'connected';
 
 -- ============================================================================
 -- PARTITIONING FOR SCALE (Audit Events)
@@ -83,8 +83,13 @@ END $$;
 -- QUERY PERFORMANCE MONITORING
 -- ============================================================================
 
--- Enable query performance tracking
-CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+-- Enable query performance tracking (skip if extension not available)
+DO $$
+BEGIN
+  CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'pg_stat_statements not available, skipping';
+END $$;
 
 -- Table for tracking slow queries
 CREATE TABLE IF NOT EXISTS performance_metrics (
@@ -99,26 +104,8 @@ CREATE TABLE IF NOT EXISTS performance_metrics (
   UNIQUE(query_hash, captured_at)
 );
 
-CREATE INDEX ON performance_metrics (avg_duration_ms DESC, captured_at DESC);
-CREATE INDEX ON performance_metrics (call_count DESC, captured_at DESC);
-
--- ============================================================================
--- CONNECTION POOLING OPTIMIZATION
--- ============================================================================
-
--- Set optimal connection parameters
-ALTER SYSTEM SET max_connections = 400;
-ALTER SYSTEM SET shared_buffers = '2GB';
-ALTER SYSTEM SET effective_cache_size = '6GB';
-ALTER SYSTEM SET maintenance_work_mem = '512MB';
-ALTER SYSTEM SET checkpoint_completion_target = 0.9;
-ALTER SYSTEM SET wal_buffers = '16MB';
-ALTER SYSTEM SET default_statistics_target = 100;
-ALTER SYSTEM SET random_page_cost = 1.1;
-ALTER SYSTEM SET effective_io_concurrency = 200;
-ALTER SYSTEM SET work_mem = '8MB';
-ALTER SYSTEM SET min_wal_size = '1GB';
-ALTER SYSTEM SET max_wal_size = '4GB';
+CREATE INDEX IF NOT EXISTS idx_perf_metrics_avg_duration ON performance_metrics (avg_duration_ms DESC, captured_at DESC);
+CREATE INDEX IF NOT EXISTS idx_perf_metrics_call_count ON performance_metrics (call_count DESC, captured_at DESC);
 
 -- ============================================================================
 -- MATERIALIZED VIEWS FOR ANALYTICS
@@ -144,8 +131,8 @@ LEFT JOIN agents a ON o.id = a.org_id AND a.deleted_at IS NULL
 LEFT JOIN runs r ON o.id = r.org_id
 GROUP BY o.id, o.slug, o.name;
 
-CREATE UNIQUE INDEX ON org_activity_summary (org_id);
-CREATE INDEX ON org_activity_summary (runs_last_30d DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_org_activity_summary_org ON org_activity_summary (org_id);
+CREATE INDEX IF NOT EXISTS idx_org_activity_summary_runs ON org_activity_summary (runs_last_30d DESC);
 
 -- User activity summary (refreshed hourly)
 CREATE MATERIALIZED VIEW IF NOT EXISTS user_activity_summary AS
@@ -163,8 +150,8 @@ LEFT JOIN sessions s ON u.id = s.user_id
 LEFT JOIN audit_events ae ON u.id = ae.actor_id
 GROUP BY u.id, u.email;
 
-CREATE UNIQUE INDEX ON user_activity_summary (user_id);
-CREATE INDEX ON user_activity_summary (last_login_at DESC NULLS LAST);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_activity_summary_user ON user_activity_summary (user_id);
+CREATE INDEX IF NOT EXISTS idx_user_activity_summary_login ON user_activity_summary (last_login_at DESC NULLS LAST);
 
 -- ============================================================================
 -- AUTOMATIC MAINTENANCE PROCEDURES
@@ -236,10 +223,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER ensure_org_owner_exists
-  BEFORE UPDATE ON memberships
-  FOR EACH ROW
-  EXECUTE FUNCTION ensure_org_has_owner();
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'ensure_org_owner_exists'
+  ) THEN
+    CREATE TRIGGER ensure_org_owner_exists
+      BEFORE UPDATE ON memberships
+      FOR EACH ROW
+      EXECUTE FUNCTION ensure_org_has_owner();
+  END IF;
+END $$;
 
 -- ============================================================================
 -- MONITORING TABLES
@@ -255,8 +249,8 @@ CREATE TABLE IF NOT EXISTS health_checks (
   checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX ON health_checks (service_name, checked_at DESC);
-CREATE INDEX ON health_checks (status, checked_at DESC) WHERE status != 'healthy';
+CREATE INDEX IF NOT EXISTS idx_health_checks_service ON health_checks (service_name, checked_at DESC);
+CREATE INDEX IF NOT EXISTS idx_health_checks_unhealthy ON health_checks (status, checked_at DESC) WHERE status != 'healthy';
 
 -- ============================================================================
 -- COMMENTS FOR DOCUMENTATION
