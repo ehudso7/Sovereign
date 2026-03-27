@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "NODE_ENV=development pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm build --filter=@sovereign/web... && cp -r apps/web/.next .next && cp apps/web/next.config.ts next.config.ts",
+  "buildCommand": "TURBO_FORCE=true pnpm build --filter=@sovereign/web... && cp -r apps/web/.next .next && cp apps/web/next.config.ts next.config.ts",
   "ignoreCommand": "npx turbo-ignore @sovereign/web"
 }
