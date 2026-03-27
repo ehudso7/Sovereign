@@ -20,7 +20,6 @@ CREATE INDEX IF NOT EXISTS idx_memberships_org_role_accepted ON memberships (org
 CREATE INDEX IF NOT EXISTS idx_memberships_created_at ON memberships (created_at DESC);
 
 -- Sessions table: Optimize session validation
-CREATE INDEX IF NOT EXISTS idx_sessions_token_hash ON sessions USING hash (token);
 CREATE INDEX IF NOT EXISTS idx_sessions_user_active ON sessions (user_id, expires_at) WHERE expires_at > NOW();
 CREATE INDEX IF NOT EXISTS idx_sessions_cleanup ON sessions (expires_at) WHERE expires_at < NOW();
 
@@ -221,7 +220,6 @@ COMMENT ON TABLE projects IS 'Organizational projects for grouping resources';
 -- DROP INDEX IF EXISTS idx_memberships_user_org_accepted;
 -- DROP INDEX IF EXISTS idx_memberships_org_role_accepted;
 -- DROP INDEX IF EXISTS idx_memberships_created_at;
--- DROP INDEX IF EXISTS idx_sessions_token_hash;
 -- DROP INDEX IF EXISTS idx_sessions_user_active;
 -- DROP INDEX IF EXISTS idx_sessions_cleanup;
 -- DROP INDEX IF EXISTS idx_audit_events_org_action;
