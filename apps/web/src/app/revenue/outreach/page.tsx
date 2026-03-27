@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
-import Link from "next/link";
 import { IconConnectors, IconPlus } from "@/components/icons";
 
 interface OutreachDraft {
