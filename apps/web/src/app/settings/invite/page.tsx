@@ -5,8 +5,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
+import { IconMembers } from "@/components/icons";
 
 const ROLES = ["org_member", "org_admin", "org_billing_admin", "org_security_admin"];
+
+function formatRole(r: string): string {
+  return r
+    .replace("org_", "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export default function InvitePage() {
   const { user, org, token, isLoading } = useAuth();
@@ -41,57 +49,115 @@ export default function InvitePage() {
     }
   };
 
-  if (isLoading || !user) return null;
+  if (isLoading || !user) {
+    return (
+      <AppShell>
+        <div className="space-y-6">
+          <div className="page-header">
+            <div className="skeleton h-8 w-48" />
+            <div className="skeleton mt-1 h-4 w-72" />
+          </div>
+          <div className="card space-y-4">
+            <div className="skeleton h-4 w-20" />
+            <div className="skeleton h-10 w-full max-w-md" />
+            <div className="skeleton h-4 w-20" />
+            <div className="skeleton h-10 w-full max-w-md" />
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Invite Member</h1>
+        {/* Header */}
+        <div className="page-header">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-[rgb(var(--color-bg-secondary))] p-2 text-[rgb(var(--color-text-tertiary))]">
+              <IconMembers size={22} />
+            </div>
+            <div>
+              <h1 className="page-title">Invite Member</h1>
+              <p className="page-description">
+                Send an invitation to add a new team member
+              </p>
+            </div>
+          </div>
+        </div>
 
+        {/* Feedback messages */}
         {message && (
-          <div className="rounded bg-green-50 p-3 text-sm text-green-700">{message}</div>
+          <div className="flex items-center gap-2 rounded-lg border border-[rgb(var(--color-success)/0.3)] bg-[rgb(var(--color-success)/0.08)] px-4 py-3 text-sm text-[rgb(var(--color-success))]">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            {message}
+          </div>
         )}
         {error && (
-          <div className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</div>
+          <div className="flex items-center gap-2 rounded-lg border border-[rgb(var(--color-error)/0.3)] bg-[rgb(var(--color-error)/0.08)] px-4 py-3 text-sm text-[rgb(var(--color-error))]">
+            {error}
+          </div>
         )}
 
-        <div className="rounded-lg border border-gray-200 p-6">
-          <form onSubmit={handleInvite} className="space-y-4">
+        {/* Invite form */}
+        <div className="card">
+          <div className="section-header">
+            <h2 className="section-title">Invitation Details</h2>
+          </div>
+          <form onSubmit={handleInvite} className="space-y-5 pt-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
+              <label
+                htmlFor="invite-email"
+                className="mb-1.5 block text-sm font-medium text-[rgb(var(--color-text-primary))]"
+              >
+                Email Address
+              </label>
               <input
+                id="invite-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="mt-1 block w-full max-w-md rounded border border-gray-300 px-3 py-2"
+                className="input w-full max-w-md"
+                placeholder="colleague@company.com"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Role</label>
+              <label
+                htmlFor="invite-role"
+                className="mb-1.5 block text-sm font-medium text-[rgb(var(--color-text-primary))]"
+              >
+                Role
+              </label>
               <select
+                id="invite-role"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="mt-1 block w-full max-w-md rounded border border-gray-300 px-3 py-2"
+                className="input w-full max-w-md"
               >
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
-                    {r.replace("org_", "")}
+                    {formatRole(r)}
                   </option>
                 ))}
               </select>
+              <p className="mt-1.5 text-xs text-[rgb(var(--color-text-tertiary))]">
+                Choose the level of access this member will have.
+              </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex items-center gap-3 pt-2">
               <button
                 type="submit"
-                className="rounded bg-gray-900 px-4 py-2 text-white hover:bg-gray-700"
+                className="rounded-lg bg-[rgb(var(--color-brand))] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[rgb(var(--color-brand-dark))]"
               >
                 Send Invitation
               </button>
               <button
                 type="button"
                 onClick={() => router.push("/settings/members")}
-                className="rounded border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+                className="rounded-lg border border-[rgb(var(--color-border-primary))] bg-[rgb(var(--color-bg-primary))] px-4 py-2 text-sm font-medium text-[rgb(var(--color-text-secondary))] transition-colors hover:bg-[rgb(var(--color-bg-secondary))]"
               >
                 Cancel
               </button>

@@ -6,6 +6,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
 import Link from "next/link";
+import {
+  IconRuns,
+  IconSearch,
+  IconChevronRight,
+  IconClock,
+} from "@/components/icons";
 
 interface MCRun {
   id: string;
@@ -16,32 +22,92 @@ interface MCRun {
   durationMs?: number;
 }
 
-const STATUS_FILTERS = ["all", "queued", "running", "completed", "failed", "cancelled", "paused"] as const;
-type StatusFilter = (typeof STATUS_FILTERS)[number];
+const STATUS_FILTERS = [
+  { value: "all", label: "All" },
+  { value: "queued", label: "Queued" },
+  { value: "running", label: "Running" },
+  { value: "completed", label: "Completed" },
+  { value: "failed", label: "Failed" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "paused", label: "Paused" },
+] as const;
 
-const statusColors: Record<string, string> = {
-  queued: "bg-gray-100 text-gray-700",
-  starting: "bg-blue-100 text-blue-700",
-  running: "bg-blue-100 text-blue-700",
-  paused: "bg-yellow-100 text-yellow-700",
-  cancelling: "bg-orange-100 text-orange-700",
-  cancelled: "bg-red-100 text-red-700",
-  failed: "bg-red-100 text-red-700",
-  completed: "bg-green-100 text-green-700",
-};
+type StatusFilter = (typeof STATUS_FILTERS)[number]["value"];
 
-function StatusBadge({ status }: { status: string }) {
-  return (
-    <span className={`rounded px-2 py-0.5 text-xs font-medium ${statusColors[status] ?? "bg-gray-100 text-gray-700"}`}>
-      {status}
-    </span>
-  );
+function statusBadgeClass(status: string): string {
+  switch (status) {
+    case "completed":
+      return "badge-success";
+    case "running":
+    case "starting":
+      return "badge-info";
+    case "queued":
+      return "badge-neutral";
+    case "paused":
+      return "badge-warning";
+    case "failed":
+    case "cancelled":
+    case "cancelling":
+      return "badge-error";
+    default:
+      return "badge-neutral";
+  }
+}
+
+function statusDotClass(status: string): string {
+  switch (status) {
+    case "completed":
+      return "status-dot-success";
+    case "running":
+    case "starting":
+      return "status-dot-info";
+    case "paused":
+      return "status-dot-warning";
+    case "failed":
+    case "cancelled":
+    case "cancelling":
+      return "status-dot-error";
+    default:
+      return "status-dot-neutral";
+  }
 }
 
 function formatDuration(ms: number | undefined): string {
-  if (ms == null) return "-";
+  if (ms == null) return "--";
   if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`;
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="stat-card">
+            <div className="skeleton h-3 w-20" />
+            <div className="skeleton mt-2 h-7 w-12" />
+          </div>
+        ))}
+      </div>
+      <div className="table-container">
+        <div className="table-header px-4 py-3">
+          <div className="skeleton h-3 w-32" />
+        </div>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="table-row px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <div className="skeleton h-4 w-44" />
+                <div className="skeleton h-3 w-56" />
+              </div>
+              <div className="skeleton h-5 w-16 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function MCRunsListContent() {
@@ -52,6 +118,7 @@ function MCRunsListContent() {
   const [runs, setRuns] = useState<MCRun[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<StatusFilter>(
     (searchParams.get("status") as StatusFilter) || "all",
   );
@@ -68,7 +135,10 @@ function MCRunsListContent() {
     setError(null);
 
     const query = filter !== "all" ? `?status=${filter}` : "";
-    const result = await apiFetch<MCRun[]>(`/api/v1/mission-control/runs${query}`, { token });
+    const result = await apiFetch<MCRun[]>(
+      `/api/v1/mission-control/runs${query}`,
+      { token },
+    );
 
     if (result.ok) {
       setRuns(result.data);
@@ -84,75 +154,227 @@ function MCRunsListContent() {
 
   if (isLoading || !user) return null;
 
+  const filteredRuns = searchQuery.trim()
+    ? runs.filter((r) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          r.agentName?.toLowerCase().includes(q) ||
+          r.agentId.toLowerCase().includes(q) ||
+          r.id.toLowerCase().includes(q)
+        );
+      })
+    : runs;
+
+  const counts = {
+    total: runs.length,
+    running: runs.filter((r) => r.status === "running").length,
+    failed: runs.filter((r) => r.status === "failed").length,
+  };
+
   return (
     <AppShell>
       <div className="space-y-6">
-        <div>
-          <Link href="/mission-control" className="text-sm text-gray-500 hover:text-gray-700">
-            &larr; Back to Mission Control
+        {/* Breadcrumb */}
+        <nav className="breadcrumb">
+          <Link
+            href="/mission-control"
+            className="text-[rgb(var(--color-text-tertiary))] transition-colors hover:text-[rgb(var(--color-text-primary))]"
+          >
+            Mission Control
           </Link>
+          <span className="breadcrumb-separator">/</span>
+          <span className="text-[rgb(var(--color-text-primary))]">Runs</span>
+        </nav>
+
+        {/* Page Header */}
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Runs</h1>
+            <p className="page-description">
+              Monitor and inspect all agent execution runs
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Runs</h1>
-        </div>
-
-        {/* Status filter */}
-        <div className="flex gap-2">
-          {STATUS_FILTERS.map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`rounded px-3 py-1 text-sm capitalize ${
-                filter === s
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-
+        {/* Error Banner */}
         {error && (
-          <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="flex items-center gap-3 rounded-lg border border-[rgb(var(--color-error)/0.3)] bg-[rgb(var(--color-error-bg))] px-4 py-3 text-sm text-[rgb(var(--color-error))]">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
             {error}
           </div>
         )}
 
         {loading ? (
-          <p className="text-gray-400">Loading runs...</p>
-        ) : runs.length === 0 ? (
-          <div className="rounded border border-gray-200 p-6 text-center text-gray-400">
-            {filter === "all"
-              ? "No runs found."
-              : `No runs with status "${filter}".`}
-          </div>
+          <LoadingSkeleton />
         ) : (
-          <div className="space-y-2">
-            {runs.map((run) => (
-              <Link
-                key={run.id}
-                href={`/mission-control/runs/${run.id}`}
-                className="block rounded border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-50"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">
-                      {run.agentName ?? run.agentId}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {new Date(run.createdAt).toLocaleString()}
-                      {run.durationMs != null && (
-                        <> &middot; {formatDuration(run.durationMs)}</>
-                      )}
-                    </p>
-                  </div>
-                  <StatusBadge status={run.status} />
+          <>
+            {/* Stat Cards */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="stat-card">
+                <span className="stat-label">Total Runs</span>
+                <span className="stat-value">{counts.total}</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-label">Running</span>
+                <div className="flex items-center gap-2">
+                  <span className="stat-value">{counts.running}</span>
+                  {counts.running > 0 && (
+                    <span className="status-dot-info-pulse" />
+                  )}
                 </div>
-              </Link>
-            ))}
-          </div>
+              </div>
+              <div className="stat-card">
+                <span className="stat-label">Failed</span>
+                <span className="stat-value">{counts.failed}</span>
+              </div>
+            </div>
+
+            {/* Search & Filter Bar */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative max-w-sm flex-1">
+                <IconSearch
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--color-text-tertiary))]"
+                />
+                <input
+                  type="text"
+                  placeholder="Search runs..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="input pl-9"
+                />
+              </div>
+              <div className="flex items-center gap-1 rounded-lg border border-[rgb(var(--color-border-primary))] bg-[rgb(var(--color-bg-primary))] p-1">
+                {STATUS_FILTERS.map((f) => (
+                  <button
+                    key={f.value}
+                    onClick={() => setFilter(f.value)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      filter === f.value
+                        ? "bg-[rgb(var(--color-brand))] text-white shadow-sm"
+                        : "text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-bg-tertiary))] hover:text-[rgb(var(--color-text-primary))]"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Runs Table or Empty State */}
+            {filteredRuns.length === 0 ? (
+              <div className="empty-state">
+                <IconRuns size={48} className="empty-state-icon" />
+                <p className="empty-state-title">
+                  {searchQuery
+                    ? "No runs match your search"
+                    : filter !== "all"
+                      ? `No runs with status "${filter}"`
+                      : "No runs found"}
+                </p>
+                <p className="empty-state-description">
+                  {searchQuery
+                    ? "Try adjusting your search query or filters."
+                    : "Agent runs will appear here once agents begin executing."}
+                </p>
+              </div>
+            ) : (
+              <div className="table-container">
+                <table className="w-full">
+                  <thead>
+                    <tr className="table-header">
+                      <th className="px-4 py-3 text-left">Agent</th>
+                      <th className="hidden px-4 py-3 text-left sm:table-cell">
+                        Status
+                      </th>
+                      <th className="hidden px-4 py-3 text-left md:table-cell">
+                        Duration
+                      </th>
+                      <th className="hidden px-4 py-3 text-left lg:table-cell">
+                        Started
+                      </th>
+                      <th className="px-4 py-3 text-right">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRuns.map((run) => (
+                      <tr
+                        key={run.id}
+                        className="table-row cursor-pointer"
+                        onClick={() =>
+                          router.push(`/mission-control/runs/${run.id}`)
+                        }
+                      >
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[rgb(var(--color-bg-tertiary))]">
+                              <IconRuns
+                                size={18}
+                                className="text-[rgb(var(--color-text-secondary))]"
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                                {run.agentName ?? run.agentId}
+                              </p>
+                              <p className="truncate text-xs text-[rgb(var(--color-text-tertiary))]">
+                                {run.id}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="hidden px-4 py-3.5 sm:table-cell">
+                          <span className={statusBadgeClass(run.status)}>
+                            <span className={statusDotClass(run.status)} />
+                            {run.status}
+                          </span>
+                        </td>
+                        <td className="hidden px-4 py-3.5 md:table-cell">
+                          <div className="flex items-center gap-1.5 text-xs text-[rgb(var(--color-text-secondary))]">
+                            <IconClock size={12} />
+                            {formatDuration(run.durationMs)}
+                          </div>
+                        </td>
+                        <td className="hidden px-4 py-3.5 text-xs text-[rgb(var(--color-text-tertiary))] lg:table-cell">
+                          {new Date(run.createdAt).toLocaleDateString(
+                            undefined,
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          <IconChevronRight
+                            size={16}
+                            className="inline-block text-[rgb(var(--color-text-tertiary))]"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
     </AppShell>
@@ -161,7 +383,13 @@ function MCRunsListContent() {
 
 export default function MCRunsListPage() {
   return (
-    <Suspense fallback={<p className="text-gray-400">Loading runs...</p>}>
+    <Suspense
+      fallback={
+        <AppShell>
+          <LoadingSkeleton />
+        </AppShell>
+      }
+    >
       <MCRunsListContent />
     </Suspense>
   );

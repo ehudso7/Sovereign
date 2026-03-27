@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
+import { IconApprovals, IconSearch } from "@/components/icons";
 
 interface Approval {
   id: string;
@@ -19,12 +20,44 @@ interface Approval {
 const STATUS_FILTERS = ["all", "pending", "approved", "denied", "expired"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
-const approvalStatusColors: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-700",
-  approved: "bg-green-100 text-green-700",
-  denied: "bg-red-100 text-red-700",
-  expired: "bg-gray-100 text-gray-500",
+const statusBadgeClass: Record<string, string> = {
+  pending: "badge-warning",
+  approved: "badge-success",
+  denied: "badge-error",
+  expired: "badge-neutral",
 };
+
+function SkeletonTable() {
+  return (
+    <div className="table-container">
+      <div className="table-header px-4 py-3">
+        <div className="skeleton h-4 w-48" />
+      </div>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="table-row flex items-center gap-4 px-4 py-3">
+          <div className="skeleton h-4 w-32" />
+          <div className="skeleton h-4 w-24" />
+          <div className="skeleton h-5 w-16 rounded-full" />
+          <div className="skeleton h-4 w-28" />
+          <div className="skeleton h-4 w-36" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function timeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = now - then;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
 
 function ApprovalsListContent() {
   const { user, token, isLoading } = useAuth();
@@ -35,6 +68,7 @@ function ApprovalsListContent() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<StatusFilter>(
     (searchParams.get("status") as StatusFilter) || "all",
   );
@@ -89,102 +123,193 @@ function ApprovalsListContent() {
     setActionLoading(null);
   };
 
+  const filteredApprovals = searchQuery.trim()
+    ? approvals.filter(
+        (a) =>
+          a.subjectType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          a.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          a.requestedBy.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    : approvals;
+
+  const counts = {
+    total: approvals.length,
+    pending: approvals.filter((a) => a.status === "pending").length,
+    approved: approvals.filter((a) => a.status === "approved").length,
+    denied: approvals.filter((a) => a.status === "denied").length,
+  };
+
   if (isLoading || !user) return null;
 
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Approvals</h1>
+        {/* Page Header */}
+        <div className="page-header">
+          <h1 className="page-title">Approvals</h1>
+          <p className="page-description">
+            Review and manage approval requests for sensitive agent actions.
+          </p>
         </div>
 
-        {/* Status filter */}
-        <div className="flex gap-2">
-          {STATUS_FILTERS.map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`rounded px-3 py-1 text-sm capitalize ${
-                filter === s
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
+        {/* Stat Cards */}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="stat-card">
+            <span className="stat-label">Total Requests</span>
+            <span className="stat-value">{loading ? "-" : counts.total}</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-label">Pending</span>
+            <div className="flex items-center gap-2">
+              <span className="stat-value">{loading ? "-" : counts.pending}</span>
+              {!loading && counts.pending > 0 && (
+                <span className="badge-warning">{counts.pending} awaiting</span>
+              )}
+            </div>
+          </div>
+          <div className="stat-card">
+            <span className="stat-label">Approved</span>
+            <span className="stat-value">{loading ? "-" : counts.approved}</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-label">Denied</span>
+            <span className="stat-value">{loading ? "-" : counts.denied}</span>
+          </div>
         </div>
 
+        {/* Filters & Search */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex gap-1.5">
+            {STATUS_FILTERS.map((s) => (
+              <button
+                key={s}
+                onClick={() => setFilter(s)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                  filter === s
+                    ? "bg-[rgb(var(--color-brand))] text-white"
+                    : "bg-[rgb(var(--color-bg-tertiary))] text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-bg-inset))]"
+                }`}
+              >
+                {s}
+                {s === "pending" && counts.pending > 0 && (
+                  <span className="ml-1.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-white/20 px-1 text-[10px]">
+                    {counts.pending}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="relative">
+            <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--color-text-tertiary))]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search approvals..."
+              className="input pl-9 sm:w-64"
+            />
+          </div>
+        </div>
+
+        {/* Error */}
         {error && (
-          <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
+          <div className="card border-[rgb(var(--color-error))] bg-[rgb(var(--color-error-bg))]">
+            <p className="text-sm text-[rgb(var(--color-error))]">{error}</p>
           </div>
         )}
 
+        {/* Table */}
         {loading ? (
-          <p className="text-gray-400">Loading approvals...</p>
-        ) : approvals.length === 0 ? (
-          <div className="rounded border border-gray-200 p-6 text-center text-gray-400">
-            {filter === "all"
-              ? "No approval requests."
-              : `No approvals with status "${filter}".`}
+          <SkeletonTable />
+        ) : filteredApprovals.length === 0 ? (
+          <div className="empty-state">
+            <IconApprovals className="empty-state-icon" size={48} />
+            <p className="empty-state-title">
+              {searchQuery
+                ? "No matching requests"
+                : filter === "all"
+                  ? "No approval requests"
+                  : `No ${filter} requests`}
+            </p>
+            <p className="empty-state-description">
+              {searchQuery
+                ? `No approvals match "${searchQuery}".`
+                : "Approval requests will appear here when agents need authorization."}
+            </p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded border border-gray-200">
+          <div className="table-container">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-600">Subject</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-600">Action</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-600">Status</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-600">Requested By</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-600">Created</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-600">Actions</th>
+              <thead>
+                <tr className="table-header">
+                  <th className="px-4 py-3 text-left">Subject</th>
+                  <th className="px-4 py-3 text-left">Action</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-left">Requested By</th>
+                  <th className="px-4 py-3 text-left">Time</th>
+                  <th className="px-4 py-3 text-right">Decision</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {approvals.map((approval) => (
-                  <tr key={approval.id} className="hover:bg-gray-50">
+              <tbody>
+                {filteredApprovals.map((approval) => (
+                  <tr key={approval.id} className="table-row">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">{approval.subjectType}</p>
-                      <p className="text-xs text-gray-400">{approval.subjectId}</p>
+                      <p className="font-medium text-[rgb(var(--color-text-primary))]">
+                        {approval.subjectType}
+                      </p>
+                      <p className="mt-0.5 font-mono text-xs text-[rgb(var(--color-text-tertiary))]">
+                        {approval.subjectId}
+                      </p>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{approval.action}</td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs font-medium ${approvalStatusColors[approval.status] ?? "bg-gray-100 text-gray-700"}`}
-                      >
+                      <span className="rounded-md bg-[rgb(var(--color-bg-tertiary))] px-2 py-0.5 font-mono text-xs text-[rgb(var(--color-text-secondary))]">
+                        {approval.action}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={statusBadgeClass[approval.status] ?? "badge-neutral"}>
                         {approval.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{approval.requestedBy}</td>
-                    <td className="px-4 py-3 text-gray-400">
-                      {new Date(approval.createdAt).toLocaleString()}
+                    <td className="px-4 py-3 text-[rgb(var(--color-text-secondary))]">
+                      {approval.requestedBy}
                     </td>
-                    <td className="px-4 py-3">
-                      {approval.status === "pending" && (
-                        <div className="flex gap-2">
+                    <td className="px-4 py-3 text-[rgb(var(--color-text-tertiary))]">
+                      <span title={new Date(approval.createdAt).toLocaleString()}>
+                        {timeAgo(approval.createdAt)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {approval.status === "pending" ? (
+                        <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleDecision(approval.id, "approve")}
                             disabled={actionLoading !== null}
-                            className="rounded bg-green-100 px-2 py-1 text-xs text-green-700 hover:bg-green-200 disabled:opacity-50"
+                            className="rounded-md bg-[rgb(var(--color-success))] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
                           >
                             {actionLoading === `${approval.id}-approve` ? "..." : "Approve"}
                           </button>
                           <button
                             onClick={() => handleDecision(approval.id, "deny")}
                             disabled={actionLoading !== null}
-                            className="rounded bg-red-100 px-2 py-1 text-xs text-red-700 hover:bg-red-200 disabled:opacity-50"
+                            className="rounded-md bg-[rgb(var(--color-error))] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
                           >
                             {actionLoading === `${approval.id}-deny` ? "..." : "Deny"}
                           </button>
                         </div>
+                      ) : (
+                        <span className="text-xs text-[rgb(var(--color-text-tertiary))]">--</span>
                       )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <div className="border-t border-[rgb(var(--color-border-secondary))] bg-[rgb(var(--color-bg-secondary))] px-4 py-2">
+              <p className="text-xs text-[rgb(var(--color-text-tertiary))]">
+                Showing {filteredApprovals.length} of {approvals.length} requests
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -194,7 +319,7 @@ function ApprovalsListContent() {
 
 export default function ApprovalsPage() {
   return (
-    <Suspense fallback={<p className="text-gray-400">Loading approvals...</p>}>
+    <Suspense>
       <ApprovalsListContent />
     </Suspense>
   );

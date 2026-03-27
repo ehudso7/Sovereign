@@ -6,6 +6,13 @@ import { useEffect, useState, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
 import Link from "next/link";
+import {
+  IconRuns,
+  IconBrowser,
+  IconMemory,
+  IconClock,
+  IconChevronRight,
+} from "@/components/icons";
 
 interface RunStep {
   id: string;
@@ -54,29 +61,88 @@ interface MCRunDetail {
   completedAt?: string;
 }
 
-const statusColors: Record<string, string> = {
-  queued: "bg-gray-100 text-gray-700",
-  starting: "bg-blue-100 text-blue-700",
-  running: "bg-blue-100 text-blue-700",
-  paused: "bg-yellow-100 text-yellow-700",
-  cancelling: "bg-orange-100 text-orange-700",
-  cancelled: "bg-red-100 text-red-700",
-  failed: "bg-red-100 text-red-700",
-  completed: "bg-green-100 text-green-700",
-};
+function statusBadgeClass(status: string): string {
+  switch (status) {
+    case "completed":
+      return "badge-success";
+    case "running":
+    case "starting":
+      return "badge-info";
+    case "queued":
+      return "badge-neutral";
+    case "paused":
+      return "badge-warning";
+    case "failed":
+    case "cancelled":
+    case "cancelling":
+      return "badge-error";
+    default:
+      return "badge-neutral";
+  }
+}
 
-function StatusBadge({ status }: { status: string }) {
-  return (
-    <span className={`rounded px-2 py-0.5 text-xs font-medium ${statusColors[status] ?? "bg-gray-100 text-gray-700"}`}>
-      {status}
-    </span>
-  );
+function statusDotClass(status: string): string {
+  switch (status) {
+    case "completed":
+      return "status-dot-success";
+    case "running":
+    case "starting":
+      return "status-dot-info";
+    case "paused":
+      return "status-dot-warning";
+    case "failed":
+    case "cancelled":
+    case "cancelling":
+      return "status-dot-error";
+    default:
+      return "status-dot-neutral";
+  }
 }
 
 function formatDuration(ms: number | undefined | null): string {
-  if (ms == null) return "-";
+  if (ms == null) return "--";
   if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`;
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="skeleton h-4 w-48" />
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <div className="skeleton h-7 w-40" />
+          <div className="skeleton h-3 w-64" />
+        </div>
+        <div className="skeleton h-6 w-20 rounded-full" />
+      </div>
+      <div className="card space-y-4 p-6">
+        <div className="grid grid-cols-2 gap-6 sm:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="space-y-2">
+              <div className="skeleton h-3 w-20" />
+              <div className="skeleton h-4 w-28" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-3">
+        <div className="skeleton h-5 w-24" />
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="card p-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <div className="skeleton h-4 w-36" />
+                <div className="skeleton h-3 w-48" />
+              </div>
+              <div className="skeleton h-5 w-16 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function MCRunDetailPage() {
@@ -100,7 +166,10 @@ export default function MCRunDetailPage() {
     setLoading(true);
     setError(null);
 
-    const result = await apiFetch<MCRunDetail>(`/api/v1/mission-control/runs/${runId}`, { token });
+    const result = await apiFetch<MCRunDetail>(
+      `/api/v1/mission-control/runs/${runId}`,
+      { token },
+    );
 
     if (result.ok) {
       setRun(result.data);
@@ -119,7 +188,7 @@ export default function MCRunDetailPage() {
   if (loading) {
     return (
       <AppShell>
-        <p className="text-gray-400">Loading run...</p>
+        <LoadingSkeleton />
       </AppShell>
     );
   }
@@ -127,10 +196,16 @@ export default function MCRunDetailPage() {
   if (!run) {
     return (
       <AppShell>
-        <div className="rounded border border-red-200 bg-red-50 p-6 text-center">
-          <p className="font-medium text-red-700">Run not found</p>
-          <p className="text-sm text-red-600">{error}</p>
-          <Link href="/mission-control/runs" className="mt-2 inline-block text-sm text-gray-600 underline">
+        <div className="empty-state">
+          <IconRuns size={48} className="empty-state-icon" />
+          <p className="empty-state-title">Run not found</p>
+          <p className="empty-state-description">
+            {error ?? "The requested run could not be loaded."}
+          </p>
+          <Link
+            href="/mission-control/runs"
+            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-[rgb(var(--color-brand))] transition-colors hover:text-[rgb(var(--color-brand-dark))]"
+          >
             Back to Runs
           </Link>
         </div>
@@ -141,120 +216,210 @@ export default function MCRunDetailPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div>
-          <Link href="/mission-control/runs" className="text-sm text-gray-500 hover:text-gray-700">
-            &larr; Back to Runs
+        {/* Breadcrumb */}
+        <nav className="breadcrumb">
+          <Link
+            href="/mission-control"
+            className="text-[rgb(var(--color-text-tertiary))] transition-colors hover:text-[rgb(var(--color-text-primary))]"
+          >
+            Mission Control
           </Link>
-        </div>
+          <span className="breadcrumb-separator">/</span>
+          <Link
+            href="/mission-control/runs"
+            className="text-[rgb(var(--color-text-tertiary))] transition-colors hover:text-[rgb(var(--color-text-primary))]"
+          >
+            Runs
+          </Link>
+          <span className="breadcrumb-separator">/</span>
+          <span className="text-[rgb(var(--color-text-primary))]">Detail</span>
+        </nav>
 
+        {/* Error Banner */}
         {error && (
-          <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="flex items-center gap-3 rounded-lg border border-[rgb(var(--color-error)/0.3)] bg-[rgb(var(--color-error-bg))] px-4 py-3 text-sm text-[rgb(var(--color-error))]">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
             {error}
           </div>
         )}
 
-        {/* Run header */}
-        <div className="flex items-start justify-between">
+        {/* Run Header */}
+        <div className="page-header flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Run Detail</h1>
-            <p className="text-sm text-gray-500">{run.id}</p>
+            <h1 className="page-title">
+              {run.agentName ?? run.agentId}
+            </h1>
+            <p className="page-description">
+              <code className="rounded bg-[rgb(var(--color-bg-tertiary))] px-1.5 py-0.5 text-xs text-[rgb(var(--color-text-secondary))]">
+                {run.id}
+              </code>
+            </p>
           </div>
-          <StatusBadge status={run.status} />
+          <span className={statusBadgeClass(run.status)}>
+            <span className={statusDotClass(run.status)} />
+            {run.status}
+          </span>
         </div>
 
-        {/* Run metadata */}
-        <div className="rounded border border-gray-200 p-4">
-          <dl className="grid grid-cols-2 gap-4 text-sm">
+        {/* Run Metadata Card */}
+        <div className="card p-6">
+          <div className="section-header mb-4">
+            <h2 className="section-title">Run Information</h2>
+          </div>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-3">
             <div>
-              <dt className="font-medium text-gray-500">Agent</dt>
-              <dd>{run.agentName ?? run.agentId}</dd>
+              <dt className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--color-text-tertiary))]">
+                Agent
+              </dt>
+              <dd className="mt-1 text-[rgb(var(--color-text-primary))]">
+                {run.agentName ?? run.agentId}
+              </dd>
             </div>
             <div>
-              <dt className="font-medium text-gray-500">Status</dt>
-              <dd>{run.status}</dd>
+              <dt className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--color-text-tertiary))]">
+                Duration
+              </dt>
+              <dd className="mt-1 flex items-center gap-1.5 text-[rgb(var(--color-text-primary))]">
+                <IconClock size={12} className="text-[rgb(var(--color-text-tertiary))]" />
+                {formatDuration(run.durationMs)}
+              </dd>
             </div>
             <div>
-              <dt className="font-medium text-gray-500">Duration</dt>
-              <dd>{formatDuration(run.durationMs)}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-gray-500">Queue Wait</dt>
-              <dd>{formatDuration(run.queueWaitMs)}</dd>
+              <dt className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--color-text-tertiary))]">
+                Queue Wait
+              </dt>
+              <dd className="mt-1 text-[rgb(var(--color-text-primary))]">
+                {formatDuration(run.queueWaitMs)}
+              </dd>
             </div>
             {run.tokenUsage && (
-              <>
-                <div>
-                  <dt className="font-medium text-gray-500">Tokens (Prompt / Completion / Total)</dt>
-                  <dd>
-                    {run.tokenUsage.prompt.toLocaleString()} / {run.tokenUsage.completion.toLocaleString()} / {run.tokenUsage.total.toLocaleString()}
-                  </dd>
-                </div>
-              </>
+              <div className="col-span-2 sm:col-span-1">
+                <dt className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--color-text-tertiary))]">
+                  Tokens (P / C / T)
+                </dt>
+                <dd className="mt-1 text-[rgb(var(--color-text-primary))]">
+                  {run.tokenUsage.prompt.toLocaleString()} /{" "}
+                  {run.tokenUsage.completion.toLocaleString()} /{" "}
+                  {run.tokenUsage.total.toLocaleString()}
+                </dd>
+              </div>
             )}
             {run.estimatedCostUsd != null && (
               <div>
-                <dt className="font-medium text-gray-500">Est. Cost</dt>
-                <dd>${run.estimatedCostUsd.toFixed(4)}</dd>
+                <dt className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--color-text-tertiary))]">
+                  Est. Cost
+                </dt>
+                <dd className="mt-1 font-medium text-[rgb(var(--color-text-primary))]">
+                  ${run.estimatedCostUsd.toFixed(4)}
+                </dd>
               </div>
             )}
             <div>
-              <dt className="font-medium text-gray-500">Created</dt>
-              <dd>{new Date(run.createdAt).toLocaleString()}</dd>
+              <dt className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--color-text-tertiary))]">
+                Created
+              </dt>
+              <dd className="mt-1 text-[rgb(var(--color-text-primary))]">
+                {new Date(run.createdAt).toLocaleString()}
+              </dd>
             </div>
             {run.startedAt && (
               <div>
-                <dt className="font-medium text-gray-500">Started</dt>
-                <dd>{new Date(run.startedAt).toLocaleString()}</dd>
+                <dt className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--color-text-tertiary))]">
+                  Started
+                </dt>
+                <dd className="mt-1 text-[rgb(var(--color-text-primary))]">
+                  {new Date(run.startedAt).toLocaleString()}
+                </dd>
               </div>
             )}
             {run.completedAt && (
               <div>
-                <dt className="font-medium text-gray-500">Completed</dt>
-                <dd>{new Date(run.completedAt).toLocaleString()}</dd>
+                <dt className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--color-text-tertiary))]">
+                  Completed
+                </dt>
+                <dd className="mt-1 text-[rgb(var(--color-text-primary))]">
+                  {new Date(run.completedAt).toLocaleString()}
+                </dd>
               </div>
             )}
           </dl>
         </div>
 
-        {/* Error */}
+        {/* Error Detail */}
         {run.status === "failed" && run.error && (
-          <div className="rounded border border-red-200 bg-red-50 p-4">
-            <p className="text-sm font-medium text-red-700">Error</p>
-            <pre className="mt-1 whitespace-pre-wrap text-sm text-red-600">{run.error}</pre>
+          <div className="rounded-lg border border-[rgb(var(--color-error)/0.3)] bg-[rgb(var(--color-error-bg))] p-4">
+            <p className="text-sm font-medium text-[rgb(var(--color-error))]">
+              Error
+            </p>
+            <pre className="mt-2 whitespace-pre-wrap text-sm text-[rgb(var(--color-error)/0.8)]">
+              {run.error}
+            </pre>
           </div>
         )}
 
-        {/* Steps / Timeline */}
+        {/* Timeline / Steps */}
         <div>
-          <h2 className="text-lg font-semibold">Timeline</h2>
+          <div className="section-header mb-4">
+            <h2 className="section-title">Timeline</h2>
+          </div>
           {run.steps.length === 0 ? (
-            <div className="mt-4 rounded border border-gray-200 p-6 text-center text-gray-400">
-              No steps recorded yet.
+            <div className="empty-state">
+              <IconRuns size={40} className="empty-state-icon" />
+              <p className="empty-state-title">No steps recorded</p>
+              <p className="empty-state-description">
+                Steps will appear here as the run progresses.
+              </p>
             </div>
           ) : (
-            <div className="mt-4 space-y-2">
+            <div className="space-y-2">
               {run.steps.map((step, index) => (
-                <div
-                  key={step.id}
-                  className="rounded border border-gray-200 p-3"
-                >
+                <div key={step.id} className="card card-hover p-4">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">
-                        {index + 1}. {step.toolName ?? step.type}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {step.type}
-                        {step.latencyMs != null && <> &middot; {formatDuration(step.latencyMs)}</>}
-                        {step.startedAt && (
-                          <> &middot; {new Date(step.startedAt).toLocaleString()}</>
-                        )}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[rgb(var(--color-bg-tertiary))] text-xs font-medium text-[rgb(var(--color-text-secondary))]">
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                          {step.toolName ?? step.type}
+                        </p>
+                        <p className="text-xs text-[rgb(var(--color-text-tertiary))]">
+                          {step.type}
+                          {step.latencyMs != null && (
+                            <> &middot; {formatDuration(step.latencyMs)}</>
+                          )}
+                          {step.startedAt && (
+                            <>
+                              {" "}
+                              &middot;{" "}
+                              {new Date(step.startedAt).toLocaleTimeString()}
+                            </>
+                          )}
+                        </p>
+                      </div>
                     </div>
-                    <StatusBadge status={step.status} />
+                    <span className={statusBadgeClass(step.status)}>
+                      <span className={statusDotClass(step.status)} />
+                      {step.status}
+                    </span>
                   </div>
                   {step.error && (
-                    <pre className="mt-2 whitespace-pre-wrap text-xs text-red-600">{step.error}</pre>
+                    <pre className="mt-3 rounded-md bg-[rgb(var(--color-error-bg))] p-3 text-xs text-[rgb(var(--color-error))]">
+                      {step.error}
+                    </pre>
                   )}
                 </div>
               ))}
@@ -262,57 +427,94 @@ export default function MCRunDetailPage() {
           )}
         </div>
 
-        {/* Browser sessions */}
+        {/* Browser Sessions */}
         <div>
-          <h2 className="text-lg font-semibold">Browser Sessions</h2>
+          <div className="section-header mb-4">
+            <h2 className="section-title">Browser Sessions</h2>
+          </div>
           {run.browserSessions.length === 0 ? (
-            <div className="mt-4 rounded border border-gray-200 p-6 text-center text-gray-400">
-              No browser sessions.
+            <div className="empty-state">
+              <IconBrowser size={40} className="empty-state-icon" />
+              <p className="empty-state-title">No browser sessions</p>
+              <p className="empty-state-description">
+                This run did not use browser automation.
+              </p>
             </div>
           ) : (
-            <div className="mt-4 space-y-2">
+            <div className="space-y-2">
               {run.browserSessions.map((session) => (
                 <Link
                   key={session.id}
                   href={`/browser-sessions/${session.id}`}
-                  className="block rounded border border-gray-200 p-3 hover:border-gray-300 hover:bg-gray-50"
+                  className="card card-hover flex items-center justify-between p-4"
                 >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">{session.id}</p>
-                    <StatusBadge status={session.status} />
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[rgb(var(--color-bg-tertiary))]">
+                      <IconBrowser
+                        size={18}
+                        className="text-[rgb(var(--color-text-secondary))]"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                        {session.id}
+                      </p>
+                      <p className="text-xs text-[rgb(var(--color-text-tertiary))]">
+                        {new Date(session.createdAt).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-400">
-                    {new Date(session.createdAt).toLocaleString()}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className={statusBadgeClass(session.status)}>
+                      <span className={statusDotClass(session.status)} />
+                      {session.status}
+                    </span>
+                    <IconChevronRight
+                      size={16}
+                      className="text-[rgb(var(--color-text-tertiary))]"
+                    />
+                  </div>
                 </Link>
               ))}
             </div>
           )}
         </div>
 
-        {/* Tool usage summary */}
+        {/* Tool Usage */}
         <div>
-          <h2 className="text-lg font-semibold">Tool Usage</h2>
+          <div className="section-header mb-4">
+            <h2 className="section-title">Tool Usage</h2>
+          </div>
           {run.toolUsage.length === 0 ? (
-            <div className="mt-4 rounded border border-gray-200 p-6 text-center text-gray-400">
-              No tools used.
+            <div className="empty-state">
+              <IconRuns size={40} className="empty-state-icon" />
+              <p className="empty-state-title">No tools used</p>
+              <p className="empty-state-description">
+                This run did not invoke any tools.
+              </p>
             </div>
           ) : (
-            <div className="mt-4 rounded border border-gray-200">
-              <table className="w-full text-sm">
+            <div className="table-container">
+              <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="px-4 py-2 text-left font-medium text-gray-500">Tool</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-500">Calls</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-500">Avg Latency</th>
+                  <tr className="table-header">
+                    <th className="px-4 py-3 text-left">Tool</th>
+                    <th className="px-4 py-3 text-right">Calls</th>
+                    <th className="px-4 py-3 text-right">Avg Latency</th>
                   </tr>
                 </thead>
                 <tbody>
                   {run.toolUsage.map((tool) => (
-                    <tr key={tool.toolName} className="border-b border-gray-100">
-                      <td className="px-4 py-2">{tool.toolName}</td>
-                      <td className="px-4 py-2 text-right">{tool.callCount}</td>
-                      <td className="px-4 py-2 text-right">{formatDuration(tool.avgLatencyMs)}</td>
+                    <tr key={tool.toolName} className="table-row">
+                      <td className="px-4 py-3 text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                        {tool.toolName}
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm text-[rgb(var(--color-text-secondary))]">
+                        {tool.callCount}
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm text-[rgb(var(--color-text-secondary))]">
+                        {formatDuration(tool.avgLatencyMs)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -321,20 +523,46 @@ export default function MCRunDetailPage() {
           )}
         </div>
 
-        {/* Memory usage summary */}
+        {/* Memory Usage */}
         <div>
-          <h2 className="text-lg font-semibold">Memory Usage</h2>
-          <div className="mt-4 rounded border border-gray-200 p-4">
-            <dl className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <dt className="font-medium text-gray-500">Retrieved</dt>
-                <dd>{run.memoryUsage.retrievedCount}</dd>
+          <div className="section-header mb-4">
+            <h2 className="section-title">Memory Usage</h2>
+          </div>
+          <div className="card p-6">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[rgb(var(--color-bg-tertiary))]">
+                  <IconMemory
+                    size={20}
+                    className="text-[rgb(var(--color-text-secondary))]"
+                  />
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--color-text-tertiary))]">
+                    Retrieved
+                  </p>
+                  <p className="text-lg font-semibold text-[rgb(var(--color-text-primary))]">
+                    {run.memoryUsage.retrievedCount}
+                  </p>
+                </div>
               </div>
-              <div>
-                <dt className="font-medium text-gray-500">Written</dt>
-                <dd>{run.memoryUsage.writtenCount}</dd>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[rgb(var(--color-bg-tertiary))]">
+                  <IconMemory
+                    size={20}
+                    className="text-[rgb(var(--color-text-secondary))]"
+                  />
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--color-text-tertiary))]">
+                    Written
+                  </p>
+                  <p className="text-lg font-semibold text-[rgb(var(--color-text-primary))]">
+                    {run.memoryUsage.writtenCount}
+                  </p>
+                </div>
               </div>
-            </dl>
+            </div>
           </div>
         </div>
       </div>

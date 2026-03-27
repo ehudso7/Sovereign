@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
+import { IconSkills, IconSearch } from "@/components/icons";
 
 interface Skill {
   id: string;
@@ -23,6 +24,15 @@ interface SkillInstall {
   createdAt: string;
 }
 
+function trustBadgeClass(tier: string): string {
+  const map: Record<string, string> = {
+    verified: "badge-success",
+    internal: "badge-info",
+    untrusted: "badge-warning",
+  };
+  return map[tier] ?? "badge-neutral";
+}
+
 export default function SkillsPage() {
   const { user, role, token, isLoading } = useAuth();
   const router = useRouter();
@@ -31,6 +41,7 @@ export default function SkillsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -105,94 +116,150 @@ export default function SkillsPage() {
 
   if (isLoading || !user) return null;
 
-  const trustBadge = (tier: string) => {
-    const colors: Record<string, string> = {
-      verified: "bg-green-100 text-green-700",
-      internal: "bg-blue-100 text-blue-700",
-      untrusted: "bg-yellow-100 text-yellow-700",
-    };
+  const filtered = skills.filter((s) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
     return (
-      <span className={`rounded px-2 py-0.5 text-xs font-medium ${colors[tier] ?? "bg-gray-100 text-gray-700"}`}>
-        {tier}
-      </span>
+      s.name.toLowerCase().includes(q) ||
+      s.slug.toLowerCase().includes(q) ||
+      s.description.toLowerCase().includes(q)
     );
-  };
+  });
 
   return (
     <AppShell>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Skills</h1>
-          <p className="text-gray-500">Skills bundle connectors into reusable agent capabilities</p>
+        {/* Page header */}
+        <div className="page-header">
+          <h1 className="page-title">Skills</h1>
+          <p className="page-description">
+            Skills bundle connectors into reusable agent capabilities
+          </p>
         </div>
 
+        {/* Search */}
+        <div className="relative max-w-sm">
+          <IconSearch
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--color-text-tertiary))]"
+          />
+          <input
+            type="text"
+            placeholder="Search skills..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input pl-9"
+          />
+        </div>
+
+        {/* Error */}
         {error && (
-          <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
+          <div className="card border-[rgb(var(--color-error))] bg-[rgb(var(--color-error-bg,var(--color-bg-secondary)))]">
+            <p className="text-sm text-[rgb(var(--color-error))]">{error}</p>
           </div>
         )}
 
+        {/* Loading skeleton */}
         {loading ? (
-          <p className="text-gray-400">Loading skills...</p>
-        ) : skills.length === 0 ? (
-          <div className="rounded border border-gray-200 p-8 text-center text-gray-400">
-            No skills available.
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="card space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="skeleton h-10 w-10 rounded-lg" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="skeleton h-4 w-32" />
+                    <div className="skeleton h-3 w-20" />
+                  </div>
+                </div>
+                <div className="skeleton h-3 w-full" />
+                <div className="skeleton h-3 w-2/3" />
+                <div className="flex gap-2">
+                  <div className="skeleton h-5 w-16 rounded-full" />
+                  <div className="skeleton h-5 w-12 rounded-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="empty-state">
+            <IconSkills className="empty-state-icon" size={48} />
+            <p className="empty-state-title">
+              {searchQuery ? "No skills match your search" : "No skills available"}
+            </p>
+            <p className="empty-state-description">
+              {searchQuery
+                ? "Try adjusting your search query."
+                : "Skills will appear here once they are registered in the catalog."}
+            </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {skills.map((skill) => {
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((skill) => {
               const skillInstalled = isInstalled(skill.id);
               return (
-                <div
-                  key={skill.id}
-                  className="rounded border border-gray-200 p-4"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{skill.name}</p>
-                        {trustBadge(skill.trustTier)}
-                        {skillInstalled && (
-                          <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                            Installed
-                          </span>
-                        )}
+                <div key={skill.id} className="card-hover flex flex-col gap-3">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[rgb(var(--color-bg-tertiary))]">
+                        <IconSkills
+                          size={20}
+                          className="text-[rgb(var(--color-text-secondary))]"
+                        />
                       </div>
-                      <p className="text-sm text-gray-500">{skill.slug}</p>
-                      <p className="mt-1 text-sm text-gray-400">{skill.description}</p>
-                      <div className="mt-2 flex gap-1">
-                        {skill.connectorSlugs.map((slug) => (
-                          <span
-                            key={slug}
-                            className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
-                          >
-                            {slug}
-                          </span>
-                        ))}
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-[rgb(var(--color-text-primary))]">
+                          {skill.name}
+                        </p>
+                        <p className="truncate text-xs text-[rgb(var(--color-text-tertiary))]">
+                          {skill.slug}
+                        </p>
                       </div>
                     </div>
-                    {canManage && (
-                      <div className="ml-4">
-                        {skillInstalled ? (
-                          <button
-                            onClick={() => handleUninstall(skill.id)}
-                            disabled={actionLoading === skill.id}
-                            className="rounded bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:opacity-50"
-                          >
-                            {actionLoading === skill.id ? "..." : "Uninstall"}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleInstall(skill.id)}
-                            disabled={actionLoading === skill.id}
-                            className="rounded bg-gray-900 px-3 py-1.5 text-sm text-white hover:bg-gray-700 disabled:opacity-50"
-                          >
-                            {actionLoading === skill.id ? "..." : "Install"}
-                          </button>
-                        )}
-                      </div>
+                    {skillInstalled && (
+                      <span className="badge-success shrink-0">Installed</span>
                     )}
                   </div>
+
+                  {/* Description */}
+                  <p className="text-sm leading-relaxed text-[rgb(var(--color-text-secondary))] line-clamp-2">
+                    {skill.description}
+                  </p>
+
+                  {/* Connector slugs + trust badge */}
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className={trustBadgeClass(skill.trustTier)}>
+                      {skill.trustTier}
+                    </span>
+                    {skill.connectorSlugs.map((slug) => (
+                      <span key={slug} className="badge-neutral">
+                        {slug}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Action */}
+                  {canManage && (
+                    <div className="mt-auto border-t border-[rgb(var(--color-border-secondary))] pt-3">
+                      {skillInstalled ? (
+                        <button
+                          onClick={() => handleUninstall(skill.id)}
+                          disabled={actionLoading === skill.id}
+                          className="w-full rounded-md border border-[rgb(var(--color-error))] px-3 py-1.5 text-sm font-medium text-[rgb(var(--color-error))] transition-colors hover:bg-[rgb(var(--color-error))] hover:text-white disabled:opacity-50"
+                        >
+                          {actionLoading === skill.id ? "Removing..." : "Uninstall"}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleInstall(skill.id)}
+                          disabled={actionLoading === skill.id}
+                          className="w-full rounded-md bg-[rgb(var(--color-brand))] px-3 py-1.5 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
+                        >
+                          {actionLoading === skill.id ? "Installing..." : "Install"}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

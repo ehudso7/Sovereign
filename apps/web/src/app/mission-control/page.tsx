@@ -5,6 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
+import {
+  IconMissionControl,
+  IconBell,
+  IconRuns,
+  IconClock,
+  IconArrowUp,
+  IconArrowDown,
+} from "@/components/icons";
 import Link from "next/link";
 
 interface Overview {
@@ -26,13 +34,22 @@ interface Overview {
   }[];
 }
 
-function MetricCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded border border-gray-200 p-4">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold">{value}</p>
-    </div>
-  );
+function formatMs(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${(ms / 60000).toFixed(1)}m`;
+}
+
+function statusForRunStatus(status: string): string {
+  const map: Record<string, string> = {
+    running: "status-dot-success-pulse",
+    queued: "status-dot-info",
+    completed: "status-dot-success",
+    failed: "status-dot-error",
+    cancelled: "status-dot-neutral",
+    pending_approval: "status-dot-warning",
+  };
+  return map[status] ?? "status-dot-neutral";
 }
 
 export default function MissionControlPage() {
@@ -68,120 +85,387 @@ export default function MissionControlPage() {
     loadOverview();
   }, [loadOverview]);
 
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (!token) return;
+    const interval = setInterval(loadOverview, 30000);
+    return () => clearInterval(interval);
+  }, [token, loadOverview]);
+
   if (isLoading || !user) return null;
+
+  const totalRuns = overview
+    ? Object.values(overview.runCounts).reduce((a, b) => a + b, 0)
+    : 0;
+  const activeRuns = overview
+    ? (overview.runCounts["running"] ?? 0) + (overview.runCounts["queued"] ?? 0)
+    : 0;
 
   return (
     <AppShell>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Mission Control</h1>
-          <div className="flex gap-3">
+      <div className="space-y-8">
+        {/* Page header */}
+        <div className="page-header flex items-start justify-between">
+          <div>
+            <h1 className="page-title">Mission Control</h1>
+            <p className="page-description">
+              Real-time observability for your agent fleet
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
             <Link
               href="/mission-control/runs"
-              className="rounded bg-gray-900 px-3 py-1.5 text-sm text-white hover:bg-gray-800"
+              className="inline-flex items-center gap-1.5 rounded-md bg-[rgb(var(--color-brand))] px-3.5 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
             >
+              <IconRuns size={16} />
               All Runs
             </Link>
             <Link
               href="/mission-control/alerts"
-              className="rounded bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200"
+              className="inline-flex items-center gap-1.5 rounded-md border border-[rgb(var(--color-border-primary))] bg-[rgb(var(--color-bg-primary))] px-3.5 py-2 text-sm font-medium text-[rgb(var(--color-text-secondary))] transition-colors hover:bg-[rgb(var(--color-bg-secondary))]"
             >
+              <IconBell size={16} />
               Alerts
+              {overview && overview.openAlerts > 0 && (
+                <span className="ml-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[rgb(var(--color-error))] px-1.5 text-xs font-bold text-white">
+                  {overview.openAlerts}
+                </span>
+              )}
             </Link>
           </div>
         </div>
 
+        {/* Error */}
         {error && (
-          <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
+          <div className="card border-[rgb(var(--color-error))] bg-[rgb(var(--color-error-bg,var(--color-bg-secondary)))]">
+            <p className="text-sm text-[rgb(var(--color-error))]">{error}</p>
           </div>
         )}
 
+        {/* Loading skeleton */}
         {loading ? (
-          <p className="text-gray-400">Loading overview...</p>
+          <div className="space-y-8">
+            {/* Stats skeleton */}
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="stat-card">
+                  <div className="skeleton h-3 w-20" />
+                  <div className="skeleton h-8 w-16" />
+                  <div className="skeleton h-3 w-24" />
+                </div>
+              ))}
+            </div>
+            {/* Run counts skeleton */}
+            <div className="card space-y-4">
+              <div className="skeleton h-5 w-32" />
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="space-y-2 rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3">
+                    <div className="skeleton h-3 w-14" />
+                    <div className="skeleton h-6 w-10" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Bottom sections skeleton */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="card space-y-3">
+                <div className="skeleton h-5 w-40" />
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="skeleton h-16 w-full rounded-lg" />
+                ))}
+              </div>
+              <div className="card space-y-3">
+                <div className="skeleton h-5 w-32" />
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="skeleton h-12 w-full rounded-lg" />
+                ))}
+              </div>
+            </div>
+          </div>
         ) : !overview ? (
-          <div className="rounded border border-gray-200 p-6 text-center text-gray-400">
-            No overview data available.
+          <div className="empty-state">
+            <IconMissionControl className="empty-state-icon" size={48} />
+            <p className="empty-state-title">No observability data available</p>
+            <p className="empty-state-description">
+              Run some agents to start seeing metrics here.
+            </p>
           </div>
         ) : (
           <>
-            {/* Run counts by status */}
-            <div>
-              <h2 className="text-lg font-semibold">Run Counts</h2>
-              <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            {/* ── Primary Stats Row ── */}
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <div className="stat-card">
+                <span className="stat-label">Total Runs</span>
+                <span className="stat-value">{totalRuns.toLocaleString()}</span>
+                <span className="text-xs text-[rgb(var(--color-text-tertiary))]">
+                  across all statuses
+                </span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-label">Active Now</span>
+                <div className="flex items-center gap-2">
+                  <span className="stat-value">{activeRuns}</span>
+                  {activeRuns > 0 && <span className="status-dot-success-pulse" />}
+                </div>
+                <span className="text-xs text-[rgb(var(--color-text-tertiary))]">
+                  running + queued
+                </span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-label">Error Rate</span>
+                <div className="flex items-center gap-2">
+                  <span className="stat-value">
+                    {(overview.failureRate * 100).toFixed(1)}%
+                  </span>
+                  {overview.failureRate > 0.05 ? (
+                    <IconArrowUp size={14} className="text-[rgb(var(--color-error))]" />
+                  ) : (
+                    <IconArrowDown size={14} className="text-[rgb(var(--color-success))]" />
+                  )}
+                </div>
+                <span className="text-xs text-[rgb(var(--color-text-tertiary))]">
+                  {overview.failureRate > 0.05 ? "above threshold" : "healthy"}
+                </span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-label">Avg Latency</span>
+                <span className="stat-value">{formatMs(overview.avgDurationMs)}</span>
+                <span className="text-xs text-[rgb(var(--color-text-tertiary))]">
+                  queue: {formatMs(overview.avgQueueWaitMs)}
+                </span>
+              </div>
+            </div>
+
+            {/* ── Run Counts by Status ── */}
+            <div className="card">
+              <div className="section-header mb-4">
+                <h2 className="section-title">Run Status Breakdown</h2>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
                 {Object.entries(overview.runCounts).map(([status, count]) => (
-                  <MetricCard key={status} label={status} value={count} />
+                  <div
+                    key={status}
+                    className="flex flex-col gap-1.5 rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={statusForRunStatus(status)} />
+                      <span className="text-xs font-medium capitalize text-[rgb(var(--color-text-secondary))]">
+                        {status.replace("_", " ")}
+                      </span>
+                    </div>
+                    <span className="text-xl font-semibold text-[rgb(var(--color-text-primary))]">
+                      {count.toLocaleString()}
+                    </span>
+                  </div>
                 ))}
               </div>
             </div>
 
-            {/* Performance metrics */}
-            <div>
-              <h2 className="text-lg font-semibold">Performance</h2>
-              <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                <MetricCard label="Avg Queue Wait" value={`${Math.round(overview.avgQueueWaitMs)}ms`} />
-                <MetricCard label="Avg Duration" value={`${Math.round(overview.avgDurationMs)}ms`} />
-                <MetricCard label="Failure Rate" value={`${(overview.failureRate * 100).toFixed(1)}%`} />
-              </div>
-            </div>
-
-            {/* Token usage & cost */}
-            <div>
-              <h2 className="text-lg font-semibold">Token Usage</h2>
-              <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <MetricCard label="Prompt Tokens" value={overview.tokenUsage.prompt.toLocaleString()} />
-                <MetricCard label="Completion Tokens" value={overview.tokenUsage.completion.toLocaleString()} />
-                <MetricCard label="Total Tokens" value={overview.tokenUsage.total.toLocaleString()} />
-                <MetricCard label="Est. Cost" value={`$${overview.estimatedCostUsd.toFixed(2)}`} />
-              </div>
-            </div>
-
-            {/* Feature usage */}
-            <div>
-              <h2 className="text-lg font-semibold">Feature Usage</h2>
-              <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <MetricCard label="Runs with Tools" value={overview.runsWithTools} />
-                <MetricCard label="Runs with Browser" value={overview.runsWithBrowser} />
-                <MetricCard label="Runs with Memory" value={overview.runsWithMemory} />
-              </div>
-            </div>
-
-            {/* Alerts */}
-            <div>
-              <h2 className="text-lg font-semibold">Alerts</h2>
-              <div className="mt-2">
-                <MetricCard label="Open Alerts" value={overview.openAlerts} />
-              </div>
-            </div>
-
-            {/* Recent failures */}
-            <div>
-              <h2 className="text-lg font-semibold">Recent Failures</h2>
-              {overview.recentFailures.length === 0 ? (
-                <div className="mt-2 rounded border border-gray-200 p-6 text-center text-gray-400">
-                  No recent failures.
+            {/* ── Token Usage + Feature Usage ── */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Token Usage */}
+              <div className="card">
+                <div className="section-header mb-4">
+                  <h2 className="section-title">Token Usage</h2>
+                  <span className="text-sm font-semibold text-[rgb(var(--color-brand))]">
+                    ${overview.estimatedCostUsd.toFixed(2)}
+                  </span>
                 </div>
-              ) : (
-                <div className="mt-2 space-y-2">
-                  {overview.recentFailures.map((f) => (
-                    <Link
-                      key={f.id}
-                      href={`/mission-control/runs/${f.id}`}
-                      className="block rounded border border-red-200 bg-red-50 p-3 hover:border-red-300"
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3">
+                    <span className="text-sm text-[rgb(var(--color-text-secondary))]">Prompt</span>
+                    <span className="font-mono text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                      {overview.tokenUsage.prompt.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3">
+                    <span className="text-sm text-[rgb(var(--color-text-secondary))]">Completion</span>
+                    <span className="font-mono text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                      {overview.tokenUsage.completion.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-[rgb(var(--color-border-secondary))] p-3">
+                    <span className="text-sm font-medium text-[rgb(var(--color-text-primary))]">Total</span>
+                    <span className="font-mono text-sm font-bold text-[rgb(var(--color-text-primary))]">
+                      {overview.tokenUsage.total.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Feature Usage */}
+              <div className="card">
+                <div className="section-header mb-4">
+                  <h2 className="section-title">Feature Usage</h2>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="status-dot-info" />
+                      <span className="text-sm text-[rgb(var(--color-text-secondary))]">Runs with Tools</span>
+                    </div>
+                    <span className="font-mono text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                      {overview.runsWithTools.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="status-dot-success" />
+                      <span className="text-sm text-[rgb(var(--color-text-secondary))]">Runs with Browser</span>
+                    </div>
+                    <span className="font-mono text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                      {overview.runsWithBrowser.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="status-dot-warning" />
+                      <span className="text-sm text-[rgb(var(--color-text-secondary))]">Runs with Memory</span>
+                    </div>
+                    <span className="font-mono text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                      {overview.runsWithMemory.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── System Health + Recent Alerts ── */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* System Health Cards */}
+              <div className="card">
+                <div className="section-header mb-4">
+                  <h2 className="section-title">System Health</h2>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={
+                          overview.failureRate < 0.05
+                            ? "status-dot-success-pulse"
+                            : overview.failureRate < 0.15
+                              ? "status-dot-warning"
+                              : "status-dot-error"
+                        }
+                      />
+                      <span className="text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                        Agent Runtime
+                      </span>
+                    </div>
+                    <span
+                      className={
+                        overview.failureRate < 0.05
+                          ? "badge-success"
+                          : overview.failureRate < 0.15
+                            ? "badge-warning"
+                            : "badge-error"
+                      }
                     >
-                      <p className="text-sm font-medium text-red-700">
-                        {f.agentName ?? f.id}
-                      </p>
-                      {f.error && (
-                        <p className="mt-1 truncate text-xs text-red-600">{f.error}</p>
-                      )}
-                      <p className="mt-1 text-xs text-red-400">
-                        {new Date(f.failedAt).toLocaleString()}
-                      </p>
-                    </Link>
-                  ))}
+                      {overview.failureRate < 0.05
+                        ? "Healthy"
+                        : overview.failureRate < 0.15
+                          ? "Degraded"
+                          : "Unhealthy"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={
+                          overview.avgQueueWaitMs < 5000
+                            ? "status-dot-success-pulse"
+                            : "status-dot-warning"
+                        }
+                      />
+                      <span className="text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                        Queue Latency
+                      </span>
+                    </div>
+                    <span
+                      className={
+                        overview.avgQueueWaitMs < 5000 ? "badge-success" : "badge-warning"
+                      }
+                    >
+                      {formatMs(overview.avgQueueWaitMs)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={
+                          overview.openAlerts === 0
+                            ? "status-dot-success-pulse"
+                            : "status-dot-error"
+                        }
+                      />
+                      <span className="text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                        Open Alerts
+                      </span>
+                    </div>
+                    <span
+                      className={
+                        overview.openAlerts === 0 ? "badge-success" : "badge-error"
+                      }
+                    >
+                      {overview.openAlerts === 0
+                        ? "Clear"
+                        : `${overview.openAlerts} alert${overview.openAlerts !== 1 ? "s" : ""}`}
+                    </span>
+                  </div>
                 </div>
-              )}
+              </div>
+
+              {/* Recent Alerts / Failures */}
+              <div className="card">
+                <div className="section-header mb-4">
+                  <h2 className="section-title">Recent Failures</h2>
+                  <Link
+                    href="/mission-control/alerts"
+                    className="text-xs font-medium text-[rgb(var(--color-brand))] hover:underline"
+                  >
+                    View all
+                  </Link>
+                </div>
+                {overview.recentFailures.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[rgb(var(--color-border-primary))] py-10 text-center">
+                    <IconMissionControl
+                      size={32}
+                      className="text-[rgb(var(--color-text-tertiary))]"
+                    />
+                    <p className="text-sm text-[rgb(var(--color-text-secondary))]">
+                      No recent failures
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {overview.recentFailures.slice(0, 5).map((f) => (
+                      <Link
+                        key={f.id}
+                        href={`/mission-control/runs/${f.id}`}
+                        className="group flex items-start gap-3 rounded-lg border border-[rgb(var(--color-border-secondary))] p-3 transition-colors hover:border-[rgb(var(--color-error))] hover:bg-[rgb(var(--color-bg-secondary))]"
+                      >
+                        <span className="status-dot-error mt-1.5 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-[rgb(var(--color-text-primary))] group-hover:text-[rgb(var(--color-error))] transition-colors">
+                            {f.agentName ?? f.id.slice(0, 12) + "..."}
+                          </p>
+                          {f.error && (
+                            <p className="mt-0.5 truncate text-xs text-[rgb(var(--color-text-tertiary))]">
+                              {f.error}
+                            </p>
+                          )}
+                          <div className="mt-1 flex items-center gap-1 text-xs text-[rgb(var(--color-text-tertiary))]">
+                            <IconClock size={12} />
+                            {new Date(f.failedAt).toLocaleString()}
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}

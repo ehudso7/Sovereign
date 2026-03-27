@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
+import { IconMemory, IconSearch, IconPlus } from "@/components/icons";
 import Link from "next/link";
 
 interface Memory {
@@ -26,25 +27,23 @@ const STATUS_FILTERS = ["all", "active", "redacted", "expired", "deleted"] as co
 type KindFilter = (typeof KIND_FILTERS)[number];
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
-const kindColors: Record<string, string> = {
-  semantic: "bg-blue-100 text-blue-700",
-  episodic: "bg-purple-100 text-purple-700",
-  procedural: "bg-green-100 text-green-700",
-};
+function kindBadgeClass(kind: string): string {
+  const map: Record<string, string> = {
+    semantic: "badge-info",
+    episodic: "badge-neutral",
+    procedural: "badge-success",
+  };
+  return map[kind] ?? "badge-neutral";
+}
 
-const statusColors: Record<string, string> = {
-  active: "bg-green-100 text-green-700",
-  redacted: "bg-red-100 text-red-700",
-  expired: "bg-yellow-100 text-yellow-700",
-  deleted: "bg-gray-100 text-gray-500",
-};
-
-function Badge({ label, colors }: { label: string; colors: Record<string, string> }) {
-  return (
-    <span className={`rounded px-2 py-0.5 text-xs font-medium ${colors[label] ?? "bg-gray-100 text-gray-700"}`}>
-      {label}
-    </span>
-  );
+function statusBadgeClass(status: string): string {
+  const map: Record<string, string> = {
+    active: "badge-success",
+    redacted: "badge-error",
+    expired: "badge-warning",
+    deleted: "badge-neutral",
+  };
+  return map[status] ?? "badge-neutral";
 }
 
 function MemoriesContent() {
@@ -55,6 +54,7 @@ function MemoriesContent() {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const [kindFilter, setKindFilter] = useState<KindFilter>(
     (searchParams.get("kind") as KindFilter) || "all",
   );
@@ -85,92 +85,193 @@ function MemoriesContent() {
     setLoading(false);
   }, [token, kindFilter, statusFilter]);
 
-  useEffect(() => { loadMemories(); }, [loadMemories]);
+  useEffect(() => {
+    loadMemories();
+  }, [loadMemories]);
 
   if (isLoading || !user) return null;
+
+  const filtered = memories.filter((m) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      m.title.toLowerCase().includes(q) ||
+      (m.summary && m.summary.toLowerCase().includes(q))
+    );
+  });
 
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Memories</h1>
+        {/* Page header */}
+        <div className="page-header flex items-start justify-between">
+          <div>
+            <h1 className="page-title">Memories</h1>
+            <p className="page-description">
+              Agent memory store for semantic, episodic, and procedural knowledge
+            </p>
+          </div>
           <Link
             href="/memories/new"
-            className="rounded bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-800"
+            className="inline-flex items-center gap-1.5 rounded-md bg-[rgb(var(--color-brand))] px-3.5 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
           >
+            <IconPlus size={16} />
             Create Memory
           </Link>
         </div>
 
-        {/* Kind filter */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-gray-500 uppercase">Kind</p>
-          <div className="flex gap-2">
-            {KIND_FILTERS.map((k) => (
-              <button
-                key={k}
-                onClick={() => setKindFilter(k)}
-                className={`rounded px-3 py-1 text-sm capitalize ${
-                  kindFilter === k ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {k}
-              </button>
-            ))}
+        {/* Search */}
+        <div className="relative max-w-sm">
+          <IconSearch
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--color-text-tertiary))]"
+          />
+          <input
+            type="text"
+            placeholder="Search memories..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input pl-9"
+          />
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:gap-8">
+          <div className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--color-text-tertiary))]">
+              Kind
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {KIND_FILTERS.map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setKindFilter(k)}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                    kindFilter === k
+                      ? "bg-[rgb(var(--color-brand))] text-white"
+                      : "bg-[rgb(var(--color-bg-tertiary))] text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-text-primary))]"
+                  }`}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--color-text-tertiary))]">
+              Status
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {STATUS_FILTERS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                    statusFilter === s
+                      ? "bg-[rgb(var(--color-brand))] text-white"
+                      : "bg-[rgb(var(--color-bg-tertiary))] text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-text-primary))]"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Status filter */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-gray-500 uppercase">Status</p>
-          <div className="flex gap-2">
-            {STATUS_FILTERS.map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`rounded px-3 py-1 text-sm capitalize ${
-                  statusFilter === s ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
-
+        {/* Error */}
         {error && (
-          <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+          <div className="card border-[rgb(var(--color-error))] bg-[rgb(var(--color-error-bg,var(--color-bg-secondary)))]">
+            <p className="text-sm text-[rgb(var(--color-error))]">{error}</p>
+          </div>
         )}
 
+        {/* Loading skeleton */}
         {loading ? (
-          <p className="text-gray-400">Loading memories...</p>
-        ) : memories.length === 0 ? (
-          <div className="rounded border border-gray-200 p-6 text-center text-gray-400">
-            No memories found. Create one manually or run a memory-enabled agent.
+          <div className="table-container">
+            <table className="w-full">
+              <thead>
+                <tr className="table-header">
+                  <th className="px-4 py-3 text-left">Title</th>
+                  <th className="px-4 py-3 text-left">Kind</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-left">Summary</th>
+                  <th className="px-4 py-3 text-left">Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="table-row">
+                    <td className="px-4 py-3"><div className="skeleton h-4 w-36" /></td>
+                    <td className="px-4 py-3"><div className="skeleton h-5 w-16 rounded-full" /></td>
+                    <td className="px-4 py-3"><div className="skeleton h-5 w-14 rounded-full" /></td>
+                    <td className="px-4 py-3"><div className="skeleton h-4 w-48" /></td>
+                    <td className="px-4 py-3"><div className="skeleton h-4 w-28" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="empty-state">
+            <IconMemory className="empty-state-icon" size={48} />
+            <p className="empty-state-title">
+              {searchQuery ? "No memories match your search" : "No memories found"}
+            </p>
+            <p className="empty-state-description">
+              {searchQuery
+                ? "Try adjusting your search query or filters."
+                : "Create one manually or run a memory-enabled agent to populate the memory store."}
+            </p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {memories.map((m) => (
-              <Link
-                key={m.id}
-                href={`/memories/${m.id}`}
-                className="block rounded border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-50"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium truncate">{m.title}</p>
-                      <Badge label={m.kind} colors={kindColors} />
-                      <Badge label={m.status} colors={statusColors} />
-                    </div>
-                    <p className="text-sm text-gray-500 truncate mt-1">{m.summary || "No summary"}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {m.scopeType}:{m.scopeId.slice(0, 8)}... &middot; {new Date(m.updatedAt).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </Link>
-            ))}
+          <div className="table-container">
+            <table className="w-full">
+              <thead>
+                <tr className="table-header">
+                  <th className="px-4 py-3 text-left">Title</th>
+                  <th className="px-4 py-3 text-left">Kind</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-left">Summary</th>
+                  <th className="px-4 py-3 text-left">Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((m) => (
+                  <tr key={m.id} className="table-row">
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/memories/${m.id}`}
+                        className="group flex flex-col"
+                      >
+                        <span className="text-sm font-medium text-[rgb(var(--color-text-primary))] group-hover:text-[rgb(var(--color-brand))] transition-colors truncate max-w-[200px]">
+                          {m.title}
+                        </span>
+                        <span className="text-xs text-[rgb(var(--color-text-tertiary))]">
+                          {m.scopeType}:{m.scopeId.slice(0, 8)}...
+                        </span>
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={kindBadgeClass(m.kind)}>{m.kind}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={statusBadgeClass(m.status)}>{m.status}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="block max-w-[300px] truncate text-sm text-[rgb(var(--color-text-secondary))]">
+                        {m.summary || "No summary"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-[rgb(var(--color-text-tertiary))]">
+                        {new Date(m.updatedAt).toLocaleString()}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -180,7 +281,19 @@ function MemoriesContent() {
 
 export default function MemoriesPage() {
   return (
-    <Suspense fallback={<p className="text-gray-400">Loading memories...</p>}>
+    <Suspense
+      fallback={
+        <AppShell>
+          <div className="space-y-6">
+            <div className="page-header">
+              <div className="skeleton h-7 w-36" />
+              <div className="skeleton mt-2 h-4 w-64" />
+            </div>
+            <div className="skeleton h-9 w-64 rounded-md" />
+          </div>
+        </AppShell>
+      }
+    >
       <MemoriesContent />
     </Suspense>
   );

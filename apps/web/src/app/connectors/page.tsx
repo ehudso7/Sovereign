@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
+import { IconConnectors, IconSearch, IconPlus } from "@/components/icons";
 import Link from "next/link";
 
 interface Connector {
@@ -22,11 +23,39 @@ interface Connector {
 
 const CATEGORIES = ["all", "utility", "data", "communication", "productivity"] as const;
 
+function trustBadgeClass(tier: string): string {
+  const map: Record<string, string> = {
+    verified: "badge-success",
+    internal: "badge-info",
+    untrusted: "badge-warning",
+  };
+  return map[tier] ?? "badge-neutral";
+}
+
+function authBadgeLabel(mode: string): string {
+  const map: Record<string, string> = {
+    none: "No Auth",
+    api_key: "API Key",
+    oauth2: "OAuth 2.0",
+  };
+  return map[mode] ?? mode;
+}
+
+function statusDotClass(status: string): string {
+  const map: Record<string, string> = {
+    connected: "status-dot-success",
+    disconnected: "status-dot-error",
+    pending: "status-dot-warning",
+  };
+  return map[status] ?? "status-dot-neutral";
+}
+
 export default function ConnectorsPage() {
   const { user, token, isLoading } = useAuth();
   const router = useRouter();
   const [connectors, setConnectors] = useState<Connector[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,91 +81,162 @@ export default function ConnectorsPage() {
 
   if (isLoading || !user) return null;
 
-  const trustBadge = (tier: string) => {
-    const colors: Record<string, string> = {
-      verified: "bg-green-100 text-green-700",
-      internal: "bg-blue-100 text-blue-700",
-      untrusted: "bg-yellow-100 text-yellow-700",
-    };
+  const filtered = connectors.filter((c) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
     return (
-      <span className={`rounded px-2 py-0.5 text-xs font-medium ${colors[tier] ?? "bg-gray-100 text-gray-700"}`}>
-        {tier}
-      </span>
+      c.name.toLowerCase().includes(q) ||
+      c.slug.toLowerCase().includes(q) ||
+      c.description.toLowerCase().includes(q)
     );
-  };
-
-  const authBadge = (mode: string) => {
-    const colors: Record<string, string> = {
-      none: "bg-gray-100 text-gray-600",
-      api_key: "bg-purple-100 text-purple-700",
-      oauth2: "bg-indigo-100 text-indigo-700",
-    };
-    return (
-      <span className={`rounded px-2 py-0.5 text-xs font-medium ${colors[mode] ?? "bg-gray-100 text-gray-700"}`}>
-        {mode === "none" ? "No Auth" : mode === "api_key" ? "API Key" : mode}
-      </span>
-    );
-  };
+  });
 
   return (
     <AppShell>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Connectors</h1>
-          <p className="text-gray-500">Browse and install connectors to extend your agents</p>
+        {/* Page header */}
+        <div className="page-header flex items-start justify-between">
+          <div>
+            <h1 className="page-title">Connectors</h1>
+            <p className="page-description">
+              Browse and install connectors to extend your agents
+            </p>
+          </div>
+          <Link
+            href="/connectors/new"
+            className="inline-flex items-center gap-1.5 rounded-md bg-[rgb(var(--color-brand))] px-3.5 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+          >
+            <IconPlus size={16} />
+            Add Connector
+          </Link>
         </div>
 
-        <div className="flex gap-2">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategoryFilter(c)}
-              className={`rounded px-3 py-1 text-sm capitalize ${
-                categoryFilter === c
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
+        {/* Search + category filters */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative max-w-sm flex-1">
+            <IconSearch
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--color-text-tertiary))]"
+            />
+            <input
+              type="text"
+              placeholder="Search connectors..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input pl-9"
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {CATEGORIES.map((c) => (
+              <button
+                key={c}
+                onClick={() => setCategoryFilter(c)}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                  categoryFilter === c
+                    ? "bg-[rgb(var(--color-brand))] text-white"
+                    : "bg-[rgb(var(--color-bg-tertiary))] text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-text-primary))]"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
         </div>
 
+        {/* Error */}
         {error && (
-          <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
+          <div className="card border-[rgb(var(--color-error))] bg-[rgb(var(--color-error-bg,var(--color-bg-secondary)))]">
+            <p className="text-sm text-[rgb(var(--color-error))]">{error}</p>
           </div>
         )}
 
+        {/* Loading skeleton */}
         {loading ? (
-          <p className="text-gray-400">Loading connectors...</p>
-        ) : connectors.length === 0 ? (
-          <div className="rounded border border-gray-200 p-8 text-center text-gray-400">
-            No connectors available.
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="card space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="skeleton h-10 w-10 rounded-lg" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="skeleton h-4 w-28" />
+                    <div className="skeleton h-3 w-20" />
+                  </div>
+                </div>
+                <div className="skeleton h-3 w-full" />
+                <div className="skeleton h-3 w-3/4" />
+                <div className="flex gap-2">
+                  <div className="skeleton h-5 w-16 rounded-full" />
+                  <div className="skeleton h-5 w-14 rounded-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          /* Empty state */
+          <div className="empty-state">
+            <IconConnectors className="empty-state-icon" size={48} />
+            <p className="empty-state-title">
+              {searchQuery ? "No connectors match your search" : "No connectors available"}
+            </p>
+            <p className="empty-state-description">
+              {searchQuery
+                ? "Try adjusting your search query or filters."
+                : "Connectors will appear here once they are registered in the catalog."}
+            </p>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {connectors.map((connector) => (
+          /* Connector grid */
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((connector) => (
               <Link
                 key={connector.id}
                 href={`/connectors/${connector.id}`}
-                className="block rounded border border-gray-200 p-4 hover:border-gray-300 hover:bg-gray-50"
+                className="card-hover group flex flex-col gap-3"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="font-medium">{connector.name}</p>
-                    <p className="text-sm text-gray-500">{connector.slug}</p>
-                    <p className="mt-1 text-sm text-gray-400 line-clamp-2">
-                      {connector.description}
-                    </p>
-                    <p className="mt-2 text-xs text-gray-400">
-                      {connector.tools.length} tool{connector.tools.length !== 1 ? "s" : ""}
-                    </p>
+                {/* Header row */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[rgb(var(--color-bg-tertiary))]">
+                      <IconConnectors
+                        size={20}
+                        className="text-[rgb(var(--color-text-secondary))]"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[rgb(var(--color-text-primary))]">
+                        {connector.name}
+                      </p>
+                      <p className="truncate text-xs text-[rgb(var(--color-text-tertiary))]">
+                        {connector.slug}
+                      </p>
+                    </div>
                   </div>
-                  <div className="ml-4 flex flex-col items-end gap-1">
-                    {trustBadge(connector.trustTier)}
-                    {authBadge(connector.authMode)}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={statusDotClass(connector.status)} />
+                    <span className="text-xs text-[rgb(var(--color-text-tertiary))] capitalize">
+                      {connector.status}
+                    </span>
                   </div>
+                </div>
+
+                {/* Description */}
+                <p className="text-sm leading-relaxed text-[rgb(var(--color-text-secondary))] line-clamp-2">
+                  {connector.description}
+                </p>
+
+                {/* Footer: badges + tool count */}
+                <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className={trustBadgeClass(connector.trustTier)}>
+                      {connector.trustTier}
+                    </span>
+                    <span className="badge-neutral">
+                      {authBadgeLabel(connector.authMode)}
+                    </span>
+                  </div>
+                  <span className="text-xs text-[rgb(var(--color-text-tertiary))]">
+                    {connector.tools.length} tool{connector.tools.length !== 1 ? "s" : ""}
+                  </span>
                 </div>
               </Link>
             ))}

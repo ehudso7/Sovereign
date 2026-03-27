@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
 import Link from "next/link";
+import { IconAgents, IconChevronRight } from "@/components/icons";
 
 interface Project {
   id: string;
@@ -48,7 +49,12 @@ export default function CreateAgentPage() {
 
   const handleNameChange = (value: string) => {
     setName(value);
-    setSlug(value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""));
+    setSlug(
+      value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, ""),
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,7 +67,12 @@ export default function CreateAgentPage() {
     const result = await apiFetch<{ id: string }>("/api/v1/agents", {
       method: "POST",
       token,
-      body: JSON.stringify({ name, slug, description: description || undefined, projectId }),
+      body: JSON.stringify({
+        name,
+        slug,
+        description: description || undefined,
+        projectId,
+      }),
     });
 
     if (result.ok) {
@@ -77,9 +88,33 @@ export default function CreateAgentPage() {
   if (!canCreate) {
     return (
       <AppShell>
-        <div className="rounded border border-red-200 bg-red-50 p-6 text-center">
-          <p className="font-medium text-red-700">Forbidden</p>
-          <p className="text-sm text-red-600">You do not have permission to create agents.</p>
+        <div className="empty-state">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgb(var(--color-error-bg))]">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="rgb(var(--color-error))"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0110 0v4" />
+            </svg>
+          </div>
+          <p className="empty-state-title">Permission Denied</p>
+          <p className="empty-state-description">
+            You do not have permission to create agents. Contact your
+            organization admin for access.
+          </p>
+          <Link
+            href="/agents"
+            className="mt-2 text-sm font-medium text-[rgb(var(--color-brand))] transition-colors hover:text-[rgb(var(--color-brand-dark))]"
+          >
+            Back to Agents
+          </Link>
         </div>
       </AppShell>
     );
@@ -88,82 +123,192 @@ export default function CreateAgentPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div>
-          <Link href="/agents" className="text-sm text-gray-500 hover:text-gray-700">
-            &larr; Back to Agents
-          </Link>
-          <h1 className="mt-2 text-2xl font-bold">Create Agent</h1>
+        {/* Breadcrumb */}
+        <nav className="breadcrumb">
+          <Link href="/agents">Agents</Link>
+          <IconChevronRight size={12} className="breadcrumb-separator" />
+          <span className="text-[rgb(var(--color-text-primary))]">
+            Create Agent
+          </span>
+        </nav>
+
+        {/* Page Header */}
+        <div className="page-header">
+          <h1 className="page-title">Create Agent</h1>
+          <p className="page-description">
+            Configure a new AI agent for your project
+          </p>
         </div>
 
+        {/* Error Banner */}
         {error && (
-          <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="flex items-center gap-3 rounded-lg border border-[rgb(var(--color-error)/0.3)] bg-[rgb(var(--color-error-bg))] px-4 py-3 text-sm text-[rgb(var(--color-error))]">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="max-w-lg space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Project</label>
-            <select
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              className="mt-1 block w-full rounded border border-gray-300 px-3 py-2"
-              required
-            >
-              {projects.length === 0 && <option value="">No projects available</option>}
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Form Card */}
+        <div className="card max-w-2xl">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Project */}
+            <div className="space-y-1.5">
+              <label
+                htmlFor="project"
+                className="block text-sm font-medium text-[rgb(var(--color-text-primary))]"
+              >
+                Project
+              </label>
+              <p className="text-xs text-[rgb(var(--color-text-tertiary))]">
+                Select the project this agent belongs to
+              </p>
+              <select
+                id="project"
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+                className="input"
+                required
+              >
+                {projects.length === 0 && (
+                  <option value="">No projects available</option>
+                )}
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => handleNameChange(e.target.value)}
-              className="mt-1 block w-full rounded border border-gray-300 px-3 py-2"
-              required
-              maxLength={255}
-            />
-          </div>
+            {/* Name */}
+            <div className="space-y-1.5">
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-[rgb(var(--color-text-primary))]"
+              >
+                Name
+              </label>
+              <p className="text-xs text-[rgb(var(--color-text-tertiary))]">
+                A human-readable name for this agent
+              </p>
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                className="input"
+                required
+                maxLength={255}
+                placeholder="e.g., Customer Support Bot"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Slug</label>
-            <input
-              type="text"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              className="mt-1 block w-full rounded border border-gray-300 px-3 py-2"
-              required
-              maxLength={63}
-              pattern="[a-z0-9-]+"
-            />
-            <p className="mt-1 text-xs text-gray-400">Lowercase letters, numbers, and hyphens only</p>
-          </div>
+            {/* Slug */}
+            <div className="space-y-1.5">
+              <label
+                htmlFor="slug"
+                className="block text-sm font-medium text-[rgb(var(--color-text-primary))]"
+              >
+                Slug
+              </label>
+              <p className="text-xs text-[rgb(var(--color-text-tertiary))]">
+                Lowercase letters, numbers, and hyphens only. Auto-generated
+                from the name.
+              </p>
+              <input
+                id="slug"
+                type="text"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                className="input font-mono text-sm"
+                required
+                maxLength={63}
+                pattern="[a-z0-9-]+"
+                placeholder="customer-support-bot"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 block w-full rounded border border-gray-300 px-3 py-2"
-              rows={3}
-              maxLength={2000}
-            />
-          </div>
+            {/* Description */}
+            <div className="space-y-1.5">
+              <label
+                htmlFor="description"
+                className="block text-sm font-medium text-[rgb(var(--color-text-primary))]"
+              >
+                Description
+                <span className="ml-1 text-xs font-normal text-[rgb(var(--color-text-tertiary))]">
+                  (optional)
+                </span>
+              </label>
+              <textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="input min-h-[80px] resize-y"
+                rows={3}
+                maxLength={2000}
+                placeholder="Describe what this agent does..."
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={submitting || !projectId || !name || !slug}
-            className="rounded bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50"
-          >
-            {submitting ? "Creating..." : "Create Agent"}
-          </button>
-        </form>
+            {/* Actions */}
+            <div className="flex items-center gap-3 border-t border-[rgb(var(--color-border-primary))] pt-6">
+              <button
+                type="submit"
+                disabled={submitting || !projectId || !name || !slug}
+                className="inline-flex items-center gap-2 rounded-lg bg-[rgb(var(--color-brand))] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-[rgb(var(--color-brand-dark))] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {submitting ? (
+                  <>
+                    <svg
+                      className="h-4 w-4 animate-spin"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <IconAgents size={16} />
+                    Create Agent
+                  </>
+                )}
+              </button>
+              <Link
+                href="/agents"
+                className="rounded-lg border border-[rgb(var(--color-border-primary))] bg-[rgb(var(--color-bg-primary))] px-5 py-2.5 text-sm font-medium text-[rgb(var(--color-text-secondary))] transition-colors hover:bg-[rgb(var(--color-bg-secondary))] hover:text-[rgb(var(--color-text-primary))]"
+              >
+                Cancel
+              </Link>
+            </div>
+          </form>
+        </div>
       </div>
     </AppShell>
   );
