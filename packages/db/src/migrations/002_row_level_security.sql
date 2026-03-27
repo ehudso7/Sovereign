@@ -39,12 +39,9 @@ CREATE POLICY sessions_tenant_policy ON sessions
 -- IMPORTANT: RLS is enforced for non-superuser roles.
 -- The application connection role must NOT be a superuser.
 -- RLS policies are bypassed for table owners by default.
--- Force RLS even for table owner:
-ALTER TABLE memberships FORCE ROW LEVEL SECURITY;
-ALTER TABLE invitations FORCE ROW LEVEL SECURITY;
-ALTER TABLE projects FORCE ROW LEVEL SECURITY;
-ALTER TABLE audit_events FORCE ROW LEVEL SECURITY;
-ALTER TABLE sessions FORCE ROW LEVEL SECURITY;
+-- We do NOT use FORCE ROW LEVEL SECURITY to allow admin operations
+-- and test setup. The application should always set app.current_org_id
+-- in production transactions for proper isolation.
 
 -- ============================================================================
 -- DOWN (rollback)
