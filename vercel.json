@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "NODE_ENV=development pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter=@sovereign/core build && pnpm --filter=@sovereign/ui build && cd apps/web && npx next build",
+  "buildCommand": "pnpm --filter=@sovereign/core build && pnpm --filter=@sovereign/ui build && pnpm --filter=@sovereign/web build",
+  "outputDirectory": "apps/web/.next",
   "ignoreCommand": "npx turbo-ignore @sovereign/web"
 }
