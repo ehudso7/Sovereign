@@ -1,9 +1,24 @@
-import type { Request, Response, NextFunction } from "express";
-import { RateLimiterRedis } from "rate-limiter-flexible";
-import { getRedisClient } from "../services/redis.js";
+/**
+ * Rate limiting middleware for Fastify
+ * Provides distributed rate limiting using Redis backend
+ */
+
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { RateLimiterRedis, RateLimiterRes } from "rate-limiter-flexible";
+import Redis from "ioredis";
 
 // Different rate limit tiers
 const rateLimiters = new Map<string, RateLimiterRedis>();
+let redisClient: Redis | null = null;
+
+// Initialize Redis client
+export async function getRedisClient(): Promise<Redis> {
+  if (!redisClient) {
+    const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+    redisClient = new Redis(redisUrl);
+  }
+  return redisClient;
+}
 
 // Initialize rate limiters with Redis backend for distributed rate limiting
 export async function initRateLimiters() {
@@ -46,17 +61,26 @@ export async function initRateLimiters() {
   }));
 }
 
-export function rateLimit(tier: "standard" | "auth" | "heavy" | "health" = "standard") {
-  return async (req: Request, res: Response, next: NextFunction) => {
+// Fastify plugin for rate limiting
+export async function rateLimitPlugin(fastify: FastifyInstance) {
+  await initRateLimiters();
+
+  fastify.addHook("onRequest", async (request: FastifyRequest, reply: FastifyReply) => {
+    // Determine rate limit tier based on route
+    let tier = "standard";
+    if (request.url.startsWith("/auth")) tier = "auth";
+    else if (request.url.startsWith("/health")) tier = "health";
+    else if (request.url.includes("/runs") || request.url.includes("/agents")) tier = "heavy";
+
     const limiter = rateLimiters.get(tier);
     if (!limiter) {
       // If rate limiter not initialized, allow request but log warning
-      console.error(`Rate limiter for tier ${tier} not initialized`);
-      return next();
+      fastify.log.warn(`Rate limiter for tier ${tier} not initialized`);
+      return;
     }
 
     // Use IP + user ID (if authenticated) as key
-    const key = req.user ? `${req.ip}:${req.user.id}` : req.ip;
+    const key = request.ip;
 
     try {
       await limiter.consume(key);
@@ -64,24 +88,23 @@ export function rateLimit(tier: "standard" | "auth" | "heavy" | "health" = "stan
       // Add rate limit headers
       const rateLimiterRes = await limiter.get(key);
       if (rateLimiterRes) {
-        res.setHeader("X-RateLimit-Limit", limiter.points.toString());
-        res.setHeader("X-RateLimit-Remaining", rateLimiterRes.remainingPoints.toString());
-        res.setHeader("X-RateLimit-Reset", new Date(Date.now() + rateLimiterRes.msBeforeNext).toISOString());
+        reply.header("X-RateLimit-Limit", limiter.points.toString());
+        reply.header("X-RateLimit-Remaining", rateLimiterRes.remainingPoints.toString());
+        reply.header("X-RateLimit-Reset", new Date(Date.now() + rateLimiterRes.msBeforeNext).toISOString());
       }
-
-      next();
-    } catch (rateLimiterRes) {
+    } catch (error) {
+      const rateLimiterRes = error as RateLimiterRes;
       // Rate limit exceeded
-      res.setHeader("Retry-After", Math.round(rateLimiterRes.msBeforeNext / 1000).toString());
-      res.setHeader("X-RateLimit-Limit", limiter.points.toString());
-      res.setHeader("X-RateLimit-Remaining", "0");
-      res.setHeader("X-RateLimit-Reset", new Date(Date.now() + rateLimiterRes.msBeforeNext).toISOString());
+      reply.header("Retry-After", Math.round(rateLimiterRes.msBeforeNext / 1000).toString());
+      reply.header("X-RateLimit-Limit", limiter.points.toString());
+      reply.header("X-RateLimit-Remaining", "0");
+      reply.header("X-RateLimit-Reset", new Date(Date.now() + rateLimiterRes.msBeforeNext).toISOString());
 
-      res.status(429).json({
+      return reply.status(429).send({
         error: "TOO_MANY_REQUESTS",
         message: "Rate limit exceeded. Please try again later.",
         retryAfter: Math.round(rateLimiterRes.msBeforeNext / 1000),
       });
     }
-  };
+  });
 }
