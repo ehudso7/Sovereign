@@ -98,7 +98,7 @@ describe("Migration runner against real PostgreSQL", () => {
   it("creates schema_migrations tracking table with correct entries", async () => {
     const status = await getMigrationStatus(testDbUrl);
 
-    expect(status).toHaveLength(11);
+    expect(status).toHaveLength(12);
     expect(status[0]!.version).toBe("001_phase2_identity");
     expect(status[1]!.version).toBe("002_row_level_security");
     expect(status[2]!.version).toBe("003_phase4_agents");
@@ -110,6 +110,7 @@ describe("Migration runner against real PostgreSQL", () => {
     expect(status[8]!.version).toBe("009_phase10_policies");
     expect(status[9]!.version).toBe("010_phase11_revenue");
     expect(status[10]!.version).toBe("011_phase12_billing");
+    expect(status[11]!.version).toBe("012_performance_optimization");
     expect(status[0]!.appliedAt).toBeTruthy();
     expect(status[1]!.appliedAt).toBeTruthy();
   });
@@ -162,11 +163,11 @@ describe("Migration runner against real PostgreSQL", () => {
         policyMap.get(r.tablename)!.push(r.policyname);
       }
 
-      expect(policyMap.get("memberships")).toContain("memberships_tenant_policy");
-      expect(policyMap.get("invitations")).toContain("invitations_tenant_policy");
-      expect(policyMap.get("projects")).toContain("projects_tenant_policy");
-      expect(policyMap.get("audit_events")).toContain("audit_events_tenant_policy");
-      expect(policyMap.get("sessions")).toContain("sessions_tenant_policy");
+      expect(policyMap.get("memberships")).toContain("memberships_tenant_select");
+      expect(policyMap.get("invitations")).toContain("invitations_tenant_select");
+      expect(policyMap.get("projects")).toContain("projects_tenant_select");
+      expect(policyMap.get("audit_events")).toContain("audit_events_tenant_select");
+      expect(policyMap.get("sessions")).toContain("sessions_tenant_select");
     } finally {
       await pool.end();
     }

@@ -31,6 +31,7 @@ const migrationsDir = join(import.meta.dirname ?? __dirname, "..", "..", "migrat
 let _dbClient: DatabaseClient | null = null;
 let _testDbName: string | null = null;
 let _adminPool: Pool | null = null;
+let _appRole: string | null = null;
 
 /**
  * Set up a fresh test database with all migrations applied.
@@ -56,18 +57,35 @@ export async function setupTestDb(): Promise<DatabaseClient> {
 
   const testDbUrl = `postgresql://${parsed.user}:${parsed.password}@${parsed.host}:${parsed.port}/${_testDbName}`;
 
-  // Run all migrations against the fresh DB
+  // Run all migrations against the fresh DB (as superuser)
   const migrationResult = await runMigrations(testDbUrl, migrationsDir);
   if (migrationResult.failed.length > 0) {
     throw new Error(`Migrations failed: ${migrationResult.failed.join(", ")}`);
   }
 
-  // Create the DatabaseClient for tests
-  _dbClient = new DatabaseClient({
-    url: testDbUrl,
-    maxConnections: 5,
-    connectionTimeoutMs: 5_000,
-  });
+  // Create a non-superuser role for the app so RLS is enforced.
+  // Superusers bypass RLS even with FORCE ROW LEVEL SECURITY.
+  const setupPool = new Pool({ connectionString: testDbUrl });
+  try {
+    const appRole = `sovereign_app_${suffix}`;
+    await setupPool.query(`CREATE ROLE ${appRole} LOGIN PASSWORD '${parsed.password}' NOSUPERUSER`);
+    await setupPool.query(`GRANT ALL ON DATABASE ${_testDbName} TO ${appRole}`);
+    await setupPool.query(`GRANT ALL ON ALL TABLES IN SCHEMA public TO ${appRole}`);
+    await setupPool.query(`GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ${appRole}`);
+    await setupPool.query(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${appRole}`);
+    await setupPool.query(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${appRole}`);
+    _appRole = appRole;
+
+    // Connect the DatabaseClient as the non-superuser app role
+    const appDbUrl = `postgresql://${appRole}:${parsed.password}@${parsed.host}:${parsed.port}/${_testDbName}`;
+    _dbClient = new DatabaseClient({
+      url: appDbUrl,
+      maxConnections: 5,
+      connectionTimeoutMs: 5_000,
+    });
+  } finally {
+    await setupPool.end();
+  }
 
   return _dbClient;
 }
@@ -83,12 +101,22 @@ export async function teardownTestDb(): Promise<void> {
   }
 
   if (_adminPool && _testDbName) {
-    // Terminate any lingering connections to the test DB
-    await _adminPool.query(
-      `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`,
-      [_testDbName],
-    );
+    // Wait briefly for connections to drain, then terminate any lingering ones
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    try {
+      await _adminPool.query(
+        `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`,
+        [_testDbName],
+      );
+    } catch {
+      // Ignore errors during cleanup
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await _adminPool.query(`DROP DATABASE IF EXISTS ${_testDbName}`);
+    if (_appRole) {
+      await _adminPool.query(`DROP ROLE IF EXISTS ${_appRole}`);
+      _appRole = null;
+    }
     await _adminPool.end();
     _adminPool = null;
     _testDbName = null;
@@ -125,5 +153,6 @@ export function getTestDbUrl(): string {
     throw new Error("Test database not set up. Call setupTestDb() first.");
   }
   const parsed = parseUrl(BASE_URL);
-  return `postgresql://${parsed.user}:${parsed.password}@${parsed.host}:${parsed.port}/${_testDbName}`;
+  const user = _appRole ?? parsed.user;
+  return `postgresql://${user}:${parsed.password}@${parsed.host}:${parsed.port}/${_testDbName}`;
 }
