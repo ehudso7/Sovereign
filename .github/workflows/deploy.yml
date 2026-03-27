@@ -20,6 +20,7 @@ concurrency:
 
 env:
   NODE_VERSION: '20'
+  NODE_ENV: test
 
 jobs:
   # ─── Gate: CI must pass first ───────────────────────────────

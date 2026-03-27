@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "pnpm install --frozen-lockfile && pnpm build"
+buildCommand = "NODE_ENV=development pnpm install --frozen-lockfile && pnpm build"
 
 [deploy]
 restartPolicyType = "on-failure"
@@ -8,16 +8,16 @@ restartPolicyMaxRetries = 3
 
 [[services]]
 name = "sovereign-api"
-startCommand = "pnpm --filter api start"
+startCommand = "pnpm --filter @sovereign/api start"
 
 [[services]]
 name = "sovereign-worker-orchestrator"
-startCommand = "pnpm --filter worker-orchestrator start"
+startCommand = "pnpm --filter @sovereign/worker-orchestrator start"
 
 [[services]]
 name = "sovereign-worker-browser"
-startCommand = "pnpm --filter worker-browser start"
+startCommand = "pnpm --filter @sovereign/worker-browser start"
 
 [[services]]
 name = "sovereign-gateway-mcp"
-startCommand = "pnpm --filter gateway-mcp start"
+startCommand = "pnpm --filter @sovereign/gateway-mcp start"
