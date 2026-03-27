@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "NODE_ENV=development pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm build --filter=@sovereign/api...",
-  "outputDirectory": "apps/api/dist",
-  "ignoreCommand": "npx turbo-ignore @sovereign/api"
+  "buildCommand": "pnpm build --filter=@sovereign/web...",
+  "outputDirectory": "apps/web/.next",
+  "ignoreCommand": "npx turbo-ignore @sovereign/web"
 }
