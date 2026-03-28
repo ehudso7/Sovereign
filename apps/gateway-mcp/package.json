@@ -2,10 +2,15 @@
   "name": "@sovereign/gateway-mcp",
   "version": "0.0.1",
   "private": true,
-  "main": "./src/index.ts",
+  "type": "module",
+  "main": "./dist/index.js",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",

@@ -2,12 +2,17 @@
   "name": "@sovereign/config",
   "version": "0.0.1",
   "private": true,
+  "type": "module",
   "exports": {
     "./eslint": "./eslint.config.mjs",
     "./typescript/base": "./tsconfig.base.json",
     "./typescript/nextjs": "./tsconfig.nextjs.json",
     "./typescript/node": "./tsconfig.node.json",
-    "./env": "./src/env.ts"
+    "./env": {
+      "import": "./dist/env.js",
+      "types": "./src/env.ts",
+      "default": "./dist/env.js"
+    }
   },
   "dependencies": {
     "zod": "^3.24.0"
