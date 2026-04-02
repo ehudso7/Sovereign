@@ -52,6 +52,13 @@ services:
     volumes:
       - minio_data:/data
 
+  claw-runtime:
+    build:
+      context: ../../packages/claw-runtime
+      dockerfile: Dockerfile
+    volumes:
+      - ../../packages/claw-runtime/target:/app/target
+
 volumes:
   postgres_data:
   redis_data:
