@@ -74,7 +74,9 @@ describe("Worker / Orchestrator Resilience", () => {
   }, 60_000);
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
     await teardownTestDb();
   });
 
