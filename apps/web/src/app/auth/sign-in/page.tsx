@@ -25,11 +25,28 @@ function SignInContent() {
 
   const isWorkOS = AUTH_MODE === "workos";
 
-  const handleWorkOSSignIn = () => {
+  const handleWorkOSSignIn = async () => {
     setError("");
     setIsLoading(true);
 
-    const authorizeUrl = new URL("/api/v1/auth/authorize", getApiBaseUrl());
+    const apiBase = getApiBaseUrl();
+
+    // Pre-flight check: verify the API is reachable before redirecting
+    try {
+      await fetch(`${apiBase}/api/v1/health`, {
+        mode: "cors",
+        signal: AbortSignal.timeout(5000),
+      });
+    } catch {
+      setIsLoading(false);
+      setError(
+        `Unable to reach the authentication service at ${apiBase}. ` +
+        "Please verify the API server is running and accessible.",
+      );
+      return;
+    }
+
+    const authorizeUrl = new URL("/api/v1/auth/authorize", apiBase);
     authorizeUrl.searchParams.set("redirect_to", "/dashboard");
     window.location.assign(authorizeUrl.toString());
   };

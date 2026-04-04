@@ -30,8 +30,13 @@ function CallbackContent() {
           setError("Failed to load session. Please try signing in again.");
         }
       })
-      .catch(() => {
-        setError("An unexpected error occurred. Please try signing in again.");
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : "";
+        if (msg.includes("NETWORK_ERROR") || msg.includes("Cannot reach") || msg.includes("Failed to fetch")) {
+          setError("Cannot reach the authentication service. Please check your connection and try again.");
+        } else {
+          setError("An unexpected error occurred. Please try signing in again.");
+        }
       });
   }, [searchParams, router, loadSessionFromToken]);
 

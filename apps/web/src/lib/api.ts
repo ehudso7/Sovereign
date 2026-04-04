@@ -55,6 +55,7 @@ export async function apiFetch<T>(
       ...fetchOptions,
       credentials: "include",
       headers,
+      signal: options.signal ?? AbortSignal.timeout(30_000),
     });
 
     const json = await response.json();
@@ -65,11 +66,16 @@ export async function apiFetch<T>(
 
     return { ok: true, data: json.data, meta: json.meta };
   } catch (e) {
+    const message = e instanceof Error ? e.message : "Network error";
+    const isTimeout = e instanceof DOMException && e.name === "TimeoutError";
+
     return {
       ok: false,
       error: {
-        code: "NETWORK_ERROR",
-        message: e instanceof Error ? e.message : "Network error",
+        code: isTimeout ? "TIMEOUT" : "NETWORK_ERROR",
+        message: isTimeout
+          ? `Request to ${API_BASE} timed out. The API server may be unreachable.`
+          : `Cannot reach the API server (${API_BASE}): ${message}`,
       },
     };
   }
