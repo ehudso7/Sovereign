@@ -5,20 +5,27 @@ WORKDIR /app
 FROM base AS deps
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/api/package.json ./apps/api/
+COPY apps/gateway-mcp/package.json ./apps/gateway-mcp/
 COPY packages/core/package.json ./packages/core/
 COPY packages/config/package.json ./packages/config/
 COPY packages/db/package.json ./packages/db/
 RUN pnpm install --frozen-lockfile
 
 FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app ./
 COPY . .
 RUN pnpm build --filter=@sovereign/api
 
 FROM base AS runner
 ENV NODE_ENV=production
+WORKDIR /app/apps/api
+COPY --from=builder /app/node_modules /app/node_modules
+COPY --from=builder /app/apps/api/node_modules ./node_modules
 COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/gateway-mcp /app/apps/gateway-mcp
+COPY --from=builder /app/packages/config /app/packages/config
+COPY --from=builder /app/packages/core /app/packages/core
+COPY --from=builder /app/packages/db /app/packages/db
 EXPOSE 3002
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3002/health || exit 1

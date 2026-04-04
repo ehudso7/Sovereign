@@ -210,7 +210,11 @@ export class WorkosAuthService {
           providerSessionId,
         }, this.config.sessionSecret);
 
-        return buildRedirectWithFragment(returnTo, {
+        const setupUrl = new URL(returnTo);
+        setupUrl.pathname = "/auth/setup";
+        setupUrl.search = "";
+
+        return buildRedirectWithFragment(setupUrl.toString(), {
           bootstrap_token: bootstrapToken,
           email: syncedUser.value.email,
           name: syncedUser.value.name,

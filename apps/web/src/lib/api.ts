@@ -2,6 +2,8 @@
 // API client for the web app — talks to apps/api
 // ---------------------------------------------------------------------------
 
+import { COOKIE_SESSION_TOKEN_MARKER, CSRF_COOKIE, readCookie } from "./session";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3002";
 
 export function getApiBaseUrl(): string {
@@ -40,15 +42,18 @@ export async function apiFetch<T>(
   options: RequestInit & { token?: string } = {},
 ): Promise<ApiResult<T>> {
   const { token, ...fetchOptions } = options;
+  const csrfToken = readCookie(CSRF_COOKIE);
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token && token !== COOKIE_SESSION_TOKEN_MARKER ? { Authorization: `Bearer ${token}` } : {}),
+    ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
     ...(fetchOptions.headers as Record<string, string> ?? {}),
   };
 
   try {
     const response = await fetch(`${API_BASE}${path}`, {
       ...fetchOptions,
+      credentials: "include",
       headers,
     });
 

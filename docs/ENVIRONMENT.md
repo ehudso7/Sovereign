@@ -22,7 +22,7 @@
 
 | Variable              | Required              | Default      | Description                                                       |
 | --------------------- | --------------------- | ------------ | ----------------------------------------------------------------- |
-| `AUTH_MODE`           | Yes                   | `local`      | `local` (dev) or `workos` (production)                            |
+| `AUTH_MODE`           | Yes                   | `local` (dev) / `workos` (production default) | `local` (dev) or `workos` (production)                            |
 | `SESSION_SECRET`      | Yes                   | Dev fallback | Cryptographic secret for session tokens (64+ chars in production) |
 | `SESSION_TTL_MS`      | No                    | `86400000`   | Session lifetime in milliseconds (24h default)                    |
 | `WORKOS_API_KEY`      | If `AUTH_MODE=workos` | —            | WorkOS API key                                                    |
@@ -67,6 +67,7 @@
 
 The API server **refuses to start** in production mode (`NODE_ENV=production`) if:
 
+- `AUTH_MODE` is not `workos` — prevents accidental fallback to local passwordless auth
 - `SESSION_SECRET` is not set — prevents accidental use of dev fallback
 - `SOVEREIGN_SECRET_KEY` is not set — prevents running without encryption key
 

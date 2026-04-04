@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
-const DEFAULT_ALLOWED_HEADERS = 'Authorization, Content-Type, X-Request-Id';
+const DEFAULT_ALLOWED_HEADERS = 'Authorization, Content-Type, X-Request-Id, X-CSRF-Token';
 const DEFAULT_ALLOWED_METHODS = 'GET, POST, PATCH, PUT, DELETE, OPTIONS';
 const DEFAULT_MAX_AGE_SECONDS = '86400';
 
@@ -68,7 +68,13 @@ function setCorsHeaders(request: FastifyRequest, reply: FastifyReply, config: Co
   const origin = typeof originHeader === 'string' ? normalizeOrigin(originHeader) : undefined;
 
   if (config.allowAnyOrigin) {
-    reply.header('Access-Control-Allow-Origin', '*');
+    if (origin) {
+      reply.header('Access-Control-Allow-Origin', origin);
+      reply.header('Vary', 'Origin');
+      reply.header('Access-Control-Allow-Credentials', 'true');
+    } else {
+      reply.header('Access-Control-Allow-Origin', '*');
+    }
     reply.header('Access-Control-Allow-Headers', DEFAULT_ALLOWED_HEADERS);
     reply.header('Access-Control-Allow-Methods', DEFAULT_ALLOWED_METHODS);
     reply.header('Access-Control-Max-Age', DEFAULT_MAX_AGE_SECONDS);
@@ -83,6 +89,7 @@ function setCorsHeaders(request: FastifyRequest, reply: FastifyReply, config: Co
   reply.header('Access-Control-Allow-Headers', DEFAULT_ALLOWED_HEADERS);
   reply.header('Access-Control-Allow-Methods', DEFAULT_ALLOWED_METHODS);
   reply.header('Access-Control-Max-Age', DEFAULT_MAX_AGE_SECONDS);
+  reply.header('Access-Control-Allow-Credentials', 'true');
   reply.header('Vary', 'Origin');
   return true;
 }

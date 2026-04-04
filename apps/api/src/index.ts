@@ -88,6 +88,7 @@ const isDirectRun = process.argv[1]?.endsWith("index.js") || process.argv[1]?.en
 
 if (isDirectRun) {
   const databaseUrl = process.env.DATABASE_URL ?? "postgresql://sovereign:sovereign_dev@localhost:5432/sovereign";
+  const isProduction = process.env.NODE_ENV === "production";
 
   const db = initDb({
     url: databaseUrl,
@@ -95,8 +96,7 @@ if (isDirectRun) {
     debug: process.env.DB_DEBUG === "true",
   });
 
-  const authMode = (process.env.AUTH_MODE ?? "local") as "local" | "workos";
-  const isProduction = process.env.NODE_ENV === "production";
+  const authMode = (process.env.AUTH_MODE ?? (isProduction ? "workos" : "local")) as "local" | "workos";
 
   // In production, SESSION_SECRET must be explicitly set — no fallback allowed
   if (isProduction && !process.env.SESSION_SECRET) {
@@ -104,6 +104,9 @@ if (isDirectRun) {
   }
   if (isProduction && !process.env.SOVEREIGN_SECRET_KEY) {
     throw new Error("SOVEREIGN_SECRET_KEY must be set in production. Refusing to start without encryption key.");
+  }
+  if (isProduction && authMode !== "workos") {
+    throw new Error("AUTH_MODE must be set to workos in production. Refusing to start with local auth.");
   }
   if (authMode === "workos" && !process.env.WORKOS_API_KEY) {
     throw new Error("WORKOS_API_KEY must be set when AUTH_MODE=workos.");

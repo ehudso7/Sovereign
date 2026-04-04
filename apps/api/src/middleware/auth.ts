@@ -6,6 +6,7 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import type { Session, OrgRole, Permission } from "@sovereign/core";
 import { AppError, hasPermission } from "@sovereign/core";
 import { getServices } from "../services/index.js";
+import { parseSessionCookies } from "../lib/session-cookie.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -22,8 +23,13 @@ export async function authenticate(
   reply: FastifyReply
 ): Promise<void> {
   const authHeader = request.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    const error = AppError.unauthorized("Missing or invalid Authorization header");
+  const cookieTokens = parseSessionCookies(request.headers.cookie);
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : cookieTokens.sessionToken;
+
+  if (!token) {
+    const error = AppError.unauthorized("Missing authentication token");
     reply.status(error.statusCode).send({
       error: { code: error.code, message: error.message },
       meta: { request_id: request.id, timestamp: new Date().toISOString() },
@@ -31,7 +37,20 @@ export async function authenticate(
     return;
   }
 
-  const token = authHeader.slice(7);
+  const usingCookieAuth = !authHeader?.startsWith("Bearer ");
+  if (usingCookieAuth && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+    const csrfHeader = request.headers["x-csrf-token"];
+    const csrfToken = Array.isArray(csrfHeader) ? csrfHeader[0] : csrfHeader;
+    if (!csrfToken || csrfToken !== cookieTokens.csrfToken) {
+      const error = AppError.forbidden("Invalid CSRF token");
+      reply.status(error.statusCode).send({
+        error: { code: error.code, message: error.message },
+        meta: { request_id: request.id, timestamp: new Date().toISOString() },
+      });
+      return;
+    }
+  }
+
   const services = getServices();
   const result = await services.auth.validateSession(token);
 

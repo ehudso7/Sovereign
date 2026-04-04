@@ -3,6 +3,7 @@
  * Provides distributed rate limiting using Redis backend
  */
 
+import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { RateLimiterRedis, RateLimiterRes } from "rate-limiter-flexible";
 import Redis from "ioredis";
@@ -10,6 +11,40 @@ import Redis from "ioredis";
 // Different rate limit tiers
 const rateLimiters = new Map<string, RateLimiterRedis>();
 let redisClient: Redis | null = null;
+
+function normalizeRequestPath(url: string): string {
+  try {
+    return new URL(url, "http://sovereign.internal").pathname;
+  } catch {
+    return url;
+  }
+}
+
+export function resolveRateLimitTier(url: string): "standard" | "auth" | "heavy" | "health" {
+  const path = normalizeRequestPath(url);
+
+  if (path === "/health" || path.startsWith("/api/v1/health")) {
+    return "health";
+  }
+  if (path.startsWith("/api/v1/auth/")) {
+    return "auth";
+  }
+  if (path.includes("/runs") || path.includes("/agents")) {
+    return "heavy";
+  }
+
+  return "standard";
+}
+
+export function buildRateLimitKey(request: FastifyRequest): string {
+  const authHeader = request.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    const tokenHash = createHash("sha256").update(authHeader.slice(7)).digest("hex");
+    return `${request.ip}:${tokenHash}`;
+  }
+
+  return request.ip;
+}
 
 // Initialize Redis client
 export async function getRedisClient(): Promise<Redis> {
@@ -66,11 +101,7 @@ export async function rateLimitPlugin(fastify: FastifyInstance) {
   await initRateLimiters();
 
   fastify.addHook("onRequest", async (request: FastifyRequest, reply: FastifyReply) => {
-    // Determine rate limit tier based on route
-    let tier = "standard";
-    if (request.url.startsWith("/auth")) tier = "auth";
-    else if (request.url.startsWith("/health")) tier = "health";
-    else if (request.url.includes("/runs") || request.url.includes("/agents")) tier = "heavy";
+    const tier = resolveRateLimitTier(request.url);
 
     const limiter = rateLimiters.get(tier);
     if (!limiter) {
@@ -79,8 +110,7 @@ export async function rateLimitPlugin(fastify: FastifyInstance) {
       return;
     }
 
-    // Use IP + user ID (if authenticated) as key
-    const key = request.ip;
+    const key = buildRateLimitKey(request);
 
     try {
       await limiter.consume(key);

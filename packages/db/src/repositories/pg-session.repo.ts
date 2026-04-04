@@ -21,6 +21,15 @@ interface SessionRow {
   created_at: string;
 }
 
+interface SessionLookupRow {
+  id: string;
+  org_id: string;
+  user_id: string;
+  token_hash: string;
+  expires_at: string;
+  created_at: string;
+}
+
 function toSession(row: SessionRow): Session {
   return {
     id: toSessionId(row.id),
@@ -79,38 +88,41 @@ export class PgSessionRepo implements SessionRepo {
   }
 
   async getById(id: SessionId): Promise<Session | null> {
-    // Session lookup without known org — scan each org context.
-    const orgs = await this.db.query<{ id: string }>("SELECT id FROM organizations");
-    for (const org of orgs) {
-      const orgId = toOrgId(org.id);
-      const row = await this.db.transactionWithOrg(orgId, async (tx) => {
-        return tx.queryOne<SessionRow>(
-          "SELECT * FROM sessions WHERE id = $1",
-          [id],
-        );
-      });
-      if (row) return toSession(row);
+    const lookup = await this.db.queryOne<SessionLookupRow>(
+      "SELECT * FROM session_lookup WHERE id = $1",
+      [id],
+    );
+
+    if (!lookup) {
+      return null;
     }
-    return null;
+
+    return this.db.transactionWithOrg(toOrgId(lookup.org_id), async (tx) => {
+      const row = await tx.queryOne<SessionRow>(
+        "SELECT * FROM sessions WHERE id = $1",
+        [id],
+      );
+      return row ? toSession(row) : null;
+    });
   }
 
   async getByTokenHash(tokenHash: string): Promise<Session | null> {
-    // Session token lookup is the auth bootstrap path.
-    // With FORCE RLS on sessions, we need to scan each org context.
-    // In production, this should be optimized with a SECURITY DEFINER function
-    // or proper role separation (app role vs owner role).
-    const orgs = await this.db.query<{ id: string }>("SELECT id FROM organizations");
-    for (const org of orgs) {
-      const orgId = toOrgId(org.id);
-      const row = await this.db.transactionWithOrg(orgId, async (tx) => {
-        return tx.queryOne<SessionRow>(
-          "SELECT * FROM sessions WHERE token_hash = $1",
-          [tokenHash],
-        );
-      });
-      if (row) return toSession(row);
+    const lookup = await this.db.queryOne<SessionLookupRow>(
+      "SELECT * FROM session_lookup WHERE token_hash = $1",
+      [tokenHash],
+    );
+
+    if (!lookup) {
+      return null;
     }
-    return null;
+
+    return this.db.transactionWithOrg(toOrgId(lookup.org_id), async (tx) => {
+      const row = await tx.queryOne<SessionRow>(
+        "SELECT * FROM sessions WHERE token_hash = $1",
+        [tokenHash],
+      );
+      return row ? toSession(row) : null;
+    });
   }
 
   async listForUser(orgId: OrgId, userId: UserId): Promise<Session[]> {
@@ -124,27 +136,42 @@ export class PgSessionRepo implements SessionRepo {
   }
 
   async delete(id: SessionId): Promise<boolean> {
-    const orgs = await this.db.query<{ id: string }>("SELECT id FROM organizations");
-    for (const org of orgs) {
-      const orgId = toOrgId(org.id);
-      const count = await this.db.transactionWithOrg(orgId, async (tx) => {
-        return tx.execute("DELETE FROM sessions WHERE id = $1", [id]);
-      });
-      if (count > 0) return true;
+    const lookup = await this.db.queryOne<SessionLookupRow>(
+      "SELECT * FROM session_lookup WHERE id = $1",
+      [id],
+    );
+
+    if (!lookup) {
+      return false;
     }
-    return false;
+
+    const count = await this.db.transactionWithOrg(toOrgId(lookup.org_id), async (tx) => {
+      return tx.execute("DELETE FROM sessions WHERE id = $1", [id]);
+    });
+    return count > 0;
   }
 
   async deleteExpired(): Promise<number> {
+    const expired = await this.db.query<SessionLookupRow>(
+      "SELECT * FROM session_lookup WHERE expires_at < now() ORDER BY org_id",
+    );
+
     let total = 0;
-    const orgs = await this.db.query<{ id: string }>("SELECT id FROM organizations");
-    for (const org of orgs) {
-      const orgId = toOrgId(org.id);
-      const count = await this.db.transactionWithOrg(orgId, async (tx) => {
-        return tx.execute("DELETE FROM sessions WHERE expires_at < now()");
+    const sessionsByOrg = new Map<string, string[]>();
+
+    for (const session of expired) {
+      const current = sessionsByOrg.get(session.org_id) ?? [];
+      current.push(session.id);
+      sessionsByOrg.set(session.org_id, current);
+    }
+
+    for (const [orgId, sessionIds] of sessionsByOrg) {
+      const count = await this.db.transactionWithOrg(toOrgId(orgId), async (tx) => {
+        return tx.execute("DELETE FROM sessions WHERE id = ANY($1::uuid[])", [sessionIds]);
       });
       total += count;
     }
+
     return total;
   }
 }
