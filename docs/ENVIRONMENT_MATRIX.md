@@ -35,7 +35,6 @@
 
 | Variable                   | staging                                         | production                       |
 | -------------------------- | ----------------------------------------------- | -------------------------------- |
-| `APP_ENV`                  | `staging`                                       | `production`                     |
 | `AUTH_MODE`                | `workos`                                        | `workos`                         |
 | `APP_BASE_URL_STAGING`     | `https://staging.sovereignos.dev`               | —                                |
 | `APP_BASE_URL_PRODUCTION`  | —                                               | `https://app.sovereignos.dev`    |
@@ -56,13 +55,10 @@ Set in Vercel dashboard per environment scope (Preview / Production).
 
 ### Non-secret
 
-| Variable                          | Staging                                                    | Production                                         |
-| --------------------------------- | ---------------------------------------------------------- | -------------------------------------------------- |
-| `NEXT_PUBLIC_APP_ENV`             | `staging`                                                  | `production`                                       |
-| `NEXT_PUBLIC_APP_URL`             | `https://staging.sovereignos.dev`                          | `https://app.sovereignos.dev`                      |
-| `NEXT_PUBLIC_API_BASE_URL`        | `https://api-staging.sovereignos.dev`                      | `https://api.sovereignos.dev`                      |
-| `NEXT_PUBLIC_AUTH_MODE`           | `workos`                                                   | `workos`                                           |
-| `NEXT_PUBLIC_WORKOS_REDIRECT_URI` | `https://api-staging.sovereignos.dev/api/v1/auth/callback` | `https://api.sovereignos.dev/api/v1/auth/callback` |
+| Variable                   | Staging                               | Production                    |
+| -------------------------- | ------------------------------------- | ----------------------------- |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://api-staging.sovereignos.dev` | `https://api.sovereignos.dev` |
+| `NEXT_PUBLIC_AUTH_MODE`    | `workos`                              | `workos`                      |
 
 ### Secrets (if needed at build/runtime)
 
@@ -107,21 +103,18 @@ Set these for **all** Railway backend services: `api`, `worker-orchestrator`, `w
 
 ### Non-secret
 
-| Variable                     | Value                                                      | Description                          |
-| ---------------------------- | ---------------------------------------------------------- | ------------------------------------ |
-| `NODE_ENV`                   | `production`                                               | Runtime mode                         |
-| `AUTH_MODE`                  | `workos`                                                   | Auth provider                        |
-| `APP_ENV`                    | `staging` or `production`                                  | Logical environment                  |
-| `APP_BASE_URL`               | `https://staging.sovereignos.dev`                          | Frontend URL                         |
-| `API_BASE_URL`               | `https://api-staging.sovereignos.dev`                      | API public URL                       |
-| `CORS_ALLOWED_ORIGINS`       | `https://staging.sovereignos.dev`                          | Comma-separated allowed CORS origins |
-| `R2_BUCKET`                  | `sovereign-staging-artifacts`                              | R2 bucket name                       |
-| `R2_REGION`                  | `auto`                                                     | Always `auto` for R2                 |
-| `R2_ENDPOINT`                | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`            | R2 S3-compatible endpoint            |
-| `WORKOS_REDIRECT_URI`        | `https://api-staging.sovereignos.dev/api/v1/auth/callback` | OAuth callback                       |
-| `WORKOS_LOGOUT_REDIRECT_URI` | `https://staging.sovereignos.dev`                          | Post-logout redirect                 |
-| `WORKOS_LOGIN_ENDPOINT`      | `/api/v1/auth/login`                                       | Login initiation path                |
-| `LOG_LEVEL`                  | `info`                                                     | Log verbosity                        |
+| Variable               | Value                                                      | Description                          |
+| ---------------------- | ---------------------------------------------------------- | ------------------------------------ |
+| `NODE_ENV`             | `production`                                               | Runtime mode                         |
+| `AUTH_MODE`            | `workos`                                                   | Auth provider                        |
+| `APP_BASE_URL`         | `https://staging.sovereignos.dev`                          | Frontend URL                         |
+| `API_BASE_URL`         | `https://api-staging.sovereignos.dev`                      | API public URL                       |
+| `CORS_ALLOWED_ORIGINS` | `https://staging.sovereignos.dev`                          | Comma-separated allowed CORS origins |
+| `R2_BUCKET`            | `sovereign-staging-artifacts`                              | R2 bucket name                       |
+| `R2_REGION`            | `auto`                                                     | Always `auto` for R2                 |
+| `R2_ENDPOINT`          | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`            | R2 S3-compatible endpoint            |
+| `WORKOS_REDIRECT_URI`  | `https://api-staging.sovereignos.dev/api/v1/auth/callback` | OAuth callback                       |
+| `LOG_LEVEL`            | `info`                                                     | Log verbosity                        |
 
 ---
 
