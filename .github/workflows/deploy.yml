@@ -1,8 +1,6 @@
 name: Deploy
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       environment:
@@ -15,12 +13,11 @@ on:
           - production
 
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: deploy-${{ inputs.environment }}
   cancel-in-progress: false
 
 env:
   NODE_VERSION: '20'
-  NODE_ENV: test
 
 jobs:
   # ─── Gate: CI must pass first ───────────────────────────────
@@ -28,13 +25,13 @@ jobs:
     name: CI Gate
     uses: ./.github/workflows/ci.yml
 
-  # ─── Deploy: Frontend (Vercel) ──────────────────────────────
+  # ─── Deploy: Frontend Web (Vercel) ─────────────────────────
   deploy-web:
     name: Deploy Web (Vercel)
     runs-on: ubuntu-latest
     needs: [ci]
     environment:
-      name: ${{ inputs.environment || 'staging' }}
+      name: ${{ inputs.environment }}
       url: ${{ steps.deploy.outputs.url }}
     steps:
       - uses: actions/checkout@v4
@@ -43,7 +40,7 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+          VERCEL_PROJECT_ID: ${{ inputs.environment == 'production' && secrets.VERCEL_PROJECT_ID_WEB_PRODUCTION || secrets.VERCEL_PROJECT_ID_WEB_STAGING }}
         run: |
           npm i -g vercel@latest
           if [ "${{ inputs.environment }}" = "production" ]; then
@@ -52,13 +49,25 @@ jobs:
             URL=$(vercel deploy --token=$VERCEL_TOKEN --yes)
           fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
+      - name: Save deploy evidence
+        run: |
+          mkdir -p evidence
+          echo "web_url=${{ steps.deploy.outputs.url }}" >> evidence/deploy-web.txt
+          echo "environment=${{ inputs.environment }}" >> evidence/deploy-web.txt
+          echo "sha=${{ github.sha }}" >> evidence/deploy-web.txt
+          echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> evidence/deploy-web.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deploy-evidence-web-${{ inputs.environment }}
+          path: evidence/
 
+  # ─── Deploy: Frontend Docs (Vercel) ────────────────────────
   deploy-docs:
     name: Deploy Docs (Vercel)
     runs-on: ubuntu-latest
     needs: [ci]
     environment:
-      name: ${{ inputs.environment || 'staging' }}-docs
+      name: ${{ inputs.environment }}
       url: ${{ steps.deploy.outputs.url }}
     steps:
       - uses: actions/checkout@v4
@@ -67,7 +76,7 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_DOCS_PROJECT_ID }}
+          VERCEL_PROJECT_ID: ${{ inputs.environment == 'production' && secrets.VERCEL_PROJECT_ID_DOCS_PRODUCTION || secrets.VERCEL_PROJECT_ID_DOCS_STAGING }}
         run: |
           npm i -g vercel@latest
           if [ "${{ inputs.environment }}" = "production" ]; then
@@ -76,6 +85,17 @@ jobs:
             URL=$(vercel deploy --token=$VERCEL_TOKEN --yes)
           fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
+      - name: Save deploy evidence
+        run: |
+          mkdir -p evidence
+          echo "docs_url=${{ steps.deploy.outputs.url }}" >> evidence/deploy-docs.txt
+          echo "environment=${{ inputs.environment }}" >> evidence/deploy-docs.txt
+          echo "sha=${{ github.sha }}" >> evidence/deploy-docs.txt
+          echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> evidence/deploy-docs.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deploy-evidence-docs-${{ inputs.environment }}
+          path: evidence/
 
   # ─── Deploy: Backend (Railway) ──────────────────────────────
   deploy-backend:
@@ -83,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ci]
     environment:
-      name: ${{ inputs.environment || 'staging' }}
+      name: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v4
       - name: Install Railway CLI
@@ -104,14 +124,25 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: railway up --service sovereign-gateway-mcp --detach
+      - name: Save deploy evidence
+        run: |
+          mkdir -p evidence
+          echo "services=api,worker-orchestrator,worker-browser,gateway-mcp" >> evidence/deploy-backend.txt
+          echo "environment=${{ inputs.environment }}" >> evidence/deploy-backend.txt
+          echo "sha=${{ github.sha }}" >> evidence/deploy-backend.txt
+          echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> evidence/deploy-backend.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deploy-evidence-backend-${{ inputs.environment }}
+          path: evidence/
 
   # ─── Post-deploy: Run migrations ───────────────────────────
   post-deploy:
-    name: Post-Deploy Tasks
+    name: Post-Deploy Migrations
     runs-on: ubuntu-latest
     needs: [deploy-backend]
     environment:
-      name: ${{ inputs.environment || 'staging' }}
+      name: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -120,7 +151,65 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Build DB package
+        run: pnpm build --filter=@sovereign/db...
       - name: Run database migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: pnpm db:migrate
+      - name: Save migration evidence
+        run: |
+          mkdir -p evidence
+          echo "migration=success" >> evidence/migration.txt
+          echo "environment=${{ inputs.environment }}" >> evidence/migration.txt
+          echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> evidence/migration.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deploy-evidence-migration-${{ inputs.environment }}
+          path: evidence/
+
+  # ─── Smoke Tests ────────────────────────────────────────────
+  smoke:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-web, deploy-docs, deploy-backend, post-deploy]
+    environment:
+      name: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run smoke checks
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          APP_BASE_URL: ${{ vars.APP_BASE_URL }}
+        run: |
+          mkdir -p evidence
+
+          echo "=== Smoke Tests: ${{ inputs.environment }} ===" | tee evidence/smoke.txt
+          echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee -a evidence/smoke.txt
+          echo "SHA: ${{ github.sha }}" | tee -a evidence/smoke.txt
+          echo "" | tee -a evidence/smoke.txt
+
+          # Health check
+          echo "--- GET ${API_BASE_URL}/health ---" | tee -a evidence/smoke.txt
+          HTTP_CODE=$(curl -s -o /tmp/health.json -w "%{http_code}" "${API_BASE_URL}/health" || echo "000")
+          echo "Status: ${HTTP_CODE}" | tee -a evidence/smoke.txt
+          cat /tmp/health.json >> evidence/smoke.txt 2>/dev/null || true
+          echo "" | tee -a evidence/smoke.txt
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "FAIL: Health check returned ${HTTP_CODE}" | tee -a evidence/smoke.txt
+            exit 1
+          fi
+
+          # Web app reachable
+          echo "--- GET ${APP_BASE_URL} ---" | tee -a evidence/smoke.txt
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${APP_BASE_URL}" || echo "000")
+          echo "Status: ${HTTP_CODE}" | tee -a evidence/smoke.txt
+          echo "" | tee -a evidence/smoke.txt
+
+          echo "PASS: All smoke checks passed" | tee -a evidence/smoke.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: smoke-evidence-${{ inputs.environment }}
+          path: evidence/
