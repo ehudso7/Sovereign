@@ -64,8 +64,9 @@ dropdb sovereign_restore_test
 ### Full Restore
 
 ```bash
-# 1. Stop all application services
-pm2 stop all  # or docker compose down
+# 1. Pause writes and stop background processing
+#    For local/dev: stop docker-compose services.
+#    For production: scale down or stop Railway backend services before restoring.
 
 # 2. Create fresh database (if needed)
 dropdb sovereign
@@ -82,10 +83,11 @@ psql -d sovereign -c "SELECT count(*) FROM schema_migrations ORDER BY version;"
 pnpm db:migrate
 
 # 6. Restart services
-pm2 start all  # or docker compose up -d
+#    For local/dev: docker compose up -d
+#    For production: redeploy or restart Railway backend services
 
 # 7. Verify health
-curl http://localhost:3002/api/v1/health
+curl <api-base-url>/health
 ```
 
 ### Point-in-Time Recovery
@@ -124,11 +126,11 @@ mc mirror sovereign/artifacts backup/sovereign-artifacts
 
 ## Backup Schedule
 
-| Type | Frequency | Retention | Storage |
-|------|-----------|-----------|---------|
-| Full DB dump | Daily 02:00 UTC | 30 days | Encrypted S3 |
-| WAL archive | Continuous | 7 days | Encrypted S3 |
-| Object storage | Daily 03:00 UTC | 30 days | Backup S3 bucket |
+| Type           | Frequency       | Retention | Storage          |
+| -------------- | --------------- | --------- | ---------------- |
+| Full DB dump   | Daily 02:00 UTC | 30 days   | Encrypted S3     |
+| WAL archive    | Continuous      | 7 days    | Encrypted S3     |
+| Object storage | Daily 03:00 UTC | 30 days   | Backup S3 bucket |
 
 ## Backup Encryption
 
@@ -145,16 +147,17 @@ gpg -d sovereign_backup_encrypted.dump.gpg | pg_restore -d sovereign
 
 ## Recovery Time Objectives
 
-| Scenario | RTO | RPO |
-|----------|-----|-----|
-| Full database loss | < 1 hour | < 24 hours (daily backup) |
-| Point-in-time recovery | < 30 min | < 5 min (WAL archive) |
-| Single table corruption | < 15 min | < 24 hours |
-| Object storage loss | < 2 hours | < 24 hours |
+| Scenario                | RTO       | RPO                       |
+| ----------------------- | --------- | ------------------------- |
+| Full database loss      | < 1 hour  | < 24 hours (daily backup) |
+| Point-in-time recovery  | < 30 min  | < 5 min (WAL archive)     |
+| Single table corruption | < 15 min  | < 24 hours                |
+| Object storage loss     | < 2 hours | < 24 hours                |
 
 ## Drill Schedule
 
 Run a restore drill at least quarterly:
+
 1. Take current backup
 2. Restore to a test environment
 3. Verify data integrity (row counts, key records)
