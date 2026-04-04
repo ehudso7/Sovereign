@@ -22,14 +22,19 @@ function CallbackContent() {
     }
 
     localStorage.setItem(TOKEN_KEY, token);
-    loadSessionFromToken(token).then((success) => {
-      if (success) {
-        router.replace(redirectTo);
-      } else {
+    loadSessionFromToken(token)
+      .then((success) => {
+        if (success) {
+          router.replace(redirectTo);
+        } else {
+          localStorage.removeItem(TOKEN_KEY);
+          setError("Failed to load session. The token may be invalid or expired.");
+        }
+      })
+      .catch(() => {
         localStorage.removeItem(TOKEN_KEY);
-        setError("Failed to load session. The token may be invalid or expired.");
-      }
-    });
+        setError("An unexpected error occurred. Please try signing in again.");
+      });
   }, [searchParams, router, loadSessionFromToken]);
 
   if (error) {
