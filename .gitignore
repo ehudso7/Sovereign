@@ -72,3 +72,6 @@ private/
 *.sqlite
 *.sqlite3
 *.db
+
+# Keep application migrations versioned
+!packages/db/src/migrations/*.sql
