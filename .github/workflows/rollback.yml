@@ -1,0 +1,111 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      web_deployment_url:
+        description: 'Vercel deployment URL to promote (from vercel ls)'
+        required: false
+        type: string
+      docs_deployment_url:
+        description: 'Vercel docs deployment URL to promote'
+        required: false
+        type: string
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  rollback-web:
+    name: Rollback Web (Vercel)
+    runs-on: ubuntu-latest
+    if: inputs.web_deployment_url != ''
+    environment:
+      name: ${{ inputs.environment }}
+    steps:
+      - name: Promote previous deployment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npm i -g vercel@latest
+          vercel promote ${{ inputs.web_deployment_url }} --token=$VERCEL_TOKEN --yes
+      - name: Save rollback evidence
+        run: |
+          mkdir -p evidence
+          echo "action=rollback-web" >> evidence/rollback.txt
+          echo "environment=${{ inputs.environment }}" >> evidence/rollback.txt
+          echo "promoted_url=${{ inputs.web_deployment_url }}" >> evidence/rollback.txt
+          echo "reason=${{ inputs.reason }}" >> evidence/rollback.txt
+          echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> evidence/rollback.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rollback-evidence-web-${{ inputs.environment }}
+          path: evidence/
+
+  rollback-docs:
+    name: Rollback Docs (Vercel)
+    runs-on: ubuntu-latest
+    if: inputs.docs_deployment_url != ''
+    environment:
+      name: ${{ inputs.environment }}
+    steps:
+      - name: Promote previous deployment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npm i -g vercel@latest
+          vercel promote ${{ inputs.docs_deployment_url }} --token=$VERCEL_TOKEN --yes
+      - name: Save rollback evidence
+        run: |
+          mkdir -p evidence
+          echo "action=rollback-docs" >> evidence/rollback.txt
+          echo "environment=${{ inputs.environment }}" >> evidence/rollback.txt
+          echo "promoted_url=${{ inputs.docs_deployment_url }}" >> evidence/rollback.txt
+          echo "reason=${{ inputs.reason }}" >> evidence/rollback.txt
+          echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> evidence/rollback.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rollback-evidence-docs-${{ inputs.environment }}
+          path: evidence/
+
+  rollback-backend:
+    name: Rollback Backend Note
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+    steps:
+      - name: Railway rollback instructions
+        run: |
+          mkdir -p evidence
+          cat <<'EOF' | tee evidence/rollback-backend.txt
+          Railway Rollback Procedure:
+          1. Open Railway Dashboard
+          2. For each service (api, worker-orchestrator, worker-browser, gateway-mcp):
+             a. Go to Service → Deployments
+             b. Find the last known good deployment
+             c. Click "Rollback" on that deployment
+          3. Verify /health returns 200 after rollback
+
+          Railway keeps the last 10 deployments per service.
+          EOF
+          echo "" >> evidence/rollback-backend.txt
+          echo "reason=${{ inputs.reason }}" >> evidence/rollback-backend.txt
+          echo "environment=${{ inputs.environment }}" >> evidence/rollback-backend.txt
+          echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> evidence/rollback-backend.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rollback-evidence-backend-${{ inputs.environment }}
+          path: evidence/

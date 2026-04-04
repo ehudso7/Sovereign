@@ -42,10 +42,10 @@ export class ObjectStorageService {
   }
 
   static fromEnv(env: NodeJS.ProcessEnv = process.env): ObjectStorageService | null {
-    const bucket = env.S3_BUCKET?.trim();
-    const region = env.S3_REGION?.trim() || "us-east-1";
-    const accessKeyId = env.S3_ACCESS_KEY_ID?.trim();
-    const secretAccessKey = env.S3_SECRET_ACCESS_KEY?.trim();
+    const bucket = env.R2_BUCKET?.trim();
+    const region = env.R2_REGION?.trim() || "auto";
+    const accessKeyId = env.R2_ACCESS_KEY_ID?.trim();
+    const secretAccessKey = env.R2_SECRET_ACCESS_KEY?.trim();
 
     if (!bucket || !accessKeyId || !secretAccessKey) {
       return null;
@@ -54,7 +54,7 @@ export class ObjectStorageService {
     return new ObjectStorageService({
       bucket,
       region,
-      endpoint: env.S3_ENDPOINT?.trim() || undefined,
+      endpoint: env.R2_ENDPOINT?.trim() || undefined,
       accessKeyId,
       secretAccessKey,
     });

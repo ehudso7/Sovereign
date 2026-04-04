@@ -309,7 +309,8 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     const browserSessionRepo = new PgBrowserSessionRepo(tenantDb);
     const auditRepo = new PgAuditRepo(tenantDb);
     const auditEmitter = new PgAuditEmitter(auditRepo);
-    return new PgOnboardingService(agentRepo, runRepo, connectorInstallRepo, billingAccountRepo, policyRepo, membershipRepo, projectRepo, alertEventRepo, browserSessionRepo, auditEmitter);
+    const orgRepo = new PgOrgRepo(unscopedDb);
+    return new PgOnboardingService(agentRepo, runRepo, connectorInstallRepo, billingAccountRepo, policyRepo, membershipRepo, projectRepo, alertEventRepo, browserSessionRepo, auditEmitter, orgRepo);
   };
 
   // Default audit emitter uses unscoped DB for cross-org operations (like org.created)
@@ -328,6 +329,10 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
       const tenantDb = db.forTenant(orgId);
       const repo = new PgAuditRepo(tenantDb);
       return repo.query(orgId, params);
+    },
+    async getById(_eventId) {
+      // Direct lookup requires tenant context — use auditForOrg instead
+      return null;
     },
   };
 

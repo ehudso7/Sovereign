@@ -1,7 +1,9 @@
 import Fastify from "fastify";
+import fastifyCors from "@fastify/cors";
 import type { FastifyInstance } from "fastify";
 import { initDb, type DatabaseClient } from "@sovereign/db";
 import { initServices } from "./services/index.js";
+import { rateLimitPlugin } from "./middleware/rate-limit.js";
 import { healthRoutes } from "./routes/health.js";
 import { authRoutes } from "./routes/auth.js";
 import { orgRoutes } from "./routes/orgs.js";
@@ -46,6 +48,19 @@ export function buildApp(authConfig: AuthConfig, db: DatabaseClient, opts?: { lo
       reply.header("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
     }
   });
+
+  // CORS — allow configured origins
+  const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? "http://localhost:3000").split(",").map(s => s.trim());
+  app.register(fastifyCors, {
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  });
+
+  // Rate limiting (requires REDIS_URL; skipped gracefully if unavailable)
+  if (process.env.REDIS_URL) {
+    app.register(rateLimitPlugin);
+  }
 
   initServices(authConfig, db);
 

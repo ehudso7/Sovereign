@@ -723,6 +723,10 @@ export class TestAuditRepo implements AuditRepo {
     return results;
   }
 
+  async getById(eventId: string): Promise<AuditEvent | null> {
+    return this.store.find((e) => e.id === eventId) ?? null;
+  }
+
   reset(): void {
     this.store.length = 0;
   }

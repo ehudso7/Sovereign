@@ -352,9 +352,7 @@ export async function policyRoutes(server: FastifyInstance): Promise<void> {
       const { eventId } = request.params as { eventId: string };
       const services = getServices();
       const auditEmitter = services.auditForOrg(session.orgId);
-      // Query by resourceId to find the event
-      const events = await auditEmitter.query(session.orgId, { limit: 500 });
-      const event = events.find((e) => e.id === eventId);
+      const event = await auditEmitter.getById(eventId);
       if (!event) return reply.status(404).send({ error: { code: "NOT_FOUND", message: "Audit event not found" }, meta: meta(request.id) });
       return { data: event, meta: meta(request.id) };
     },

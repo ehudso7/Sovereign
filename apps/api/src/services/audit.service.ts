@@ -15,4 +15,8 @@ export class PgAuditEmitter implements AuditEmitter {
   async query(orgId: OrgId, params?: AuditQueryParams): Promise<readonly AuditEvent[]> {
     return this.repo.query(orgId, params);
   }
+
+  async getById(eventId: string): Promise<AuditEvent | null> {
+    return this.repo.getById(eventId);
+  }
 }

@@ -4,90 +4,95 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
-function AuthCallbackContent() {
+const TOKEN_KEY = "sovereign_session_token";
+
+function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { completeSessionToken } = useAuth();
-  const [message, setMessage] = useState("Completing sign-in...");
+  const { loadSessionFromToken } = useAuth();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const token = searchParams.get("token");
+    const redirectTo = searchParams.get("redirect_to") ?? "/dashboard";
 
-    const run = async () => {
-      const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-      const next = searchParams.get("next") ?? "/dashboard";
-      const error = fragment.get("error");
-      const sessionToken = fragment.get("session_token");
-      const bootstrapToken = fragment.get("bootstrap_token");
+    if (!token) {
+      setError("No authentication token received. Please try signing in again.");
+      return;
+    }
 
-      if (error) {
-        router.replace(`/auth/sign-in?error=${encodeURIComponent(error)}`);
-        return;
-      }
+    localStorage.setItem(TOKEN_KEY, token);
+    loadSessionFromToken(token)
+      .then((success) => {
+        if (success) {
+          router.replace(redirectTo);
+        } else {
+          localStorage.removeItem(TOKEN_KEY);
+          setError("Failed to load session. The token may be invalid or expired.");
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem(TOKEN_KEY);
+        setError("An unexpected error occurred. Please try signing in again.");
+      });
+  }, [searchParams, router, loadSessionFromToken]);
 
-      if (bootstrapToken) {
-        const setupFragment = new URLSearchParams();
-        setupFragment.set("bootstrap_token", bootstrapToken);
-
-        const email = fragment.get("email");
-        const name = fragment.get("name");
-        if (email) setupFragment.set("email", email);
-        if (name) setupFragment.set("name", name);
-
-        window.location.replace(`/auth/setup#${setupFragment.toString()}`);
-        return;
-      }
-
-      if (!sessionToken) {
-        router.replace("/auth/sign-in?error=Missing%20session%20token");
-        return;
-      }
-
-      const success = await completeSessionToken(sessionToken);
-      if (cancelled) {
-        return;
-      }
-
-      if (success) {
-        router.replace(next);
-      } else {
-        router.replace("/auth/sign-in?error=Unable%20to%20load%20the%20authenticated%20session");
-      }
-    };
-
-    run().catch(() => {
-      if (!cancelled) {
-        setMessage("Sign-in failed. Redirecting...");
-        router.replace("/auth/sign-in?error=Sign-in%20callback%20failed");
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [completeSessionToken, router, searchParams]);
+  if (error) {
+    return (
+      <div className="w-full max-w-md px-4 text-center">
+        <div className="rounded-xl border border-[rgb(var(--color-error)/0.3)] bg-[rgb(var(--color-error)/0.08)] p-6">
+          <p className="text-sm text-[rgb(var(--color-error))]">{error}</p>
+          <button
+            onClick={() => router.push("/auth/sign-in")}
+            className="mt-4 rounded-lg bg-[rgb(var(--color-brand))] px-4 py-2 text-sm font-medium text-white"
+          >
+            Back to Sign In
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[rgb(var(--color-bg-primary))] px-4">
-      <div className="rounded-xl border border-[rgb(var(--color-border-primary))] bg-[rgb(var(--color-bg-secondary))] px-6 py-5 text-sm text-[rgb(var(--color-text-secondary))] shadow-lg shadow-black/5">
-        {message}
-      </div>
-    </main>
+    <div className="text-center">
+      <svg
+        className="mx-auto h-8 w-8 animate-spin text-[rgb(var(--color-brand))]"
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeWidth="3"
+          className="opacity-25"
+        />
+        <path
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+          fill="currentColor"
+          className="opacity-75"
+        />
+      </svg>
+      <p className="mt-4 text-sm text-[rgb(var(--color-text-tertiary))]">
+        Completing sign in...
+      </p>
+    </div>
   );
 }
 
 export default function AuthCallbackPage() {
   return (
-    <Suspense
-      fallback={
-        <main className="flex min-h-screen items-center justify-center bg-[rgb(var(--color-bg-primary))] px-4">
-          <div className="rounded-xl border border-[rgb(var(--color-border-primary))] bg-[rgb(var(--color-bg-secondary))] px-6 py-5 text-sm text-[rgb(var(--color-text-secondary))] shadow-lg shadow-black/5">
-            Completing sign-in...
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[rgb(var(--color-bg-primary))]">
+      <Suspense
+        fallback={
+          <div className="text-center">
+            <p className="text-sm text-[rgb(var(--color-text-tertiary))]">Loading...</p>
           </div>
-        </main>
-      }
-    >
-      <AuthCallbackContent />
-    </Suspense>
+        }
+      >
+        <CallbackContent />
+      </Suspense>
+    </main>
   );
 }

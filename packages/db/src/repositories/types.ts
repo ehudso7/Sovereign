@@ -230,6 +230,7 @@ export interface ProjectRepo {
 export interface AuditRepo {
   emit(input: EmitAuditEventInput): Promise<AuditEvent>;
   query(orgId: OrgId, params?: AuditQueryParams): Promise<AuditEvent[]>;
+  getById(eventId: string): Promise<AuditEvent | null>;
 }
 
 // ---------------------------------------------------------------------------

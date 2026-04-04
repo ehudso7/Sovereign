@@ -100,4 +100,14 @@ export class PgAuditRepo implements AuditRepo {
       return rows.map(toAuditEvent);
     });
   }
+
+  async getById(eventId: string): Promise<AuditEvent | null> {
+    return this.db.transaction(async (tx) => {
+      const row = await tx.queryOne<AuditRow>(
+        `SELECT * FROM audit_events WHERE id = $1 AND org_id = $2`,
+        [eventId, this.db.orgId],
+      );
+      return row ? toAuditEvent(row) : null;
+    });
+  }
 }

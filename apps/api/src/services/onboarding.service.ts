@@ -9,7 +9,7 @@ import type {
 import type {
   AgentRepo, RunRepo, ConnectorInstallRepo,
   BillingAccountRepo, PolicyRepo, MembershipRepo, ProjectRepo,
-  AlertEventRepo, BrowserSessionRepo,
+  AlertEventRepo, BrowserSessionRepo, OrgRepo,
 } from "@sovereign/db";
 
 // ---------------------------------------------------------------------------
@@ -214,6 +214,7 @@ export class PgOnboardingService {
     private readonly alertEventRepo: AlertEventRepo,
     private readonly browserSessionRepo: BrowserSessionRepo,
     private readonly audit: AuditEmitter,
+    private readonly orgRepo: OrgRepo,
   ) {}
 
   async getProgress(orgId: OrgId): Promise<Result<OnboardingProgress>> {
@@ -342,13 +343,14 @@ export class PgOnboardingService {
 
   async getAdminOverview(orgId: OrgId, userId: UserId): Promise<Result<AdminOverview>> {
     try {
-      const [agents, runs, connectors, billing, policies, memberships] = await Promise.all([
+      const [agents, runs, connectors, billing, policies, memberships, projects] = await Promise.all([
         this.agentRepo.listForOrg(orgId),
         this.runRepo.listForOrg(orgId),
         this.connectorInstallRepo.listForOrg(orgId),
         this.billingAccountRepo.getByOrgId(orgId),
         this.policyRepo.listForOrg(orgId),
         this.membershipRepo.listForOrg(orgId),
+        this.projectRepo.listForOrg(orgId),
       ]);
 
       await this.audit.emit({
@@ -359,7 +361,7 @@ export class PgOnboardingService {
       return ok({
         orgId,
         memberCount: memberships.length,
-        projectCount: 0, // derived from projects if needed
+        projectCount: projects.length,
         agentCount: agents.length,
         runCount: runs.length,
         connectorCount: connectors.length,
@@ -385,7 +387,8 @@ export class PgOnboardingService {
 
   async getSettingsSummary(orgId: OrgId): Promise<Result<AdminSettingsSummary>> {
     try {
-      const [billing, policies, connectors, memberships, projects] = await Promise.all([
+      const [org, billing, policies, connectors, memberships, projects] = await Promise.all([
+        this.orgRepo.getById(orgId),
         this.billingAccountRepo.getByOrgId(orgId),
         this.policyRepo.listForOrg(orgId, { status: "active" }),
         this.connectorInstallRepo.listForOrg(orgId),
@@ -394,8 +397,8 @@ export class PgOnboardingService {
       ]);
 
       return ok({
-        orgName: "Organization", // from session context
-        orgSlug: "",
+        orgName: org?.name ?? "Organization",
+        orgSlug: org?.slug ?? "",
         plan: billing?.plan ?? "free",
         memberCount: memberships.length,
         projectCount: projects.length,

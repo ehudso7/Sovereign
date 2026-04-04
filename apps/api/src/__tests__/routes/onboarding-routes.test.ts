@@ -29,6 +29,7 @@ describe("Onboarding, Docs, Support, Admin (service-level contract)", () => {
       repos.memberships, repos.projects,
       repos.alertEvents, repos.browserSessions,
       auditEmitter,
+      repos.orgs,
     );
   });
 

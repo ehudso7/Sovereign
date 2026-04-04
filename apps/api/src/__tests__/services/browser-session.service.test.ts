@@ -105,6 +105,7 @@ function createMockAudit(): AuditEmitter {
   return {
     emit: vi.fn(),
     query: vi.fn().mockResolvedValue([]),
+    getById: vi.fn().mockResolvedValue(null),
   };
 }
 

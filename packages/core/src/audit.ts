@@ -154,6 +154,7 @@ export interface EmitAuditEventInput {
 export interface AuditEmitter {
   emit(event: EmitAuditEventInput): Promise<void>;
   query(orgId: OrgId, params?: AuditQueryParams): Promise<readonly AuditEvent[]>;
+  getById(eventId: string): Promise<AuditEvent | null>;
 }
 
 export interface AuditQueryParams {
