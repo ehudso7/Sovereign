@@ -13,12 +13,13 @@
     "test:e2e": "vitest run --config vitest.config.ts src/__tests__/e2e/ src/__tests__/load/ src/__tests__/resilience/"
   },
   "dependencies": {
-    "fastify": "^5.0.0",
+    "@aws-sdk/client-s3": "^3.1024.0",
     "@fastify/rate-limit": "^10.0.0",
+    "@sovereign/config": "workspace:*",
     "@sovereign/core": "workspace:*",
     "@sovereign/db": "workspace:*",
-    "@sovereign/config": "workspace:*",
     "@sovereign/gateway-mcp": "workspace:*",
+    "fastify": "^5.0.0",
     "ioredis": "^5.4.0",
     "rate-limiter-flexible": "^5.0.0",
     "zod": "^3.24.0"

@@ -353,19 +353,25 @@ Phases execute in strict order. No feature jumping. No shiny-object detours.
 
 ## Phase 14 — Release Hardening
 
-**Status**: Not started
+**Status**: In progress
 
 **Goal**: Launch-ready, not demo-ready.
 
 **Build**:
-- [ ] Full E2E suite
-- [ ] Load tests
-- [ ] Chaos tests on orchestrator/workers
+- [x] Full E2E suite
+- [x] Load tests
+- [x] Chaos tests on orchestrator/workers
 - [ ] Security review
 - [ ] Backup/restore test
 - [ ] Incident drills
 - [ ] Deploy/rollback drill
 - [ ] Production SLOs
+
+**Validation So Far**:
+- [x] Local PostgreSQL-backed integration suite green on 2026-04-03 (`pnpm test:integration`)
+- [x] Local API E2E/load/resilience suites green on 2026-04-03 (`pnpm test:e2e`)
+- [x] Local runtime stack validated on 2026-04-03: API health endpoint, web/docs startup, MinIO health, Temporal server/UI, worker-orchestrator connectivity, browser worker readiness, MCP gateway health
+- [x] Local object-storage path validated on 2026-04-03: browser-session artifact upload, list, and download through the API against MinIO
 
 **Exit Gate**:
 - [ ] Green CI

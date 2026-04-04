@@ -9,6 +9,24 @@ type ParsedPostgresUrl = {
 const LOCAL_DOCKER_TEST_DATABASE_URL =
   "postgresql://sovereign:sovereign_dev@localhost:5432/sovereign";
 
+function normalizeConnectionString(value: string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const quoted =
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"));
+
+  const unwrapped = quoted ? trimmed.slice(1, -1).trim() : trimmed;
+  return unwrapped || null;
+}
+
 function formatMissingEnvMessage(): string {
   return [
     "Integration tests require a PostgreSQL connection string.",
@@ -54,7 +72,9 @@ export function resolveIntegrationDatabaseConfig(): {
   parsed: ParsedPostgresUrl;
   source: "TEST_DATABASE_URL" | "DATABASE_URL";
 } {
-  const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+  const testDatabaseUrl = normalizeConnectionString(process.env.TEST_DATABASE_URL);
+  const databaseUrl = normalizeConnectionString(process.env.DATABASE_URL);
+  const connectionString = testDatabaseUrl ?? databaseUrl;
 
   if (!connectionString) {
     throw new Error(formatMissingEnvMessage());
@@ -63,7 +83,7 @@ export function resolveIntegrationDatabaseConfig(): {
   return {
     connectionString,
     parsed: parsePostgresUrl(connectionString),
-    source: process.env.TEST_DATABASE_URL ? "TEST_DATABASE_URL" : "DATABASE_URL",
+    source: testDatabaseUrl ? "TEST_DATABASE_URL" : "DATABASE_URL",
   };
 }
 

@@ -6,7 +6,7 @@
 - [ ] PostgreSQL 16+ running with connection pooling configured
 - [ ] Redis 7+ running for caching and rate limiting
 - [ ] Temporal server running with sovereign namespace
-- [ ] MinIO/S3 storage configured for artifacts
+- [x] MinIO/S3 storage configured for artifacts (validated locally on 2026-04-03 against MinIO-backed browser-session artifact upload/download)
 - [ ] DNS and TLS certificates provisioned
 - [ ] Load balancer / reverse proxy configured
 - [ ] Health check endpoints verified: `GET /api/v1/health`
@@ -40,17 +40,21 @@
 - [ ] Error responses do not leak internal details
 
 ### Application
-- [ ] Production build passes: `pnpm build`
-- [ ] Lint passes: `pnpm lint`
-- [ ] Type check passes: `pnpm typecheck`
-- [ ] Unit tests pass: `pnpm test`
-- [ ] Integration tests pass: `pnpm test:integration`
-- [ ] E2E tests pass: `pnpm test:e2e`
-- [ ] API server starts and responds to health checks
-- [ ] Web frontend builds and serves
-- [ ] Worker orchestrator connects to Temporal
-- [ ] Browser worker starts (if browser automation enabled)
-- [ ] MCP gateway starts
+- [x] Production build passes: `pnpm build` (validated locally on 2026-04-03)
+- [x] Lint passes: `pnpm lint` (validated locally on 2026-04-03)
+- [x] Type check passes: `pnpm typecheck` (validated locally on 2026-04-03)
+- [x] Unit tests pass: `pnpm test` (validated locally on 2026-04-03)
+- [x] Integration tests pass: `pnpm test:integration` (validated locally on 2026-04-03 against Docker PostgreSQL/Redis)
+- [x] E2E tests pass: `pnpm test:e2e` (validated locally on 2026-04-03 against Docker PostgreSQL/Redis)
+- [x] API server starts and responds to health checks (validated locally on 2026-04-03 at `GET /api/v1/health`)
+- [x] Web frontend builds and serves (validated locally on 2026-04-03 at `http://localhost:3000`)
+- [x] Worker orchestrator connects to Temporal (validated locally on 2026-04-03 against local `sovereign` namespace)
+- [x] Browser worker starts (if browser automation enabled) (validated locally on 2026-04-03 after installing Playwright Chromium)
+- [x] MCP gateway starts (validated locally on 2026-04-03 at `GET /health` on port 3003)
+
+Notes:
+- Local Docker Compose now provisions Temporal with the supported PostgreSQL driver and auto-registers the `sovereign` namespace expected by repo defaults.
+- Local artifact storage path is now proven end-to-end on 2026-04-03 through the API against MinIO: upload, list, and download for browser-session artifacts.
 
 ### Operational Readiness
 - [ ] Deployment runbook reviewed (docs/RUNBOOKS/deployment.md)

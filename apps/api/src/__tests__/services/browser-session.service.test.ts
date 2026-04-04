@@ -17,6 +17,7 @@ import type {
   AuditEmitter,
 } from "@sovereign/core";
 import type { BrowserSessionRepo, RunRepo } from "@sovereign/db";
+import type { ObjectStorageService } from "../../services/storage.service.js";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -107,6 +108,13 @@ function createMockAudit(): AuditEmitter {
   };
 }
 
+function createMockStorage(): Pick<ObjectStorageService, "putObject" | "getObject"> {
+  return {
+    putObject: vi.fn(),
+    getObject: vi.fn(),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -116,11 +124,13 @@ describe("PgBrowserSessionService", () => {
   let sessionRepo: ReturnType<typeof createMockSessionRepo>;
   let runRepo: ReturnType<typeof createMockRunRepo>;
   let audit: ReturnType<typeof createMockAudit>;
+  let storage: ReturnType<typeof createMockStorage>;
 
   beforeEach(() => {
     sessionRepo = createMockSessionRepo();
     runRepo = createMockRunRepo();
     audit = createMockAudit();
+    storage = createMockStorage();
     service = new PgBrowserSessionService(sessionRepo, runRepo, audit);
   });
 
@@ -276,6 +286,61 @@ describe("PgBrowserSessionService", () => {
       if (!result.ok) {
         expect(result.error.code).toBe("BAD_REQUEST");
       }
+    });
+  });
+
+  describe("artifact storage", () => {
+    it("uploads artifact, updates artifact keys, and emits audit event", async () => {
+      const session = makeSession();
+      (sessionRepo.getById as ReturnType<typeof vi.fn>).mockResolvedValue(session);
+      (storage.putObject as ReturnType<typeof vi.fn>).mockResolvedValue({
+        key: "orgs/test/browser-sessions/session-1/test.txt",
+        sizeBytes: 11,
+      });
+      (sessionRepo.updateStatus as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeSession({ artifactKeys: ["orgs/test/browser-sessions/session-1/test.txt"] }),
+      );
+      service.setStorageService(storage as ObjectStorageService);
+
+      const result = await service.uploadArtifact(TEST_SESSION_ID, TEST_ORG_ID, TEST_USER_ID, {
+        name: "test.txt",
+        mimeType: "text/plain",
+        content: Buffer.from("hello world"),
+      });
+
+      expect(result.ok).toBe(true);
+      expect(storage.putObject).toHaveBeenCalled();
+      const updateCall = (sessionRepo.updateStatus as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(updateCall?.[0]).toBe(TEST_SESSION_ID);
+      expect(updateCall?.[1]).toBe(TEST_ORG_ID);
+      expect(updateCall?.[2]).toBe(session.status);
+      expect(updateCall?.[3]?.artifactKeys).toHaveLength(1);
+      expect(updateCall?.[3]?.artifactKeys?.[0]).toContain("test.txt");
+      expect(audit.emit).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "browser.uploaded" }),
+      );
+    });
+
+    it("downloads artifact only when it belongs to the session", async () => {
+      const key = "orgs/test/browser-sessions/session-1/test.txt";
+      (sessionRepo.getById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        makeSession({ artifactKeys: [key] }),
+      );
+      (storage.getObject as ReturnType<typeof vi.fn>).mockResolvedValue({
+        content: Buffer.from("hello world"),
+        contentType: "text/plain",
+        contentLength: 11,
+      });
+      service.setStorageService(storage as ObjectStorageService);
+
+      const result = await service.downloadArtifact(TEST_SESSION_ID, TEST_ORG_ID, key);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.content.toString("utf8")).toBe("hello world");
+        expect(result.value.contentType).toBe("text/plain");
+      }
+      expect(storage.getObject).toHaveBeenCalledWith(key);
     });
   });
 

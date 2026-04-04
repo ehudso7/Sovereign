@@ -80,7 +80,6 @@ class PgTenantDb implements TenantDb {
 
   async query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]> {
     if (this.debug) {
-      // eslint-disable-next-line no-console
       console.warn("[DB]", sql, params);
     }
     const result: QueryResult = await this.client.query(sql, params);
@@ -94,7 +93,6 @@ class PgTenantDb implements TenantDb {
 
   async execute(sql: string, params?: unknown[]): Promise<number> {
     if (this.debug) {
-      // eslint-disable-next-line no-console
       console.warn("[DB]", sql, params);
     }
     const result: QueryResult = await this.client.query(sql, params);
@@ -140,7 +138,6 @@ class PgUnscopedDb implements UnscopedDb {
 
   async query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]> {
     if (this.debug) {
-      // eslint-disable-next-line no-console
       console.warn("[DB]", sql, params);
     }
     const result: QueryResult = await this.client.query(sql, params);
@@ -154,7 +151,6 @@ class PgUnscopedDb implements UnscopedDb {
 
   async execute(sql: string, params?: unknown[]): Promise<number> {
     if (this.debug) {
-      // eslint-disable-next-line no-console
       console.warn("[DB]", sql, params);
     }
     const result: QueryResult = await this.client.query(sql, params);

@@ -1,6 +1,7 @@
 {
   "extends": "../config/tsconfig.nextjs.json",
   "compilerOptions": {
+    "noEmit": false,
     "outDir": "dist",
     "rootDir": "src"
   },

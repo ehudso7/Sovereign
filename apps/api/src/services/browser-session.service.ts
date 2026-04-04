@@ -29,6 +29,7 @@ import type { PgPolicyService } from "./policy.service.js";
 export class PgBrowserSessionService {
   private _policyService: PgPolicyService | null = null;
   private _billingService: import("./billing.service.js").PgBillingService | null = null;
+  private _storageService: import("./storage.service.js").ObjectStorageService | null = null;
 
   constructor(
     private readonly sessionRepo: BrowserSessionRepo,
@@ -39,6 +40,10 @@ export class PgBrowserSessionService {
   /** Attach a billing service for usage metering on browser session creation. */
   setBillingService(svc: import("./billing.service.js").PgBillingService): void {
     this._billingService = svc;
+  }
+
+  setStorageService(svc: import("./storage.service.js").ObjectStorageService): void {
+    this._storageService = svc;
   }
 
   /**
@@ -269,6 +274,86 @@ export class PgBrowserSessionService {
     });
 
     return ok(closed);
+  }
+
+  async uploadArtifact(
+    sessionId: BrowserSessionId,
+    orgId: OrgId,
+    actorId: UserId,
+    input: { name: string; mimeType?: string; content: Buffer },
+  ): Promise<Result<{ artifactKey: string; sizeBytes: number; mimeType: string; name: string }>> {
+    const session = await this.sessionRepo.getById(sessionId, orgId);
+    if (!session) return err(AppError.notFound("BrowserSession", sessionId));
+    if (!this._storageService) {
+      return err(AppError.internal("Object storage is not configured."));
+    }
+
+    const safeName = input.name.replace(/[^a-zA-Z0-9._-]+/g, "-");
+    const artifactKey = `orgs/${orgId}/browser-sessions/${sessionId}/${Date.now()}-${safeName}`;
+    const mimeType = input.mimeType ?? "application/octet-stream";
+
+    try {
+      const stored = await this._storageService.putObject(artifactKey, input.content, mimeType);
+      const updated = await this.sessionRepo.updateStatus(sessionId, orgId, session.status, {
+        artifactKeys: [...session.artifactKeys, artifactKey],
+      });
+
+      if (!updated) {
+        return err(AppError.internal("Failed to persist artifact metadata."));
+      }
+
+      await this.audit.emit({
+        orgId,
+        actorId,
+        actorType: "user",
+        action: "browser.uploaded",
+        resourceType: "browser_session",
+        resourceId: sessionId,
+        metadata: { artifactKey, name: input.name, sizeBytes: stored.sizeBytes, mimeType },
+      });
+
+      if (this._billingService) {
+        await this._billingService.recordUsage(orgId, {
+          eventType: "browser_artifact_uploaded",
+          meter: "storage_bytes",
+          quantity: stored.sizeBytes,
+          unit: "bytes",
+          sourceType: "browser_session",
+          sourceId: sessionId,
+        }).catch(() => {});
+      }
+
+      return ok({
+        artifactKey,
+        sizeBytes: stored.sizeBytes,
+        mimeType,
+        name: input.name,
+      });
+    } catch (e) {
+      return err(AppError.internal(e instanceof Error ? e.message : "Failed to upload artifact"));
+    }
+  }
+
+  async downloadArtifact(
+    sessionId: BrowserSessionId,
+    orgId: OrgId,
+    artifactKey: string,
+  ): Promise<Result<{ content: Buffer; contentType: string; contentLength: number }>> {
+    const session = await this.sessionRepo.getById(sessionId, orgId);
+    if (!session) return err(AppError.notFound("BrowserSession", sessionId));
+    if (!this._storageService) {
+      return err(AppError.internal("Object storage is not configured."));
+    }
+    if (!session.artifactKeys.includes(artifactKey)) {
+      return err(AppError.notFound("Artifact", artifactKey));
+    }
+
+    try {
+      const artifact = await this._storageService.getObject(artifactKey);
+      return ok(artifact);
+    } catch (e) {
+      return err(AppError.internal(e instanceof Error ? e.message : "Failed to download artifact"));
+    }
   }
 
   // ---------------------------------------------------------------------------

@@ -53,6 +53,7 @@ import { PgPolicyService } from "./policy.service.js";
 import { PgRevenueService } from "./revenue.service.js";
 import { PgBillingService } from "./billing.service.js";
 import { PgOnboardingService } from "./onboarding.service.js";
+import { ObjectStorageService } from "./storage.service.js";
 import { BUILTIN_CONNECTORS, BUILTIN_SKILLS } from "@sovereign/gateway-mcp";
 
 export interface ServiceRegistry {
@@ -136,6 +137,7 @@ async function seedCatalog(db: DatabaseClient): Promise<void> {
 
 export function initServices(authConfig: AuthConfig, db: DatabaseClient): ServiceRegistry {
   const unscopedDb = db.unscoped();
+  const storageService = ObjectStorageService.fromEnv();
 
   // Unscoped repositories (for cross-org lookups like user by email, session by token)
   const userRepo = new PgUserRepo(unscopedDb);
@@ -219,6 +221,9 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     // Attach policy service for runtime enforcement of browser risky actions
     service.setPolicyService(policyForOrg(orgId));
     service.setBillingService(billingForOrg(orgId));
+    if (storageService) {
+      service.setStorageService(storageService);
+    }
     return service;
   };
 
@@ -353,7 +358,6 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
 
   // Seed catalog asynchronously (non-blocking, log errors)
   seedCatalog(db).catch((e) => {
-    // eslint-disable-next-line no-console
     console.warn("[services] Failed to seed connector/skill catalog:", e instanceof Error ? e.message : e);
   });
 
