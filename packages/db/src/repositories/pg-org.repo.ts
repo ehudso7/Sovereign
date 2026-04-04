@@ -40,6 +40,13 @@ export class PgOrgRepo implements OrgRepo {
     return toOrg(row);
   }
 
+  async countAll(): Promise<number> {
+    const row = await this.db.queryOne<{ count: string }>(
+      "SELECT COUNT(*) as count FROM organizations",
+    );
+    return parseInt(row?.count ?? "0", 10);
+  }
+
   async getById(id: OrgId): Promise<Organization | null> {
     const row = await this.db.queryOne<OrgRow>(
       "SELECT * FROM organizations WHERE id = $1",

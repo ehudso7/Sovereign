@@ -60,6 +60,9 @@ importers:
       '@sovereign/gateway-mcp':
         specifier: workspace:*
         version: link:../gateway-mcp
+      '@workos-inc/node':
+        specifier: ^8.11.0
+        version: 8.11.0
       fastify:
         specifier: ^5.0.0
         version: 5.8.4
@@ -2092,6 +2095,10 @@ packages:
 
   '@webassemblyjs/wast-printer@1.14.1':
     resolution: {integrity: sha512-kPSSXE6De1XOR820C90RIo2ogvZG+c3KiHzqUoO/F34Y2shGzesfqv7o57xrxovZJH/MetF5UjroJ/R/3isoiw==}
+
+  '@workos-inc/node@8.11.0':
+    resolution: {integrity: sha512-p1kcI6MRlq7jfqg77ZNwP+kvVbE/pr9VyYtJjYAhlT8OUhCVXLvh/fzmaqa2d/rcQgH6U05/mrW2qew16zqtgw==}
+    engines: {node: '>=20.15.0'}
 
   '@xtuc/ieee754@1.2.0':
     resolution: {integrity: sha512-DX8nKgqcGwsc0eJSqYt5lwP4DH5FlHnmuWWBRy7X0NcaGR0ZtuyeESgMwTYVEtxmsNGY+qit4QYT/MIYTOTPeA==}
@@ -5190,6 +5197,8 @@ snapshots:
     dependencies:
       '@webassemblyjs/ast': 1.14.1
       '@xtuc/long': 4.2.2
+
+  '@workos-inc/node@8.11.0': {}
 
   '@xtuc/ieee754@1.2.0': {}
 

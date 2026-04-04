@@ -54,10 +54,12 @@ import { PgRevenueService } from "./revenue.service.js";
 import { PgBillingService } from "./billing.service.js";
 import { PgOnboardingService } from "./onboarding.service.js";
 import { ObjectStorageService } from "./storage.service.js";
+import { WorkosAuthService } from "./workos-auth.service.js";
 import { BUILTIN_CONNECTORS, BUILTIN_SKILLS } from "@sovereign/gateway-mcp";
 
 export interface ServiceRegistry {
   auth: AuthService & { signInToOrg: PgAuthService["signInToOrg"] };
+  workosAuth: WorkosAuthService;
   users: UserService;
   orgs: OrgService;
   memberships: MembershipService;
@@ -329,12 +331,29 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     },
   };
 
+  const auth = new PgAuthService(authConfig, userRepo, membershipRepo, sessionRepo, routingAudit);
+  const users = new PgUserService(userRepo);
+  const orgs = new PgOrgService(orgRepo, membershipRepo, routingAudit);
+  const memberships = new PgMembershipService(membershipRepo, routingAudit);
+  const invitations = new PgInvitationService(invitationRepo, membershipRepo, userRepo, routingAudit);
+  const workosAuth = new WorkosAuthService(
+    authConfig,
+    auth,
+    orgs,
+    invitations,
+    userRepo,
+    membershipRepo,
+    orgRepo,
+    invitationRepo,
+  );
+
   _registry = {
-    auth: new PgAuthService(authConfig, userRepo, membershipRepo, sessionRepo, routingAudit),
-    users: new PgUserService(userRepo),
-    orgs: new PgOrgService(orgRepo, membershipRepo, routingAudit),
-    memberships: new PgMembershipService(membershipRepo, routingAudit),
-    invitations: new PgInvitationService(invitationRepo, membershipRepo, userRepo, routingAudit),
+    auth,
+    workosAuth,
+    users,
+    orgs,
+    memberships,
+    invitations,
     projects: new PgProjectService(
       new PgProjectRepo(db.forTenant("00000000-0000-0000-0000-000000000000" as OrgId)),
       defaultAudit,

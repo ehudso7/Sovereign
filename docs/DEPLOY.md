@@ -398,6 +398,15 @@ For the **web** project:
 | `NEXT_PUBLIC_API_URL` | `https://sovereign-api-prod.up.railway.app` |
 | `NEXT_PUBLIC_WORKOS_CLIENT_ID` | Your WorkOS client ID |
 
+### Configure WorkOS Redirects
+
+In the WorkOS dashboard, configure:
+
+- **Redirect URI**: `https://<your-api-domain>/api/v1/auth/callback`
+- **Logout redirect**: `https://<your-web-domain>/auth/sign-in`
+
+The API now uses the hosted AuthKit redirect flow with PKCE and validates the browser callback origin against `CORS_ORIGINS`, so both the WorkOS redirect URL and your Railway `CORS_ORIGINS` setting must match your real production web domain.
+
 ### Get Vercel Tokens
 
 1. Go to **Settings → Tokens** → Create token → Copy as `VERCEL_TOKEN`
@@ -457,7 +466,9 @@ open https://sovereign-docs.vercel.app
 |----------|--------|----------|
 | `NODE_ENV` | `production` | Yes |
 | `LOG_LEVEL` | `info` | Yes |
+| `AUTH_MODE` | `workos` | Yes |
 | `DATABASE_URL` | Neon pooled connection string | Yes |
+| `CORS_ORIGINS` | Comma-separated allowed web origins | Yes |
 | `REDIS_URL` | Upstash Redis URL | Yes |
 | `WORKOS_API_KEY` | WorkOS Dashboard → API Keys | Yes |
 | `WORKOS_CLIENT_ID` | WorkOS Dashboard → API Keys | Yes |

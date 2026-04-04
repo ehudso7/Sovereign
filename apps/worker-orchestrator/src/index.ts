@@ -4,10 +4,13 @@
 
 import { NativeConnection, Worker } from "@temporalio/worker";
 import * as activities from "./activities/run-activities.js";
+import {
+  formatTemporalConnectionHints,
+  getTemporalRuntimeConfig,
+  getTemporalWorkerConnectionOptions,
+} from "./temporal-config.js";
 
-const TEMPORAL_ADDRESS = process.env.TEMPORAL_ADDRESS ?? "localhost:7233";
-const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE ?? "sovereign";
-const TEMPORAL_API_KEY = process.env.TEMPORAL_API_KEY;
+const temporalConfig = getTemporalRuntimeConfig();
 const TASK_QUEUE = process.env.TEMPORAL_TASK_QUEUE ?? "sovereign-runs";
 
 const MAX_RETRIES = 10;
@@ -22,25 +25,15 @@ const start = async () => {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       console.warn(
-        `Worker orchestrator connecting to Temporal (${TEMPORAL_ADDRESS}, namespace: ${TEMPORAL_NAMESPACE})...` +
+        `Worker orchestrator connecting to Temporal (${temporalConfig.address}, namespace: ${temporalConfig.namespace})...` +
           (attempt > 1 ? ` [attempt ${attempt}/${MAX_RETRIES}]` : ""),
       );
 
-      const connectionOptions: Parameters<typeof NativeConnection.connect>[0] = {
-        address: TEMPORAL_ADDRESS,
-      };
-
-      // Add TLS and API key for Temporal Cloud
-      if (TEMPORAL_API_KEY) {
-        connectionOptions.tls = true;
-        connectionOptions.apiKey = TEMPORAL_API_KEY;
-      }
-
-      const connection = await NativeConnection.connect(connectionOptions);
+      const connection = await NativeConnection.connect(getTemporalWorkerConnectionOptions());
 
       const worker = await Worker.create({
         connection,
-        namespace: TEMPORAL_NAMESPACE,
+        namespace: temporalConfig.namespace,
         taskQueue: TASK_QUEUE,
         workflowsPath: new URL("./workflows/run-workflow.js", import.meta.url).pathname,
         activities,
@@ -62,6 +55,9 @@ const start = async () => {
         `Worker orchestrator connection failed (attempt ${attempt}/${MAX_RETRIES}), retrying in ${backoff / 1000}s...`,
         err instanceof Error ? err.message : err,
       );
+      for (const hint of formatTemporalConnectionHints(err, temporalConfig)) {
+        console.warn(`Worker orchestrator hint: ${hint}`);
+      }
       await delay(backoff);
     }
   }

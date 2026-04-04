@@ -332,6 +332,7 @@ export interface Session {
   readonly userId: UserId;
   readonly orgId: OrgId;
   readonly role: OrgRole;
+  readonly providerSessionId?: string;
   readonly expiresAt: ISODateString;
   readonly createdAt: ISODateString;
   readonly ipAddress?: string;

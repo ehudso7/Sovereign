@@ -3,10 +3,8 @@
 // ---------------------------------------------------------------------------
 
 import { Client, Connection } from "@temporalio/client";
+import { getTemporalClientConnectionOptions, getTemporalRuntimeConfig } from "./temporal-config.js";
 
-const TEMPORAL_ADDRESS = process.env.TEMPORAL_ADDRESS ?? "localhost:7233";
-const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE ?? "sovereign";
-const TEMPORAL_API_KEY = process.env.TEMPORAL_API_KEY;
 export const TASK_QUEUE = process.env.TEMPORAL_TASK_QUEUE ?? "sovereign-runs";
 
 let _client: Client | null = null;
@@ -19,21 +17,12 @@ let _client: Client | null = null;
 export async function getTemporalClient(): Promise<Client> {
   if (_client) return _client;
 
-  const connectionOptions: Parameters<typeof Connection.connect>[0] = {
-    address: TEMPORAL_ADDRESS,
-  };
-
-  // Add TLS and API key for Temporal Cloud
-  if (TEMPORAL_API_KEY) {
-    connectionOptions.tls = true;
-    connectionOptions.apiKey = TEMPORAL_API_KEY;
-  }
-
-  const connection = await Connection.connect(connectionOptions);
+  const temporalConfig = getTemporalRuntimeConfig();
+  const connection = await Connection.connect(getTemporalClientConnectionOptions());
 
   _client = new Client({
     connection,
-    namespace: TEMPORAL_NAMESPACE,
+    namespace: temporalConfig.namespace,
   });
 
   return _client;

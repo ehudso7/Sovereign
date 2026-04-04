@@ -13,6 +13,7 @@ interface SessionRow {
   user_id: string;
   org_id: string;
   role: string;
+  provider_session_id: string | null;
   token_hash: string;
   expires_at: string;
   ip_address: string | null;
@@ -26,6 +27,7 @@ function toSession(row: SessionRow): Session {
     userId: toUserId(row.user_id),
     orgId: toOrgId(row.org_id),
     role: row.role as OrgRole,
+    providerSessionId: row.provider_session_id ?? undefined,
     expiresAt: toISODateString(row.expires_at),
     createdAt: toISODateString(row.created_at),
     ipAddress: row.ip_address ?? undefined,
@@ -40,6 +42,7 @@ export class PgSessionRepo implements SessionRepo {
     userId: UserId;
     orgId: OrgId;
     role: OrgRole;
+    providerSessionId?: string;
     tokenHash: string;
     expiresAt: string;
     ipAddress?: string;
@@ -47,10 +50,28 @@ export class PgSessionRepo implements SessionRepo {
   }): Promise<Session> {
     return this.db.transactionWithOrg(input.orgId, async (tx) => {
       const row = await tx.queryOne<SessionRow>(
-        `INSERT INTO sessions (user_id, org_id, role, token_hash, expires_at, ip_address, user_agent)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO sessions (
+           user_id,
+           org_id,
+           role,
+           provider_session_id,
+           token_hash,
+           expires_at,
+           ip_address,
+           user_agent
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [input.userId, input.orgId, input.role, input.tokenHash, input.expiresAt, input.ipAddress ?? null, input.userAgent ?? null],
+        [
+          input.userId,
+          input.orgId,
+          input.role,
+          input.providerSessionId ?? null,
+          input.tokenHash,
+          input.expiresAt,
+          input.ipAddress ?? null,
+          input.userAgent ?? null,
+        ],
       );
       if (!row) throw new Error("Failed to create session");
       return toSession(row);

@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getApiBaseUrl } from "@/lib/api";
 
-export default function SignInPage() {
+const isWorkosMode = Boolean(process.env.NEXT_PUBLIC_WORKOS_CLIENT_ID);
+
+function SignInPageContent() {
   const { signIn, bootstrap } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -14,6 +18,13 @@ export default function SignInPage() {
   const [name, setName] = useState("");
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
+
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam) {
+      setError(errorParam);
+    }
+  }, [searchParams]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,16 +54,28 @@ export default function SignInPage() {
     setIsLoading(false);
   };
 
+  const handleWorkosSignIn = () => {
+    setError("");
+    setIsLoading(true);
+
+    const callbackUrl = new URL("/auth/callback", window.location.origin);
+    callbackUrl.searchParams.set("next", "/dashboard");
+
+    const loginUrl = new URL("/api/v1/auth/login", getApiBaseUrl());
+    loginUrl.searchParams.set("returnTo", callbackUrl.toString());
+    loginUrl.searchParams.set("screenHint", "sign-in");
+
+    window.location.assign(loginUrl.toString());
+  };
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-[rgb(var(--color-bg-primary))]">
-      {/* Background decoration */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-40 -top-40 h-80 w-80 rounded-full bg-[rgb(var(--color-brand)/0.06)] blur-3xl" />
         <div className="absolute -bottom-40 -right-40 h-80 w-80 rounded-full bg-[rgb(var(--color-brand)/0.04)] blur-3xl" />
       </div>
 
       <div className="relative z-10 w-full max-w-md px-4">
-        {/* Brand logo */}
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[rgb(var(--color-brand))]">
             <svg
@@ -76,20 +99,34 @@ export default function SignInPage() {
           </p>
         </div>
 
-        {/* Card */}
         <div className="rounded-xl border border-[rgb(var(--color-border-primary))] bg-[rgb(var(--color-bg-secondary))] p-8 shadow-lg shadow-black/5">
           <h2 className="mb-6 text-lg font-semibold text-[rgb(var(--color-text-primary))]">
-            {isBootstrap ? "Bootstrap Account" : "Sign In"}
+            {isWorkosMode ? "Sign In with WorkOS" : isBootstrap ? "Bootstrap Account" : "Sign In"}
           </h2>
 
-          {/* Error */}
           {error && (
             <div className="mb-4 rounded-lg border border-[rgb(var(--color-error)/0.3)] bg-[rgb(var(--color-error)/0.08)] px-4 py-3 text-sm text-[rgb(var(--color-error))]">
               {error}
             </div>
           )}
 
-          {!isBootstrap ? (
+          {isWorkosMode ? (
+            <div className="space-y-4">
+              <p className="text-sm text-[rgb(var(--color-text-secondary))]">
+                Continue through the hosted WorkOS sign-in flow. On a brand-new installation,
+                the first verified user will be prompted to create the initial workspace after
+                authentication.
+              </p>
+              <button
+                type="button"
+                onClick={handleWorkosSignIn}
+                disabled={isLoading}
+                className="w-full rounded-lg bg-[rgb(var(--color-brand))] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[rgb(var(--color-brand-dark))] disabled:opacity-50"
+              >
+                {isLoading ? "Redirecting..." : "Continue with WorkOS"}
+              </button>
+            </div>
+          ) : !isBootstrap ? (
             <form onSubmit={handleSignIn} className="space-y-4">
               <div>
                 <label
@@ -113,32 +150,7 @@ export default function SignInPage() {
                 disabled={isLoading}
                 className="w-full rounded-lg bg-[rgb(var(--color-brand))] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[rgb(var(--color-brand-dark))] disabled:opacity-50"
               >
-                {isLoading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg
-                      className="h-4 w-4 animate-spin"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                        className="opacity-25"
-                      />
-                      <path
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        fill="currentColor"
-                        className="opacity-75"
-                      />
-                    </svg>
-                    Signing in...
-                  </span>
-                ) : (
-                  "Sign In"
-                )}
+                {isLoading ? "Signing in..." : "Sign In"}
               </button>
               <div className="relative py-2">
                 <div className="absolute inset-0 flex items-center">
@@ -237,32 +249,7 @@ export default function SignInPage() {
                 disabled={isLoading}
                 className="w-full rounded-lg bg-[rgb(var(--color-brand))] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[rgb(var(--color-brand-dark))] disabled:opacity-50"
               >
-                {isLoading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg
-                      className="h-4 w-4 animate-spin"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                        className="opacity-25"
-                      />
-                      <path
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        fill="currentColor"
-                        className="opacity-75"
-                      />
-                    </svg>
-                    Creating...
-                  </span>
-                ) : (
-                  "Bootstrap Account"
-                )}
+                {isLoading ? "Creating..." : "Bootstrap Account"}
               </button>
               <div className="relative py-2">
                 <div className="absolute inset-0 flex items-center">
@@ -285,11 +272,28 @@ export default function SignInPage() {
           )}
         </div>
 
-        {/* Footer */}
         <p className="mt-6 text-center text-xs text-[rgb(var(--color-text-tertiary))]">
           Secured by SOVEREIGN Agent OS
         </p>
       </div>
     </main>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen flex-col items-center justify-center bg-[rgb(var(--color-bg-primary))]">
+          <div className="relative z-10 w-full max-w-md px-4">
+            <div className="rounded-xl border border-[rgb(var(--color-border-primary))] bg-[rgb(var(--color-bg-secondary))] p-8 shadow-lg shadow-black/5">
+              <p className="text-sm text-[rgb(var(--color-text-secondary))]">Loading sign-in...</p>
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <SignInPageContent />
+    </Suspense>
   );
 }

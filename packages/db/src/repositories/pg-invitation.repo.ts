@@ -8,6 +8,10 @@ import type { OrgId, UserId, OrgRole, Invitation } from "@sovereign/core";
 import type { UnscopedDb } from "../client.js";
 import type { InvitationRepo } from "./types.js";
 
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 interface InvitationRow {
   id: string;
   org_id: string;
@@ -42,12 +46,13 @@ export class PgInvitationRepo implements InvitationRepo {
     invitedBy: UserId;
     expiresAt: string;
   }): Promise<Invitation> {
+    const email = normalizeEmail(input.email);
     return this.db.transactionWithOrg(input.orgId, async (tx) => {
       const row = await tx.queryOne<InvitationRow>(
         `INSERT INTO invitations (org_id, email, role, invited_by, expires_at)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
-        [input.orgId, input.email, input.role, input.invitedBy, input.expiresAt],
+        [input.orgId, email, input.role, input.invitedBy, input.expiresAt],
       );
       if (!row) throw new Error("Failed to create invitation");
       return toInvitation(row);
@@ -78,6 +83,29 @@ export class PgInvitationRepo implements InvitationRepo {
       );
       return rows.map(toInvitation);
     });
+  }
+
+  async listPendingForEmail(email: string): Promise<Invitation[]> {
+    const normalizedEmail = normalizeEmail(email);
+    const orgs = await this.db.query<{ id: string }>("SELECT id FROM organizations");
+    const invitations: Invitation[] = [];
+
+    for (const org of orgs) {
+      const orgId = toOrgId(org.id);
+      const rows = await this.db.transactionWithOrg(orgId, async (tx) => {
+        return tx.query<InvitationRow>(
+          `SELECT * FROM invitations
+           WHERE lower(email) = lower($1)
+             AND accepted_at IS NULL
+             AND expires_at > now()
+           ORDER BY created_at ASC`,
+          [normalizedEmail],
+        );
+      });
+      invitations.push(...rows.map(toInvitation));
+    }
+
+    return invitations;
   }
 
   async accept(id: string): Promise<Invitation | null> {

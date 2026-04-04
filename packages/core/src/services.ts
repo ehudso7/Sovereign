@@ -59,6 +59,7 @@ export interface AuthService {
 
 export interface UserService {
   create(input: CreateUserInput): Promise<Result<User>>;
+  countUsers(): Promise<Result<number>>;
   getById(id: UserId): Promise<Result<User>>;
   getByEmail(email: string): Promise<Result<User>>;
   update(id: UserId, input: Partial<CreateUserInput>): Promise<Result<User>>;

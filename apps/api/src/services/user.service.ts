@@ -34,6 +34,14 @@ export class PgUserService implements UserService {
     return ok(user);
   }
 
+  async countUsers(): Promise<Result<number>> {
+    try {
+      return ok(await this.repo.countAll());
+    } catch (e) {
+      return err(AppError.internal(e instanceof Error ? e.message : "Failed to count users"));
+    }
+  }
+
   async getByEmail(email: string): Promise<Result<User>> {
     const user = await this.repo.getByEmail(email);
     if (!user) return err(AppError.notFound("User"));

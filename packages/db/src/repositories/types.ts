@@ -117,9 +117,14 @@ export interface UserRepo {
     workosUserId?: string;
     passwordHash?: string;
   }): Promise<User>;
+  countAll(): Promise<number>;
   getById(id: UserId): Promise<User | null>;
   getByEmail(email: string): Promise<(User & { passwordHash?: string }) | null>;
-  update(id: UserId, input: Partial<{ name: string; avatarUrl: string }>): Promise<User | null>;
+  getByWorkosUserId(workosUserId: string): Promise<(User & { passwordHash?: string }) | null>;
+  update(
+    id: UserId,
+    input: Partial<{ email: string; name: string; avatarUrl: string; workosUserId: string }>,
+  ): Promise<User | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -128,6 +133,7 @@ export interface UserRepo {
 
 export interface OrgRepo {
   create(input: { name: string; slug: string }): Promise<Organization>;
+  countAll(): Promise<number>;
   getById(id: OrgId): Promise<Organization | null>;
   getBySlug(slug: string): Promise<Organization | null>;
   update(id: OrgId, input: { name?: string; settings?: Record<string, unknown> }): Promise<Organization | null>;
@@ -167,6 +173,7 @@ export interface InvitationRepo {
     expiresAt: string;
   }): Promise<Invitation>;
   getById(id: string): Promise<Invitation | null>;
+  listPendingForEmail(email: string): Promise<Invitation[]>;
   listForOrg(orgId: OrgId): Promise<Invitation[]>;
   accept(id: string): Promise<Invitation | null>;
   delete(id: string): Promise<boolean>;
@@ -181,6 +188,7 @@ export interface SessionRepo {
     userId: UserId;
     orgId: OrgId;
     role: OrgRole;
+    providerSessionId?: string;
     tokenHash: string;
     expiresAt: string;
     ipAddress?: string;

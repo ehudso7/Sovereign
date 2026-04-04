@@ -184,6 +184,10 @@ function now(): ISODateString {
   return toISODateString(new Date());
 }
 
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 // ---------------------------------------------------------------------------
 // TestUserRepo
 // ---------------------------------------------------------------------------
@@ -201,7 +205,7 @@ export class TestUserRepo implements UserRepo {
     const ts = now();
     const user: User & { passwordHash?: string } = {
       id: toUserId(randomUUID()),
-      email: input.email,
+      email: normalizeEmail(input.email),
       name: input.name,
       avatarUrl: input.avatarUrl,
       workosUserId: input.workosUserId,
@@ -217,23 +221,36 @@ export class TestUserRepo implements UserRepo {
     return this.store.get(id) ?? null;
   }
 
+  async countAll(): Promise<number> {
+    return this.store.size;
+  }
+
   async getByEmail(email: string): Promise<(User & { passwordHash?: string }) | null> {
     for (const u of this.store.values()) {
-      if (u.email === email) return u;
+      if (u.email === normalizeEmail(email)) return u;
+    }
+    return null;
+  }
+
+  async getByWorkosUserId(workosUserId: string): Promise<(User & { passwordHash?: string }) | null> {
+    for (const u of this.store.values()) {
+      if (u.workosUserId === workosUserId) return u;
     }
     return null;
   }
 
   async update(
     id: UserId,
-    input: Partial<{ name: string; avatarUrl: string }>,
+    input: Partial<{ email: string; name: string; avatarUrl: string; workosUserId: string }>,
   ): Promise<User | null> {
     const existing = this.store.get(id);
     if (!existing) return null;
     const updated: User & { passwordHash?: string } = {
       ...existing,
+      ...(input.email !== undefined ? { email: normalizeEmail(input.email) } : {}),
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.avatarUrl !== undefined ? { avatarUrl: input.avatarUrl } : {}),
+      ...(input.workosUserId !== undefined ? { workosUserId: input.workosUserId } : {}),
       updatedAt: now(),
     };
     this.store.set(id, updated);
@@ -251,7 +268,7 @@ export class TestUserRepo implements UserRepo {
     const ts = now();
     const user: User & { passwordHash?: string } = {
       id: toUserId(randomUUID()),
-      email: input.email,
+      email: normalizeEmail(input.email),
       name: input.name,
       avatarUrl: input.avatarUrl,
       workosUserId: input.workosUserId,
@@ -289,6 +306,10 @@ export class TestOrgRepo implements OrgRepo {
     };
     this.store.set(org.id, org);
     return org;
+  }
+
+  async countAll(): Promise<number> {
+    return this.store.size;
   }
 
   async getById(id: OrgId): Promise<Organization | null> {
@@ -442,7 +463,7 @@ export class TestInvitationRepo implements InvitationRepo {
     const invitation: Invitation = {
       id: toInvitationId(randomUUID()),
       orgId: input.orgId,
-      email: input.email,
+      email: normalizeEmail(input.email),
       role: input.role,
       invitedBy: input.invitedBy,
       expiresAt: toISODateString(input.expiresAt),
@@ -458,6 +479,16 @@ export class TestInvitationRepo implements InvitationRepo {
 
   async listForOrg(orgId: OrgId): Promise<Invitation[]> {
     return [...this.store.values()].filter((i) => i.orgId === orgId);
+  }
+
+  async listPendingForEmail(email: string): Promise<Invitation[]> {
+    const normalizedEmail = normalizeEmail(email);
+    const nowMs = Date.now();
+    return [...this.store.values()].filter((invitation) => (
+      invitation.email === normalizedEmail
+      && !invitation.acceptedAt
+      && new Date(invitation.expiresAt).getTime() > nowMs
+    ));
   }
 
   async accept(id: string): Promise<Invitation | null> {
@@ -488,6 +519,7 @@ export class TestSessionRepo implements SessionRepo {
     userId: UserId;
     orgId: OrgId;
     role: OrgRole;
+    providerSessionId?: string;
     tokenHash: string;
     expiresAt: string;
     ipAddress?: string;
@@ -498,6 +530,7 @@ export class TestSessionRepo implements SessionRepo {
       userId: input.userId,
       orgId: input.orgId,
       role: input.role,
+      providerSessionId: input.providerSessionId,
       expiresAt: toISODateString(input.expiresAt),
       createdAt: now(),
       ipAddress: input.ipAddress,

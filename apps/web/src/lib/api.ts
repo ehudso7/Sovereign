@@ -4,6 +4,10 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 
+export function getApiBaseUrl(): string {
+  return API_BASE;
+}
+
 export interface ApiResponse<T> {
   data: T;
   meta: {

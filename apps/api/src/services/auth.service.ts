@@ -143,7 +143,13 @@ export class PgAuthService implements AuthService {
     return ok(undefined);
   }
 
-  async signInToOrg(userId: UserId, orgId: OrgId, ipAddress?: string, userAgent?: string): Promise<Result<AuthResult>> {
+  async signInToOrg(
+    userId: UserId,
+    orgId: OrgId,
+    ipAddress?: string,
+    userAgent?: string,
+    providerSessionId?: string,
+  ): Promise<Result<AuthResult>> {
     const user = await this.userRepo.getById(userId);
     if (!user) return err(AppError.unauthorized("User not found"));
 
@@ -158,6 +164,7 @@ export class PgAuthService implements AuthService {
       userId,
       orgId,
       role: membership.role,
+      providerSessionId,
       tokenHash,
       expiresAt,
       ipAddress,

@@ -30,9 +30,15 @@ interface AuthContextValue extends AuthState {
   signIn: (email: string, password?: string) => Promise<boolean>;
   signOut: () => Promise<void>;
   switchOrg: (orgId: string) => Promise<boolean>;
+  completeSessionToken: (token: string) => Promise<boolean>;
   bootstrap: (params: {
     email: string;
     name: string;
+    orgName: string;
+    orgSlug: string;
+  }) => Promise<boolean>;
+  bootstrapWithWorkos: (params: {
+    token: string;
     orgName: string;
     orgSlug: string;
   }) => Promise<boolean>;
@@ -101,14 +107,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadSession]);
 
   const signOut = useCallback(async () => {
+    let logoutUrl: string | null = null;
+
     if (state.token) {
-      await apiFetch("/api/v1/auth/logout", {
+      const result = await apiFetch<{ message: string; logoutUrl?: string | null }>("/api/v1/auth/logout", {
         method: "POST",
         token: state.token,
       });
+      if (result.ok) {
+        logoutUrl = result.data.logoutUrl ?? null;
+      }
     }
+
     localStorage.removeItem(TOKEN_KEY);
     setState({ user: null, org: null, role: null, token: null, isLoading: false });
+
+    if (logoutUrl) {
+      window.location.assign(logoutUrl);
+    }
   }, [state.token]);
 
   const switchOrg = useCallback(async (orgId: string) => {
@@ -140,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: AuthUser;
       org: AuthOrg;
       auth: { sessionToken: string; expiresAt: string };
-    }>("/api/v1/dev/bootstrap", {
+    }>("/api/v1/auth/bootstrap", {
       method: "POST",
       body: JSON.stringify(params),
     });
@@ -151,8 +167,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return loadSession(result.data.auth.sessionToken);
   }, [loadSession]);
 
+  const completeSessionToken = useCallback(async (token: string) => {
+    localStorage.setItem(TOKEN_KEY, token);
+    return loadSession(token);
+  }, [loadSession]);
+
+  const bootstrapWithWorkos = useCallback(async (params: {
+    token: string;
+    orgName: string;
+    orgSlug: string;
+  }) => {
+    const result = await apiFetch<{
+      user: AuthUser;
+      sessionToken: string;
+      expiresAt: string;
+    }>("/api/v1/auth/workos/bootstrap", {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
+
+    if (!result.ok) return false;
+
+    localStorage.setItem(TOKEN_KEY, result.data.sessionToken);
+    return loadSession(result.data.sessionToken);
+  }, [loadSession]);
+
   return (
-    <AuthContext.Provider value={{ ...state, signIn, signOut, switchOrg, bootstrap }}>
+    <AuthContext.Provider
+      value={{
+        ...state,
+        signIn,
+        signOut,
+        switchOrg,
+        completeSessionToken,
+        bootstrap,
+        bootstrapWithWorkos,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

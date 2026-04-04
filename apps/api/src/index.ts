@@ -21,13 +21,19 @@ import { billingRoutes } from "./routes/billing.js";
 import { onboardingRoutes } from "./routes/onboarding.js";
 import { devRoutes } from "./routes/dev.js";
 import type { AuthConfig } from "@sovereign/core";
+import { registerCors } from "./lib/cors.js";
 
 // ---------------------------------------------------------------------------
 // App builder — used by both production start and E2E tests
 // ---------------------------------------------------------------------------
 
 export function buildApp(authConfig: AuthConfig, db: DatabaseClient, opts?: { logger?: boolean }): FastifyInstance {
-  const app = Fastify({ logger: opts?.logger ?? false });
+  const app = Fastify({
+    logger: opts?.logger ?? false,
+    trustProxy: true,
+  });
+
+  registerCors(app);
 
   // Security headers
   app.addHook("onSend", async (_request, reply) => {
@@ -92,6 +98,12 @@ if (isDirectRun) {
   }
   if (isProduction && !process.env.SOVEREIGN_SECRET_KEY) {
     throw new Error("SOVEREIGN_SECRET_KEY must be set in production. Refusing to start without encryption key.");
+  }
+  if (authMode === "workos" && !process.env.WORKOS_API_KEY) {
+    throw new Error("WORKOS_API_KEY must be set when AUTH_MODE=workos.");
+  }
+  if (authMode === "workos" && !process.env.WORKOS_CLIENT_ID) {
+    throw new Error("WORKOS_CLIENT_ID must be set when AUTH_MODE=workos.");
   }
 
   const authConfig: AuthConfig = {

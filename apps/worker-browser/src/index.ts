@@ -13,7 +13,12 @@ const start = async () => {
 
   const available = await provider.isAvailable();
   if (!available) {
-    console.warn("[worker-browser] Playwright browsers not available. Install with: npx playwright install chromium");
+    console.warn(
+      "[worker-browser] Playwright browsers not available. Install with: PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium",
+    );
+    console.warn(
+      "[worker-browser] In Railway monorepo deployments, make sure the root Nixpacks build installs Chromium because the service-specific Dockerfile is not being used.",
+    );
   } else {
     console.warn("[worker-browser] Playwright available. Browser worker ready.");
   }

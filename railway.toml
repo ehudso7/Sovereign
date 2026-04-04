@@ -5,7 +5,7 @@
 
 [build]
 builder = "nixpacks"
-buildCommand = "NODE_ENV=development pnpm install --frozen-lockfile && pnpm build"
+buildCommand = "NODE_ENV=development pnpm install --frozen-lockfile && PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium && pnpm build"
 
 [deploy]
 restartPolicyType = "ON_FAILURE"
