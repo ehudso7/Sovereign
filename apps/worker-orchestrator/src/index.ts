@@ -13,7 +13,6 @@ import {
 const TASK_QUEUE = process.env.TEMPORAL_TASK_QUEUE ?? "sovereign-runs";
 const temporalConfig = getTemporalRuntimeConfig();
 
-const MAX_RETRIES = 10;
 const BASE_DELAY_MS = 5_000;
 const MAX_DELAY_MS = 60_000;
 
@@ -22,11 +21,16 @@ function delay(ms: number): Promise<void> {
 }
 
 const start = async () => {
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+  let attempt = 0;
+
+  // Retry indefinitely — Railway (or any orchestrator) will keep the process
+  // alive, and exiting only causes a "Crashed" status with restart churn.
+  while (true) {
+    attempt++;
     try {
       console.warn(
         `Worker orchestrator connecting to Temporal (${temporalConfig.address}, namespace: ${temporalConfig.namespace})...` +
-          (attempt > 1 ? ` [attempt ${attempt}/${MAX_RETRIES}]` : ""),
+          (attempt > 1 ? ` [attempt ${attempt}]` : ""),
       );
 
       const connection = await NativeConnection.connect(getTemporalWorkerConnectionOptions());
@@ -40,19 +44,14 @@ const start = async () => {
       });
 
       console.warn("Worker orchestrator started. Polling for tasks...");
+      attempt = 0; // Reset on successful connection
       await worker.run();
       return; // Clean exit
     } catch (err) {
-      const isLastAttempt = attempt === MAX_RETRIES;
-      const backoff = Math.min(BASE_DELAY_MS * Math.pow(2, attempt - 1), MAX_DELAY_MS);
-
-      if (isLastAttempt) {
-        console.error(`Worker orchestrator failed after ${MAX_RETRIES} attempts:`, err);
-        process.exit(1);
-      }
+      const backoff = Math.min(BASE_DELAY_MS * Math.pow(2, Math.min(attempt - 1, 5)), MAX_DELAY_MS);
 
       console.warn(
-        `Worker orchestrator connection failed (attempt ${attempt}/${MAX_RETRIES}), retrying in ${backoff / 1000}s...`,
+        `Worker orchestrator connection failed (attempt ${attempt}), retrying in ${backoff / 1000}s...`,
         err instanceof Error ? err.message : err,
       );
       for (const hint of formatTemporalConnectionHints(err, temporalConfig)) {

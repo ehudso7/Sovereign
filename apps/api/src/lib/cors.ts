@@ -57,6 +57,18 @@ export function resolveCorsConfig(env: NodeJS.ProcessEnv = process.env): CorsCon
     };
   }
 
+  // In production, fall back to APP_BASE_URL so the web frontend can reach
+  // the API even when CORS_ALLOWED_ORIGINS is not explicitly configured.
+  if (env.NODE_ENV === 'production' && env.APP_BASE_URL) {
+    const fallback = normalizeOrigin(env.APP_BASE_URL);
+    if (fallback) {
+      return {
+        allowAnyOrigin: false,
+        allowedOrigins: new Set([fallback]),
+      };
+    }
+  }
+
   return {
     allowAnyOrigin: env.NODE_ENV !== 'production',
     allowedOrigins: new Set<string>(),

@@ -77,6 +77,37 @@ describe('registerCors', () => {
     await app.close();
   });
 
+  it('falls back to APP_BASE_URL in production when no CORS origins configured', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.APP_BASE_URL = 'https://app.sovereignos.dev';
+
+    const app = Fastify();
+    registerCors(app, resolveCorsConfig(process.env));
+    app.get('/ping', async () => ({ ok: true }));
+    await app.ready();
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/ping',
+      headers: { origin: 'https://app.sovereignos.dev' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['access-control-allow-origin']).toBe('https://app.sovereignos.dev');
+    expect(res.headers['access-control-allow-credentials']).toBe('true');
+
+    // Other origins should still be blocked
+    const res2 = await app.inject({
+      method: 'GET',
+      url: '/ping',
+      headers: { origin: 'https://evil.example.com' },
+    });
+    expect(res2.headers['access-control-allow-origin']).toBeUndefined();
+
+    delete process.env.APP_BASE_URL;
+    await app.close();
+  });
+
   it('keeps supporting the legacy CORS_ORIGINS name', async () => {
     process.env.NODE_ENV = 'production';
     process.env.CORS_ORIGINS = 'https://app.example.com';
