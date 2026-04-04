@@ -47,7 +47,7 @@ X-Request-Id: <uuid>  (optional, auto-generated if missing)
 
 ## Authentication Endpoints
 
-### GET /api/v1/auth/login
+### GET /api/v1/auth/authorize
 **Public**. WorkOS mode only. Starts the hosted AuthKit sign-in flow, issues a signed PKCE/state cookie, and redirects the browser to WorkOS.
 Query: `returnTo?: string`, `loginHint?: string`, `screenHint?: "sign-in" | "sign-up"`
 
@@ -61,11 +61,15 @@ Body: `{ email: string, name: string, orgName: string, orgSlug: string }`
 Rejects with `409 BOOTSTRAP_NOT_ALLOWED` once any user already exists.
 
 ### GET /api/v1/auth/callback
-**Public**. WorkOS mode only. Handles the AuthKit callback, syncs the WorkOS user into the local user table, auto-accepts matching pending invitations, and redirects back to the web app with either a session token or a bootstrap token.
+**Public**. WorkOS mode only. Handles the AuthKit callback, syncs the WorkOS user into the local user table, auto-accepts matching pending invitations, stores the session in secure cookies, and redirects back to the web app. Empty-install bootstrap continues through a bootstrap token.
 
 ### POST /api/v1/auth/workos/bootstrap
 **Public**. WorkOS mode only. Completes first-workspace setup after a successful WorkOS callback on an empty installation.
 Body: `{ token: string, orgName: string, orgSlug: string }`
+
+### POST /api/v1/auth/session
+**Public**. Exchange a bearer session token into secure browser cookies for the web client.
+Body: `{ sessionToken: string }`
 
 ### POST /api/v1/auth/logout
 Invalidate current session. Emits `auth.sign_out` audit event. In WorkOS mode, the response may include `logoutUrl` so the frontend can also terminate the hosted WorkOS session.

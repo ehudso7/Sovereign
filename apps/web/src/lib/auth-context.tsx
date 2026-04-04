@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import type { ReactNode } from "react";
 import { apiFetch } from "./api";
+import { COOKIE_SESSION_TOKEN_MARKER } from "./session";
 
 interface AuthUser {
   id: string;
@@ -48,8 +49,6 @@ interface AuthContextValue extends AuthState {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const TOKEN_KEY = "sovereign_session_token";
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -65,31 +64,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       org: AuthOrg | null;
       role: string;
       sessionId: string;
-    }>("/api/v1/auth/me", { token });
+    }>("/api/v1/auth/me", token === COOKIE_SESSION_TOKEN_MARKER ? {} : { token });
 
     if (result.ok) {
       setState({
         user: result.data.user,
         org: result.data.org,
         role: result.data.role,
-        token,
+        token: COOKIE_SESSION_TOKEN_MARKER,
         isLoading: false,
       });
       return true;
     }
 
-    localStorage.removeItem(TOKEN_KEY);
     setState({ user: null, org: null, role: null, token: null, isLoading: false });
     return false;
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (token) {
-      loadSession(token);
-    } else {
-      setState((prev) => ({ ...prev, isLoading: false }));
-    }
+    loadSession(COOKIE_SESSION_TOKEN_MARKER);
   }, [loadSession]);
 
   const signIn = useCallback(async (email: string, password?: string) => {
@@ -104,24 +97,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!result.ok) return false;
 
-    localStorage.setItem(TOKEN_KEY, result.data.sessionToken);
-    return loadSession(result.data.sessionToken);
+    return loadSession(COOKIE_SESSION_TOKEN_MARKER);
   }, [loadSession]);
 
   const signOut = useCallback(async () => {
     let logoutUrl: string | null = null;
 
-    if (state.token) {
-      const result = await apiFetch<{ message: string; logoutUrl?: string | null }>("/api/v1/auth/logout", {
-        method: "POST",
-        token: state.token,
-      });
-      if (result.ok) {
-        logoutUrl = result.data.logoutUrl ?? null;
-      }
+    const result = await apiFetch<{ message: string; logoutUrl?: string | null }>("/api/v1/auth/logout", {
+      method: "POST",
+      token: state.token ?? undefined,
+    });
+    if (result.ok) {
+      logoutUrl = result.data.logoutUrl ?? null;
     }
 
-    localStorage.removeItem(TOKEN_KEY);
     setState({ user: null, org: null, role: null, token: null, isLoading: false });
 
     if (logoutUrl) {
@@ -130,22 +119,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [state.token]);
 
   const switchOrg = useCallback(async (orgId: string) => {
-    if (!state.token) return false;
-
     const result = await apiFetch<{
       user: AuthUser;
       sessionToken: string;
       expiresAt: string;
     }>("/api/v1/auth/switch-org", {
       method: "POST",
-      token: state.token,
+      token: state.token ?? undefined,
       body: JSON.stringify({ orgId }),
     });
 
     if (!result.ok) return false;
 
-    localStorage.setItem(TOKEN_KEY, result.data.sessionToken);
-    return loadSession(result.data.sessionToken);
+    return loadSession(COOKIE_SESSION_TOKEN_MARKER);
   }, [state.token, loadSession]);
 
   const bootstrap = useCallback(async (params: {
@@ -165,8 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!result.ok) return false;
 
-    localStorage.setItem(TOKEN_KEY, result.data.auth.sessionToken);
-    return loadSession(result.data.auth.sessionToken);
+    return loadSession(COOKIE_SESSION_TOKEN_MARKER);
   }, [loadSession]);
 
   const bootstrapWithWorkos = useCallback(async (params: {
@@ -185,18 +170,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!result.ok) return false;
 
-    localStorage.setItem(TOKEN_KEY, result.data.sessionToken);
-    return loadSession(result.data.sessionToken);
+    return loadSession(COOKIE_SESSION_TOKEN_MARKER);
   }, [loadSession]);
 
   const completeSessionToken = useCallback(async (token: string) => {
-    localStorage.setItem(TOKEN_KEY, token);
-    return loadSession(token);
+    const result = await apiFetch<{ expiresAt: string }>("/api/v1/auth/session", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    });
+
+    if (!result.ok) {
+      return false;
+    }
+
+    return loadSession(COOKIE_SESSION_TOKEN_MARKER);
   }, [loadSession]);
 
   const loadSessionFromToken = useCallback(async (token: string) => {
-    return loadSession(token);
-  }, [loadSession]);
+    if (token.length > 0) {
+      return completeSessionToken(token);
+    }
+
+    return loadSession(COOKIE_SESSION_TOKEN_MARKER);
+  }, [completeSessionToken, loadSession]);
 
   return (
     <AuthContext.Provider

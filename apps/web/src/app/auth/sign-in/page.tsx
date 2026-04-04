@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getApiBaseUrl } from "@/lib/api";
 
-const AUTH_MODE = process.env.NEXT_PUBLIC_AUTH_MODE ?? "local";
+const AUTH_MODE = process.env.NEXT_PUBLIC_AUTH_MODE ?? (process.env.NODE_ENV === "production" ? "workos" : "local");
 
 function SignInContent() {
   const { signIn, bootstrap } = useAuth();

@@ -23,6 +23,18 @@ interface InvitationRow {
   created_at: string;
 }
 
+interface InvitationLookupRow {
+  id: string;
+  org_id: string;
+  email_normalized: string;
+  email: string;
+  role: string;
+  invited_by: string;
+  expires_at: string;
+  accepted_at: string | null;
+  created_at: string;
+}
+
 function toInvitation(row: InvitationRow): Invitation {
   return {
     id: toInvitationId(row.id),
@@ -60,19 +72,22 @@ export class PgInvitationRepo implements InvitationRepo {
   }
 
   async getById(id: string): Promise<Invitation | null> {
-    // Invitation lookup without known org — scan each org context.
-    const orgs = await this.db.query<{ id: string }>("SELECT id FROM organizations");
-    for (const org of orgs) {
-      const orgId = toOrgId(org.id);
-      const row = await this.db.transactionWithOrg(orgId, async (tx) => {
-        return tx.queryOne<InvitationRow>(
-          "SELECT * FROM invitations WHERE id = $1",
-          [id],
-        );
-      });
-      if (row) return toInvitation(row);
+    const lookup = await this.db.queryOne<InvitationLookupRow>(
+      "SELECT * FROM invitation_lookup WHERE id = $1",
+      [id],
+    );
+
+    if (!lookup) {
+      return null;
     }
-    return null;
+
+    return this.db.transactionWithOrg(toOrgId(lookup.org_id), async (tx) => {
+      const row = await tx.queryOne<InvitationRow>(
+        "SELECT * FROM invitations WHERE id = $1",
+        [id],
+      );
+      return row ? toInvitation(row) : null;
+    });
   }
 
   async listForOrg(orgId: OrgId): Promise<Invitation[]> {
@@ -87,52 +102,51 @@ export class PgInvitationRepo implements InvitationRepo {
 
   async listPendingForEmail(email: string): Promise<Invitation[]> {
     const normalizedEmail = normalizeEmail(email);
-    const orgs = await this.db.query<{ id: string }>("SELECT id FROM organizations");
-    const invitations: Invitation[] = [];
+    const rows = await this.db.query<InvitationLookupRow>(
+      `SELECT *
+       FROM invitation_lookup
+       WHERE email_normalized = $1
+         AND accepted_at IS NULL
+         AND expires_at > now()
+       ORDER BY created_at ASC`,
+      [normalizedEmail],
+    );
 
-    for (const org of orgs) {
-      const orgId = toOrgId(org.id);
-      const rows = await this.db.transactionWithOrg(orgId, async (tx) => {
-        return tx.query<InvitationRow>(
-          `SELECT * FROM invitations
-           WHERE lower(email) = lower($1)
-             AND accepted_at IS NULL
-             AND expires_at > now()
-           ORDER BY created_at ASC`,
-          [normalizedEmail],
-        );
-      });
-      invitations.push(...rows.map(toInvitation));
-    }
-
-    return invitations;
+    return rows.map(toInvitation);
   }
 
   async accept(id: string): Promise<Invitation | null> {
-    // Find the invitation's org first, then update in that context.
-    const orgs = await this.db.query<{ id: string }>("SELECT id FROM organizations");
-    for (const org of orgs) {
-      const orgId = toOrgId(org.id);
-      const row = await this.db.transactionWithOrg(orgId, async (tx) => {
-        return tx.queryOne<InvitationRow>(
-          "UPDATE invitations SET accepted_at = now() WHERE id = $1 RETURNING *",
-          [id],
-        );
-      });
-      if (row) return toInvitation(row);
+    const lookup = await this.db.queryOne<InvitationLookupRow>(
+      "SELECT * FROM invitation_lookup WHERE id = $1",
+      [id],
+    );
+
+    if (!lookup) {
+      return null;
     }
-    return null;
+
+    return this.db.transactionWithOrg(toOrgId(lookup.org_id), async (tx) => {
+      const row = await tx.queryOne<InvitationRow>(
+        "UPDATE invitations SET accepted_at = now() WHERE id = $1 RETURNING *",
+        [id],
+      );
+      return row ? toInvitation(row) : null;
+    });
   }
 
   async delete(id: string): Promise<boolean> {
-    const orgs = await this.db.query<{ id: string }>("SELECT id FROM organizations");
-    for (const org of orgs) {
-      const orgId = toOrgId(org.id);
-      const count = await this.db.transactionWithOrg(orgId, async (tx) => {
-        return tx.execute("DELETE FROM invitations WHERE id = $1", [id]);
-      });
-      if (count > 0) return true;
+    const lookup = await this.db.queryOne<InvitationLookupRow>(
+      "SELECT * FROM invitation_lookup WHERE id = $1",
+      [id],
+    );
+
+    if (!lookup) {
+      return false;
     }
-    return false;
+
+    const count = await this.db.transactionWithOrg(toOrgId(lookup.org_id), async (tx) => {
+      return tx.execute("DELETE FROM invitations WHERE id = $1", [id]);
+    });
+    return count > 0;
   }
 }

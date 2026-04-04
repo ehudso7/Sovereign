@@ -3,8 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-
-const TOKEN_KEY = "sovereign_session_token";
+import { parseAuthCallbackPayload } from "@/lib/auth-callback";
 
 function CallbackContent() {
   const router = useRouter();
@@ -13,26 +12,25 @@ function CallbackContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = searchParams.get("token");
-    const redirectTo = searchParams.get("redirect_to") ?? "/dashboard";
+    const { sessionToken, redirectTo, error: callbackError } = parseAuthCallbackPayload(
+      searchParams,
+      window.location.hash,
+    );
 
-    if (!token) {
-      setError("No authentication token received. Please try signing in again.");
+    if (callbackError) {
+      setError(callbackError);
       return;
     }
 
-    localStorage.setItem(TOKEN_KEY, token);
-    loadSessionFromToken(token)
+    loadSessionFromToken(sessionToken ?? "")
       .then((success) => {
         if (success) {
           router.replace(redirectTo);
         } else {
-          localStorage.removeItem(TOKEN_KEY);
-          setError("Failed to load session. The token may be invalid or expired.");
+          setError("Failed to load session. Please try signing in again.");
         }
       })
       .catch(() => {
-        localStorage.removeItem(TOKEN_KEY);
         setError("An unexpected error occurred. Please try signing in again.");
       });
   }, [searchParams, router, loadSessionFromToken]);

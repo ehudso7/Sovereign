@@ -161,3 +161,18 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+
+  docker-images:
+    name: Docker Images
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -f infra/docker/Dockerfile.api .
+      - name: Build Gateway MCP image
+        run: docker build -f infra/docker/Dockerfile.gateway-mcp .
+      - name: Build Worker Browser image
+        run: docker build -f infra/docker/Dockerfile.worker-browser .
+      - name: Build Worker Orchestrator image
+        run: docker build -f infra/docker/Dockerfile.worker-orchestrator .

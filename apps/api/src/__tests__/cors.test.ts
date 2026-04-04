@@ -52,7 +52,7 @@ describe('registerCors', () => {
     await app.close();
   });
 
-  it('supports wildcard CORS in non-production when origins are not configured', async () => {
+  it('echoes the browser origin in non-production so credentialed requests can work', async () => {
     process.env.NODE_ENV = 'development';
 
     const app = Fastify();
@@ -70,7 +70,8 @@ describe('registerCors', () => {
     });
 
     expect(res.statusCode).toBe(204);
-    expect(res.headers['access-control-allow-origin']).toBe('*');
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:3000');
+    expect(res.headers['access-control-allow-credentials']).toBe('true');
     expect(res.headers['access-control-allow-methods']).toContain('POST');
 
     await app.close();

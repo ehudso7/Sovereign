@@ -7,7 +7,17 @@ import { z } from "zod";
 import { toOrgId } from "@sovereign/core";
 import { getServices } from "../services/index.js";
 import { authenticate } from "../middleware/auth.js";
-import { resolveAllowedReturnTo } from "../lib/urls.js";
+import {
+  resolveAllowedReturnTo,
+  resolveRequestOrigin,
+} from "../lib/urls.js";
+import {
+  buildClearedCsrfCookie,
+  buildClearedSessionCookie,
+  buildCsrfCookie,
+  buildSessionCookie,
+  createCsrfToken,
+} from "../lib/session-cookie.js";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -32,45 +42,35 @@ const switchOrgSchema = z.object({
   orgId: z.string().uuid(),
 });
 
-// ---------------------------------------------------------------------------
-// WorkOS helpers (direct REST API — no SDK dependency)
-// ---------------------------------------------------------------------------
+const sessionTokenSchema = z.object({
+  token: z.string().min(1),
+});
 
-function getWorkOSAuthorizeUrl(clientId: string, redirectUri: string, state?: string): string {
-  const params = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    response_type: "code",
-    provider: "authkit",
-  });
-  if (state) params.set("state", state);
-  return `https://api.workos.com/user_management/authorize?${params.toString()}`;
-}
-
-async function exchangeWorkOSCode(
-  code: string,
-  clientId: string,
-  apiKey: string,
-): Promise<{ user: { id: string; email: string; first_name: string | null; last_name: string | null; profile_picture_url: string | null } }> {
-  const response = await fetch("https://api.workos.com/user_management/authenticate", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      client_id: clientId,
-      code,
-      grant_type: "authorization_code",
-    }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`WorkOS authentication failed (${response.status}): ${text}`);
+function normalizeRedirectTarget(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
   }
 
-  return response.json() as Promise<{ user: { id: string; email: string; first_name: string | null; last_name: string | null; profile_picture_url: string | null } }>;
+  if (!value.startsWith("/") || value.startsWith("//")) {
+    return undefined;
+  }
+
+  return value;
+}
+
+function setAuthCookies(reply: { header: (name: string, value: string | readonly string[]) => unknown }, sessionToken: string, expiresAt: string): void {
+  const csrfToken = createCsrfToken();
+  reply.header("Set-Cookie", [
+    buildSessionCookie(sessionToken, expiresAt),
+    buildCsrfCookie(csrfToken, expiresAt),
+  ]);
+}
+
+function clearAuthCookies(reply: { header: (name: string, value: string | readonly string[]) => unknown }): void {
+  reply.header("Set-Cookie", [
+    buildClearedSessionCookie(),
+    buildClearedCsrfCookie(),
+  ]);
 }
 
 export async function authRoutes(server: FastifyInstance): Promise<void> {
@@ -96,28 +96,34 @@ export async function authRoutes(server: FastifyInstance): Promise<void> {
       });
     }
 
-    if (!config.workos?.clientId || !config.workos?.apiKey) {
+    const returnTo = resolveAllowedReturnTo(request, "/auth/callback");
+    if (!returnTo) {
       return reply.status(500).send({
-        error: { code: "WORKOS_NOT_CONFIGURED", message: "WorkOS credentials are not configured" },
+        error: { code: "WORKOS_NOT_CONFIGURED", message: "No allowed auth callback origin is configured" },
         meta: { request_id: request.id, timestamp: new Date().toISOString() },
       });
     }
 
-    const redirectUri = process.env.WORKOS_REDIRECT_URI;
-    if (!redirectUri) {
-      return reply.status(500).send({
-        error: { code: "WORKOS_NOT_CONFIGURED", message: "WORKOS_REDIRECT_URI is not configured" },
+    const callbackUrl = new URL(returnTo);
+    const redirectTarget = normalizeRedirectTarget(request.query.redirect_to);
+    if (redirectTarget) {
+      callbackUrl.searchParams.set("redirect_to", redirectTarget);
+    }
+
+    const result = await services.workosAuth.beginLogin({
+      apiOrigin: resolveRequestOrigin(request),
+      returnTo: callbackUrl.toString(),
+    });
+
+    if (!result.ok) {
+      return reply.status(result.error.statusCode).send({
+        error: { code: result.error.code, message: result.error.message },
         meta: { request_id: request.id, timestamp: new Date().toISOString() },
       });
     }
 
-    // Encode the frontend redirect target in state so the callback can send the user back
-    const state = request.query.redirect_to
-      ? Buffer.from(request.query.redirect_to).toString("base64url")
-      : undefined;
-
-    const authorizeUrl = getWorkOSAuthorizeUrl(config.workos.clientId, redirectUri, state);
-    return reply.redirect(authorizeUrl);
+    reply.header("Set-Cookie", result.value.stateCookie);
+    return reply.redirect(result.value.authorizationUrl);
   });
 
   // GET /api/v1/auth/callback — handle WorkOS OAuth callback
@@ -134,74 +140,33 @@ export async function authRoutes(server: FastifyInstance): Promise<void> {
         });
       }
 
-      // Handle WorkOS error responses
-      if (request.query.error) {
-        const appBaseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
-        const errorMsg = encodeURIComponent(request.query.error_description ?? request.query.error);
-        return reply.redirect(`${appBaseUrl}/auth/sign-in?error=${errorMsg}`);
+      const redirectUrl = await services.workosAuth.handleCallback({
+        code: request.query.code,
+        state: request.query.state,
+        error: request.query.error,
+        errorDescription: request.query.error_description,
+        cookieHeader: request.headers.cookie,
+        ipAddress: request.ip,
+        userAgent: request.headers["user-agent"],
+      });
+
+      const fallbackOrigin = resolveAllowedReturnTo(request, "/auth/sign-in") ?? resolveRequestOrigin(request);
+      const target = new URL(redirectUrl, fallbackOrigin);
+      const fragment = new URLSearchParams(target.hash.replace(/^#/, ""));
+      const sessionToken = fragment.get("session_token");
+      const expiresAt = fragment.get("expires_at");
+
+      const cookies = [services.workosAuth.clearLoginStateCookie()];
+      if (sessionToken && expiresAt) {
+        cookies.push(buildSessionCookie(sessionToken, expiresAt));
+        cookies.push(buildCsrfCookie(createCsrfToken(), expiresAt));
+        fragment.delete("session_token");
+        fragment.delete("expires_at");
+        target.hash = fragment.toString();
       }
 
-      const code = request.query.code;
-      if (!code) {
-        return reply.status(400).send({
-          error: { code: "BAD_REQUEST", message: "Missing authorization code" },
-          meta: { request_id: request.id, timestamp: new Date().toISOString() },
-        });
-      }
-
-      try {
-        // Exchange code for user profile
-        const workosResult = await exchangeWorkOSCode(
-          code,
-          config.workos!.clientId,
-          config.workos!.apiKey,
-        );
-
-        const workosUser = workosResult.user;
-        const displayName = [workosUser.first_name, workosUser.last_name].filter(Boolean).join(" ") || workosUser.email;
-
-        // Upsert user: find by email or create
-        let userResult = await services.users.getByEmail(workosUser.email);
-        if (!userResult.ok) {
-          userResult = await services.users.create({
-            email: workosUser.email,
-            name: displayName,
-            avatarUrl: workosUser.profile_picture_url ?? undefined,
-            workosUserId: workosUser.id,
-          });
-          if (!userResult.ok) {
-            const appBaseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
-            return reply.redirect(`${appBaseUrl}/auth/sign-in?error=${encodeURIComponent("Failed to create user account")}`);
-          }
-        }
-
-        // Sign in to create session
-        const authResult = await services.auth.signIn(workosUser.email);
-        if (!authResult.ok) {
-          const appBaseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
-          return reply.redirect(`${appBaseUrl}/auth/sign-in?error=${encodeURIComponent(authResult.error.message)}`);
-        }
-
-        // Decode redirect target from state, or default to /dashboard
-        const appBaseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
-        let redirectTo = "/dashboard";
-        if (request.query.state) {
-          try {
-            redirectTo = Buffer.from(request.query.state, "base64url").toString("utf-8");
-          } catch {
-            // Invalid state, ignore
-          }
-        }
-
-        // Redirect to frontend with session token
-        const token = authResult.value.sessionToken;
-        return reply.redirect(`${appBaseUrl}/auth/callback?token=${token}&redirect_to=${encodeURIComponent(redirectTo)}`);
-      } catch (e) {
-        server.log.error(e, "WorkOS callback failed");
-        const appBaseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
-        const msg = e instanceof Error ? e.message : "Authentication failed";
-        return reply.redirect(`${appBaseUrl}/auth/sign-in?error=${encodeURIComponent(msg)}`);
-      }
+      reply.header("Set-Cookie", cookies);
+      return reply.redirect(target.toString());
     },
   );
 
@@ -238,6 +203,7 @@ export async function authRoutes(server: FastifyInstance): Promise<void> {
       });
     }
 
+    setAuthCookies(reply, result.value.sessionToken, result.value.expiresAt);
     return reply.status(200).send({
       data: result.value,
       meta: { request_id: request.id, timestamp: new Date().toISOString() },
@@ -316,6 +282,7 @@ export async function authRoutes(server: FastifyInstance): Promise<void> {
       });
     }
 
+    setAuthCookies(reply, authResult.value.sessionToken, authResult.value.expiresAt);
     return reply.status(201).send({
       data: {
         user,
@@ -362,6 +329,7 @@ export async function authRoutes(server: FastifyInstance): Promise<void> {
       });
     }
 
+    setAuthCookies(reply, result.value.sessionToken, result.value.expiresAt);
     return reply.status(201).send({
       data: result.value,
       meta: { request_id: request.id, timestamp: new Date().toISOString() },
@@ -393,8 +361,36 @@ export async function authRoutes(server: FastifyInstance): Promise<void> {
       });
     }
 
+    setAuthCookies(reply, result.value.sessionToken, result.value.expiresAt);
     return reply.status(200).send({
       data: result.value,
+      meta: { request_id: request.id, timestamp: new Date().toISOString() },
+    });
+  });
+
+  // POST /api/v1/auth/session — exchange a session token into secure cookies
+  server.post("/api/v1/auth/session", async (request, reply) => {
+    const body = sessionTokenSchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.status(400).send({
+        error: { code: "BAD_REQUEST", message: "Invalid request body", details: body.error.issues },
+        meta: { request_id: request.id, timestamp: new Date().toISOString() },
+      });
+    }
+
+    const services = getServices();
+    const result = await services.auth.validateSession(body.data.token);
+
+    if (!result.ok) {
+      return reply.status(result.error.statusCode).send({
+        error: { code: result.error.code, message: result.error.message },
+        meta: { request_id: request.id, timestamp: new Date().toISOString() },
+      });
+    }
+
+    setAuthCookies(reply, body.data.token, result.value.expiresAt);
+    return reply.status(200).send({
+      data: { expiresAt: result.value.expiresAt },
       meta: { request_id: request.id, timestamp: new Date().toISOString() },
     });
   });
@@ -417,6 +413,7 @@ export async function authRoutes(server: FastifyInstance): Promise<void> {
       });
     }
 
+    clearAuthCookies(reply);
     return reply.status(200).send({
       data: { message: "Logged out successfully", logoutUrl },
       meta: { request_id: request.id, timestamp: new Date().toISOString() },

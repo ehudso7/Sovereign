@@ -26,6 +26,8 @@ interface MembershipWithUserRow extends MembershipRow {
   user_updated_at: string;
 }
 
+type MembershipLookupRow = MembershipRow;
+
 function toMembership(row: MembershipRow): Membership {
   return {
     id: toMembershipId(row.id),
@@ -104,52 +106,33 @@ export class PgMembershipRepo implements MembershipRepo {
   }
 
   async listForUser(userId: UserId): Promise<Membership[]> {
-    // Cross-org read on an RLS-protected table.
-    // FORCE ROW LEVEL SECURITY requires app.current_org_id for all access.
-    // We iterate over all orgs (organizations table has no RLS) and check
-    // membership per-org. This is O(n_orgs) but correct and safe.
-    // Production optimization: use SECURITY DEFINER function or role separation.
-    const allOrgs = await this.db.query<{ id: string }>(
-      "SELECT id FROM organizations",
+    const rows = await this.db.query<MembershipLookupRow>(
+      `SELECT id, org_id, user_id, role, invited_by, accepted_at, created_at
+       FROM membership_lookup
+       WHERE user_id = $1
+       ORDER BY created_at ASC`,
+      [userId],
     );
-
-    const memberships: Membership[] = [];
-    for (const org of allOrgs) {
-      const orgId = toOrgId(org.id);
-      const rows = await this.db.transactionWithOrg(orgId, async (tx) => {
-        return tx.query<MembershipRow>(
-          "SELECT * FROM memberships WHERE user_id = $1 AND org_id = $2",
-          [userId, orgId],
-        );
-      });
-      for (const row of rows) {
-        memberships.push(toMembership(row));
-      }
-    }
-
-    return memberships.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    return rows.map(toMembership);
   }
 
   async updateRole(id: MembershipId, role: OrgRole): Promise<Membership | null> {
-    // We need the org_id to set RLS context. Look it up first via a scan.
-    // Since we need to find which org this membership belongs to, and the
-    // memberships table is RLS-protected, we do a per-org scan.
-    // In practice, this would be called with known org context from the API layer.
-    const allOrgs = await this.db.query<{ id: string }>(
-      "SELECT id FROM organizations",
+    const lookup = await this.db.queryOne<{ org_id: string }>(
+      "SELECT org_id FROM membership_lookup WHERE id = $1",
+      [id],
     );
 
-    for (const org of allOrgs) {
-      const orgId = toOrgId(org.id);
-      const result = await this.db.transactionWithOrg(orgId, async (tx) => {
-        return tx.queryOne<MembershipRow>(
-          "UPDATE memberships SET role = $1 WHERE id = $2 RETURNING *",
-          [role, id],
-        );
-      });
-      if (result) return toMembership(result);
+    if (!lookup) {
+      return null;
     }
-    return null;
+
+    return this.db.transactionWithOrg(toOrgId(lookup.org_id), async (tx) => {
+      const result = await tx.queryOne<MembershipRow>(
+        "UPDATE memberships SET role = $1 WHERE id = $2 RETURNING *",
+        [role, id],
+      );
+      return result ? toMembership(result) : null;
+    });
   }
 
   async delete(orgId: OrgId, userId: UserId): Promise<boolean> {

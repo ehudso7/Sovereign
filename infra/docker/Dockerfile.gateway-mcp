@@ -12,15 +12,19 @@ COPY packages/connectors/package.json ./packages/connectors/
 RUN pnpm install --frozen-lockfile
 
 FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/gateway-mcp/node_modules ./apps/gateway-mcp/node_modules
+COPY --from=deps /app ./
 COPY . .
-RUN pnpm build --filter=@sovereign/gateway-mcp...
+RUN pnpm build --filter=@sovereign/gateway-mcp
 
 FROM base AS runner
 ENV NODE_ENV=production
+WORKDIR /app/apps/gateway-mcp
+COPY --from=builder /app/node_modules /app/node_modules
+COPY --from=builder /app/apps/gateway-mcp/node_modules ./node_modules
 COPY --from=builder /app/apps/gateway-mcp/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/config /app/packages/config
+COPY --from=builder /app/packages/core /app/packages/core
+COPY --from=builder /app/packages/db /app/packages/db
 EXPOSE 3003
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD node -e "process.exit(0)"
