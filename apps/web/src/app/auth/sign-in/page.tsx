@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 const AUTH_MODE = process.env.NEXT_PUBLIC_AUTH_MODE ?? "local";
 
-export default function SignInPage() {
+function SignInContent() {
   const { signIn, bootstrap } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -353,5 +353,19 @@ export default function SignInPage() {
         </p>
       </div>
     </main>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen flex-col items-center justify-center bg-[rgb(var(--color-bg-primary))]">
+          <p className="text-sm text-[rgb(var(--color-text-tertiary))]">Loading...</p>
+        </main>
+      }
+    >
+      <SignInContent />
+    </Suspense>
   );
 }
