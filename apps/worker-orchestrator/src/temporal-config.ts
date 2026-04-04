@@ -12,6 +12,9 @@ export interface TemporalRuntimeConfig {
   tlsCert?: Buffer;
   tlsKey?: Buffer;
   usesCloudEndpoint: boolean;
+  usesRailwayPublicEndpoint: boolean;
+  basicAuthUser?: string;
+  basicAuthPassword?: string;
 }
 
 function readOptionalEnv(value: string | undefined): string | undefined {
@@ -45,16 +48,29 @@ export function isTemporalCloudAddress(address: string): boolean {
   return /\.tmprl\.cloud(?::\d+)?$/i.test(address);
 }
 
+export function isRailwayPublicAddress(address: string): boolean {
+  return /\.up\.railway\.app(?::\d+)?$/i.test(address);
+}
+
 export function getTemporalRuntimeConfig(env: NodeJS.ProcessEnv = process.env): TemporalRuntimeConfig {
   const rawAddress = env.TEMPORAL_ADDRESS ?? "localhost:7233";
-  const address = normalizeTemporalAddress(rawAddress);
+  let address = normalizeTemporalAddress(rawAddress);
   const namespace = env.TEMPORAL_NAMESPACE?.trim() || "sovereign";
   const apiKey = readOptionalEnv(env.TEMPORAL_API_KEY);
   const tlsCertValue = readOptionalEnv(env.TEMPORAL_TLS_CERT);
   const tlsKeyValue = readOptionalEnv(env.TEMPORAL_TLS_KEY);
+  const basicAuthUser = readOptionalEnv(env.TEMPORAL_BASIC_AUTH_USER);
+  const basicAuthPassword = readOptionalEnv(env.TEMPORAL_BASIC_AUTH_PASSWORD);
 
   if (Boolean(tlsCertValue) !== Boolean(tlsKeyValue)) {
     throw new Error("TEMPORAL_TLS_CERT and TEMPORAL_TLS_KEY must be set together.");
+  }
+
+  const isRailwayPublic = isRailwayPublicAddress(address);
+
+  // Railway public URLs proxy gRPC over HTTPS (port 443), not the default 7233.
+  if (isRailwayPublic && !/:(\d+)$/.test(address)) {
+    address = `${address}:443`;
   }
 
   return {
@@ -65,6 +81,9 @@ export function getTemporalRuntimeConfig(env: NodeJS.ProcessEnv = process.env): 
     tlsCert: tlsCertValue ? decodePemEnv("TEMPORAL_TLS_CERT", tlsCertValue) : undefined,
     tlsKey: tlsKeyValue ? decodePemEnv("TEMPORAL_TLS_KEY", tlsKeyValue) : undefined,
     usesCloudEndpoint: isTemporalCloudAddress(address),
+    usesRailwayPublicEndpoint: isRailwayPublic,
+    basicAuthUser,
+    basicAuthPassword,
   };
 }
 
@@ -78,10 +97,19 @@ function buildTlsConfig(config: TemporalRuntimeConfig): TemporalClientConnection
     };
   }
 
-  if (config.usesCloudEndpoint || config.apiKey) {
+  // TLS is required for Temporal Cloud, Railway public URLs, and API key auth
+  if (config.usesCloudEndpoint || config.usesRailwayPublicEndpoint || config.apiKey) {
     return true;
   }
 
+  return undefined;
+}
+
+function buildMetadata(config: TemporalRuntimeConfig): Record<string, string> | undefined {
+  if (config.basicAuthUser && config.basicAuthPassword) {
+    const credentials = Buffer.from(`${config.basicAuthUser}:${config.basicAuthPassword}`).toString("base64");
+    return { authorization: `Basic ${credentials}` };
+  }
   return undefined;
 }
 
@@ -90,11 +118,13 @@ export function getTemporalClientConnectionOptions(
 ): TemporalClientConnectionOptions {
   const config = getTemporalRuntimeConfig(env);
   const tls = buildTlsConfig(config);
+  const metadata = buildMetadata(config);
 
   return {
     address: config.address,
     ...(tls ? { tls } : {}),
     ...(config.apiKey ? { apiKey: config.apiKey } : {}),
+    ...(metadata ? { metadata } : {}),
   };
 }
 
@@ -103,11 +133,13 @@ export function getTemporalWorkerConnectionOptions(
 ): TemporalWorkerConnectionOptions {
   const config = getTemporalRuntimeConfig(env);
   const tls = buildTlsConfig(config);
+  const metadata = buildMetadata(config);
 
   return {
     address: config.address,
     ...(tls ? { tls } : {}),
     ...(config.apiKey ? { apiKey: config.apiKey } : {}),
+    ...(metadata ? { metadata } : {}),
   };
 }
 
@@ -123,16 +155,36 @@ export function formatTemporalConnectionHints(error: unknown, config: TemporalRu
 
   if (/dns error|lookup address|name or service not known|enotfound/i.test(message)) {
     hints.add(
-      `TEMPORAL_ADDRESS "${config.address}" did not resolve in DNS. Verify the exact namespace endpoint from Temporal Cloud connection info; being set is not enough if the hostname itself is wrong.`,
+      `TEMPORAL_ADDRESS "${config.address}" did not resolve in DNS.`,
     );
-    hints.add(
-      "If this environment uses Railway-hosted Temporal instead of Temporal Cloud, use the Railway internal host (for example `temporal.railway.internal:7233`) and set TEMPORAL_NAMESPACE to `default`.",
-    );
+
+    if (/\.railway\.internal/i.test(config.address)) {
+      hints.add(
+        "Railway internal DNS (*.railway.internal) only works between services in the SAME Railway project. " +
+        "If Temporal runs in a separate infra project, use its public Railway URL instead: " +
+        "TEMPORAL_ADDRESS=<service>.up.railway.app (port 443 is added automatically, TLS is enabled automatically).",
+      );
+    } else if (config.usesCloudEndpoint) {
+      hints.add(
+        "Verify the exact namespace endpoint from Temporal Cloud connection info — the hostname itself must be provisioned.",
+      );
+    } else {
+      hints.add(
+        "If using Railway-hosted Temporal in the same project, use `<service-name>.railway.internal:7233`. " +
+        "If Temporal is in a different Railway project, use its public URL: `<service>.up.railway.app`.",
+      );
+    }
   }
 
   if (config.usesCloudEndpoint && !config.apiKey && !(config.tlsCert && config.tlsKey)) {
     hints.add(
       "Temporal Cloud requires TLS. Set TEMPORAL_API_KEY or both TEMPORAL_TLS_CERT and TEMPORAL_TLS_KEY.",
+    );
+  }
+
+  if (config.usesRailwayPublicEndpoint && !config.basicAuthUser) {
+    hints.add(
+      "If the Railway Temporal proxy requires basic auth, set TEMPORAL_BASIC_AUTH_USER and TEMPORAL_BASIC_AUTH_PASSWORD.",
     );
   }
 
