@@ -59,7 +59,7 @@ Set in Vercel dashboard per environment scope (Preview / Production).
 | `NEXT_PUBLIC_APP_URL` | `https://staging.sovereign.app` | `https://app.sovereign.app` |
 | `NEXT_PUBLIC_API_BASE_URL` | `https://api-staging.sovereign.app` | `https://api.sovereign.app` |
 | `NEXT_PUBLIC_AUTH_MODE` | `workos` | `workos` |
-| `NEXT_PUBLIC_WORKOS_REDIRECT_URI` | `https://staging.sovereign.app/api/auth/callback` | `https://app.sovereign.app/api/auth/callback` |
+| `NEXT_PUBLIC_WORKOS_REDIRECT_URI` | `https://api-staging.sovereign.app/api/v1/auth/callback` | `https://api.sovereign.app/api/v1/auth/callback` |
 
 ### Secrets (if needed at build/runtime)
 
@@ -115,7 +115,7 @@ Set these for **all** Railway backend services: `api`, `worker-orchestrator`, `w
 | `R2_BUCKET` | `sovereign-staging-artifacts` | R2 bucket name |
 | `R2_REGION` | `auto` | Always `auto` for R2 |
 | `R2_ENDPOINT` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` | R2 S3-compatible endpoint |
-| `WORKOS_REDIRECT_URI` | `https://staging.sovereign.app/api/auth/callback` | OAuth callback |
+| `WORKOS_REDIRECT_URI` | `https://api-staging.sovereign.app/api/v1/auth/callback` | OAuth callback |
 | `WORKOS_LOGOUT_REDIRECT_URI` | `https://staging.sovereign.app` | Post-logout redirect |
 | `WORKOS_LOGIN_ENDPOINT` | `/api/v1/auth/login` | Login initiation path |
 | `LOG_LEVEL` | `info` | Log verbosity |
@@ -160,7 +160,7 @@ Set these in the WorkOS dashboard for each environment:
 
 | Setting | Staging | Production |
 |---------|---------|------------|
-| Redirect URI | `https://staging.sovereign.app/api/auth/callback` | `https://app.sovereign.app/api/auth/callback` |
+| Redirect URI | `https://api-staging.sovereign.app/api/v1/auth/callback` | `https://api.sovereign.app/api/v1/auth/callback` |
 | Logout Redirect URI | `https://staging.sovereign.app` | `https://app.sovereign.app` |
 | Login Endpoint | `https://staging.sovereign.app/api/v1/auth/login` | `https://app.sovereign.app/api/v1/auth/login` |
 

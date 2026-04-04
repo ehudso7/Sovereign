@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
+const AUTH_MODE = process.env.NEXT_PUBLIC_AUTH_MODE ?? "local";
 
 export default function SignInPage() {
   const { signIn, bootstrap } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -14,6 +18,22 @@ export default function SignInPage() {
   const [name, setName] = useState("");
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
+
+  // Show error from WorkOS callback if present
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam));
+    }
+  }, [searchParams]);
+
+  const isWorkOS = AUTH_MODE === "workos";
+
+  const handleWorkOSSignIn = () => {
+    setIsLoading(true);
+    // Redirect to API authorize endpoint which redirects to WorkOS
+    window.location.href = `${API_BASE}/api/v1/auth/authorize`;
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +99,7 @@ export default function SignInPage() {
         {/* Card */}
         <div className="rounded-xl border border-[rgb(var(--color-border-primary))] bg-[rgb(var(--color-bg-secondary))] p-8 shadow-lg shadow-black/5">
           <h2 className="mb-6 text-lg font-semibold text-[rgb(var(--color-text-primary))]">
-            {isBootstrap ? "Bootstrap Account" : "Sign In"}
+            {isWorkOS ? "Sign In" : isBootstrap ? "Bootstrap Account" : "Sign In"}
           </h2>
 
           {/* Error */}
@@ -89,7 +109,49 @@ export default function SignInPage() {
             </div>
           )}
 
-          {!isBootstrap ? (
+          {/* ─── WorkOS auth mode: single SSO button ─── */}
+          {isWorkOS ? (
+            <div className="space-y-4">
+              <p className="text-sm text-[rgb(var(--color-text-secondary))]">
+                Sign in with your organization&apos;s identity provider.
+              </p>
+              <button
+                type="button"
+                onClick={handleWorkOSSignIn}
+                disabled={isLoading}
+                className="w-full rounded-lg bg-[rgb(var(--color-brand))] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[rgb(var(--color-brand-dark))] disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg
+                      className="h-4 w-4 animate-spin"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        className="opacity-25"
+                      />
+                      <path
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        fill="currentColor"
+                        className="opacity-75"
+                      />
+                    </svg>
+                    Redirecting...
+                  </span>
+                ) : (
+                  "Continue with SSO"
+                )}
+              </button>
+            </div>
+
+          /* ─── Local auth mode: email + optional bootstrap ─── */
+          ) : !isBootstrap ? (
             <form onSubmit={handleSignIn} className="space-y-4">
               <div>
                 <label

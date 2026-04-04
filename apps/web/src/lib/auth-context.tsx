@@ -36,6 +36,8 @@ interface AuthContextValue extends AuthState {
     orgName: string;
     orgSlug: string;
   }) => Promise<boolean>;
+  /** Load a session from an existing token (used by OAuth callback) */
+  loadSessionFromToken: (token: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -151,8 +153,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return loadSession(result.data.auth.sessionToken);
   }, [loadSession]);
 
+  const loadSessionFromToken = useCallback(async (token: string) => {
+    return loadSession(token);
+  }, [loadSession]);
+
   return (
-    <AuthContext.Provider value={{ ...state, signIn, signOut, switchOrg, bootstrap }}>
+    <AuthContext.Provider value={{ ...state, signIn, signOut, switchOrg, bootstrap, loadSessionFromToken }}>
       {children}
     </AuthContext.Provider>
   );

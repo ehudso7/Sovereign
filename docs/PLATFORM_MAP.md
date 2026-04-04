@@ -58,8 +58,8 @@ Railway exposes standard connection vars:
 
 | Environment | Redirect URI | Logout Redirect URI |
 |-------------|-------------|---------------------|
-| `sovereign-staging` | `https://staging.sovereign.app/api/auth/callback` | `https://staging.sovereign.app` |
-| `sovereign-production` | `https://app.sovereign.app/api/auth/callback` | `https://app.sovereign.app` |
+| `sovereign-staging` | `https://api-staging.sovereign.app/api/v1/auth/callback` | `https://staging.sovereign.app` |
+| `sovereign-production` | `https://api.sovereign.app/api/v1/auth/callback` | `https://app.sovereign.app` |
 
 > Production redirect URIs **must** be HTTPS. WorkOS does not allow `http` or `localhost` in production.
 
