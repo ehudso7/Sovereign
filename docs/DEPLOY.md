@@ -148,13 +148,13 @@ Railway backend rollback is done through the Railway dashboard (Service → Depl
 
 ```bash
 # API health check
-curl https://api-staging.sovereign.app/health
+curl https://api-staging.sovereignos.dev/health
 
 # Web app
-curl -s -o /dev/null -w "%{http_code}" https://staging.sovereign.app
+curl -s -o /dev/null -w "%{http_code}" https://staging.sovereignos.dev
 
 # Docs
-curl -s -o /dev/null -w "%{http_code}" https://docs-staging.sovereign.app
+curl -s -o /dev/null -w "%{http_code}" https://docs-staging.sovereignos.dev
 ```
 
 ---

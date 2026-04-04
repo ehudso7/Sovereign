@@ -16,8 +16,8 @@
 | `PORT` | No | `3002` | API server port |
 | `HOST` | No | `0.0.0.0` | API server bind address |
 | `APP_ENV` | No | — | Logical environment: `staging` or `production` |
-| `APP_BASE_URL` | No | — | Frontend URL (e.g. `https://app.sovereign.app`) |
-| `API_BASE_URL` | No | — | API public URL (e.g. `https://api.sovereign.app`) |
+| `APP_BASE_URL` | No | — | Frontend URL (e.g. `https://app.sovereignos.dev`) |
+| `API_BASE_URL` | No | — | API public URL (e.g. `https://api.sovereignos.dev`) |
 
 ### Authentication
 

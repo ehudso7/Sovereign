@@ -36,7 +36,7 @@ Add these to your repository settings:
 
 ### ✅ Vercel Environment Variables
 Configure in Vercel dashboard:
-- `NEXT_PUBLIC_API_URL`
+- `NEXT_PUBLIC_API_BASE_URL`
 - `NEXT_PUBLIC_WORKOS_CLIENT_ID`
 
 ### ✅ Railway Environment Variables

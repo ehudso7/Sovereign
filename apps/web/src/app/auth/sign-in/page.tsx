@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3002";
 const AUTH_MODE = process.env.NEXT_PUBLIC_AUTH_MODE ?? "local";
 
 function SignInContent() {

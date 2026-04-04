@@ -34,12 +34,12 @@
 |----------|---------|------------|
 | `APP_ENV` | `staging` | `production` |
 | `AUTH_MODE` | `workos` | `workos` |
-| `APP_BASE_URL_STAGING` | `https://staging.sovereign.app` | — |
-| `APP_BASE_URL_PRODUCTION` | — | `https://app.sovereign.app` |
-| `API_BASE_URL_STAGING` | `https://api-staging.sovereign.app` | — |
-| `API_BASE_URL_PRODUCTION` | — | `https://api.sovereign.app` |
-| `DOCS_BASE_URL_STAGING` | `https://docs-staging.sovereign.app` | — |
-| `DOCS_BASE_URL_PRODUCTION` | — | `https://docs.sovereign.app` |
+| `APP_BASE_URL_STAGING` | `https://staging.sovereignos.dev` | — |
+| `APP_BASE_URL_PRODUCTION` | — | `https://app.sovereignos.dev` |
+| `API_BASE_URL_STAGING` | `https://api-staging.sovereignos.dev` | — |
+| `API_BASE_URL_PRODUCTION` | — | `https://api.sovereignos.dev` |
+| `DOCS_BASE_URL_STAGING` | `https://docs-staging.sovereignos.dev` | — |
+| `DOCS_BASE_URL_PRODUCTION` | — | `https://docs.sovereignos.dev` |
 | `R2_BUCKET_STAGING` | `sovereign-staging-artifacts` | — |
 | `R2_BUCKET_PRODUCTION` | — | `sovereign-production-artifacts` |
 | `R2_ENDPOINT` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` | same |
@@ -56,10 +56,10 @@ Set in Vercel dashboard per environment scope (Preview / Production).
 | Variable | Staging | Production |
 |----------|---------|------------|
 | `NEXT_PUBLIC_APP_ENV` | `staging` | `production` |
-| `NEXT_PUBLIC_APP_URL` | `https://staging.sovereign.app` | `https://app.sovereign.app` |
-| `NEXT_PUBLIC_API_BASE_URL` | `https://api-staging.sovereign.app` | `https://api.sovereign.app` |
+| `NEXT_PUBLIC_APP_URL` | `https://staging.sovereignos.dev` | `https://app.sovereignos.dev` |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://api-staging.sovereignos.dev` | `https://api.sovereignos.dev` |
 | `NEXT_PUBLIC_AUTH_MODE` | `workos` | `workos` |
-| `NEXT_PUBLIC_WORKOS_REDIRECT_URI` | `https://api-staging.sovereign.app/api/v1/auth/callback` | `https://api.sovereign.app/api/v1/auth/callback` |
+| `NEXT_PUBLIC_WORKOS_REDIRECT_URI` | `https://api-staging.sovereignos.dev/api/v1/auth/callback` | `https://api.sovereignos.dev/api/v1/auth/callback` |
 
 ### Secrets (if needed at build/runtime)
 
@@ -109,14 +109,14 @@ Set these for **all** Railway backend services: `api`, `worker-orchestrator`, `w
 | `NODE_ENV` | `production` | Runtime mode |
 | `AUTH_MODE` | `workos` | Auth provider |
 | `APP_ENV` | `staging` or `production` | Logical environment |
-| `APP_BASE_URL` | `https://staging.sovereign.app` | Frontend URL |
-| `API_BASE_URL` | `https://api-staging.sovereign.app` | API public URL |
-| `CORS_ALLOWED_ORIGINS` | `https://staging.sovereign.app` | Comma-separated allowed CORS origins |
+| `APP_BASE_URL` | `https://staging.sovereignos.dev` | Frontend URL |
+| `API_BASE_URL` | `https://api-staging.sovereignos.dev` | API public URL |
+| `CORS_ALLOWED_ORIGINS` | `https://staging.sovereignos.dev` | Comma-separated allowed CORS origins |
 | `R2_BUCKET` | `sovereign-staging-artifacts` | R2 bucket name |
 | `R2_REGION` | `auto` | Always `auto` for R2 |
 | `R2_ENDPOINT` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` | R2 S3-compatible endpoint |
-| `WORKOS_REDIRECT_URI` | `https://api-staging.sovereign.app/api/v1/auth/callback` | OAuth callback |
-| `WORKOS_LOGOUT_REDIRECT_URI` | `https://staging.sovereign.app` | Post-logout redirect |
+| `WORKOS_REDIRECT_URI` | `https://api-staging.sovereignos.dev/api/v1/auth/callback` | OAuth callback |
+| `WORKOS_LOGOUT_REDIRECT_URI` | `https://staging.sovereignos.dev` | Post-logout redirect |
 | `WORKOS_LOGIN_ENDPOINT` | `/api/v1/auth/login` | Login initiation path |
 | `LOG_LEVEL` | `info` | Log verbosity |
 
@@ -160,9 +160,9 @@ Set these in the WorkOS dashboard for each environment:
 
 | Setting | Staging | Production |
 |---------|---------|------------|
-| Redirect URI | `https://api-staging.sovereign.app/api/v1/auth/callback` | `https://api.sovereign.app/api/v1/auth/callback` |
-| Logout Redirect URI | `https://staging.sovereign.app` | `https://app.sovereign.app` |
-| Login Endpoint | `https://staging.sovereign.app/api/v1/auth/login` | `https://app.sovereign.app/api/v1/auth/login` |
+| Redirect URI | `https://api-staging.sovereignos.dev/api/v1/auth/callback` | `https://api.sovereignos.dev/api/v1/auth/callback` |
+| Logout Redirect URI | `https://staging.sovereignos.dev` | `https://app.sovereignos.dev` |
+| Login Endpoint | `https://staging.sovereignos.dev/api/v1/auth/login` | `https://app.sovereignos.dev/api/v1/auth/login` |
 
 ---
 
@@ -186,8 +186,9 @@ Set these in the WorkOS dashboard for each environment:
 |----------|---------|
 | `TEMPORAL_ADDRESS` | `sovereign-prod.xxxxx.tmprl.cloud:7233` |
 | `TEMPORAL_NAMESPACE` | `sovereign-prod` |
-| `TEMPORAL_TLS_CERT` | Base64-encoded mTLS cert |
-| `TEMPORAL_TLS_KEY` | Base64-encoded mTLS key |
+| `TEMPORAL_API_KEY` | API key (Bearer token auth) |
+| `TEMPORAL_TLS_CERT` | Base64-encoded mTLS cert (takes priority over API key) |
+| `TEMPORAL_TLS_KEY` | Base64-encoded mTLS key (takes priority over API key) |
 
 ### Railway-hosted Temporal (launch shortcut)
 
