@@ -28,6 +28,9 @@ concurrency:
   group: deploy-${{ inputs.environment }}
   cancel-in-progress: false
 
+env:
+  NODE_VERSION: '20'
+
 jobs:
   rollback-web:
     name: Rollback Web (Vercel)
@@ -36,6 +39,9 @@ jobs:
     environment:
       name: ${{ inputs.environment }}
     steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
       - name: Promote previous deployment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -62,6 +68,9 @@ jobs:
     environment:
       name: ${{ inputs.environment }}
     steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
       - name: Promote previous deployment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

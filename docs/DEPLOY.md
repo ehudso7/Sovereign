@@ -44,29 +44,29 @@
 
 ## Stack
 
-| Layer | Platform | Why |
-|-------|----------|-----|
-| Frontend | Vercel | Env scopes (Production/Preview/Development), CDN, Next.js native |
-| Backend | Railway | Long-running services, standard `DATABASE_URL`/`REDIS_URL` vars |
-| Database | Railway Postgres | Co-located with backend, auto-exposed connection vars |
-| Cache | Railway Redis | Co-located with backend, auto-exposed `REDIS_URL` |
-| Auth | WorkOS | SSO/SCIM/RBAC, production requires HTTPS redirect URIs |
-| Storage | Cloudflare R2 | S3-compatible, account endpoint, region `auto` |
-| Orchestration | Temporal | Cloud preferred; Railway-hosted as launch shortcut |
-| CI/CD | GitHub Actions | Environment secrets, protection rules, artifact uploads |
+| Layer         | Platform         | Why                                                              |
+| ------------- | ---------------- | ---------------------------------------------------------------- |
+| Frontend      | Vercel           | Env scopes (Production/Preview/Development), CDN, Next.js native |
+| Backend       | Railway          | Long-running services, standard `DATABASE_URL`/`REDIS_URL` vars  |
+| Database      | Railway Postgres | Co-located with backend, auto-exposed connection vars            |
+| Cache         | Railway Redis    | Co-located with backend, auto-exposed `REDIS_URL`                |
+| Auth          | WorkOS           | SSO/SCIM/RBAC, production requires HTTPS redirect URIs           |
+| Storage       | Cloudflare R2    | S3-compatible, account endpoint, region `auto`                   |
+| Orchestration | Temporal         | Cloud preferred; Railway-hosted as launch shortcut               |
+| CI/CD         | GitHub Actions   | Environment secrets, protection rules, artifact uploads          |
 
 ---
 
 ## Cost Summary
 
-| Service | Tier | Monthly |
-|---------|------|---------|
-| Vercel | Pro | $20 |
-| Railway | Pro (4 services + Postgres + Redis) | $30–60 |
-| Cloudflare R2 | Pay-as-you-go | ~$5 |
-| WorkOS | Free tier | $0 |
-| Temporal Cloud | Default namespace | $100 |
-| **Total** | | **~$155–185** |
+| Service        | Tier                                | Monthly       |
+| -------------- | ----------------------------------- | ------------- |
+| Vercel         | Pro                                 | $20           |
+| Railway        | Pro (4 services + Postgres + Redis) | $30–60        |
+| Cloudflare R2  | Pay-as-you-go                       | ~$5           |
+| WorkOS         | Free tier                           | $0            |
+| Temporal Cloud | Default namespace                   | $100          |
+| **Total**      |                                     | **~$155–185** |
 
 ---
 
@@ -79,6 +79,8 @@ Complete in this order or you will waste time.
 1. Go to repo **Settings → Environments**
 2. Create `staging` — add secrets and variables per [ENVIRONMENT_MATRIX.md](./ENVIRONMENT_MATRIX.md)
 3. Create `production` — same shape, production values, **add required reviewers**
+
+If you keep deploy credentials at the repository level instead of as environment secrets, store them with explicit suffixes such as `RAILWAY_TOKEN_STAGING`, `RAILWAY_TOKEN_PRODUCTION`, `DATABASE_URL_STAGING`, and `DATABASE_URL_PRODUCTION`.
 
 ### Step 2 — Railway Project
 
@@ -161,15 +163,15 @@ curl -s -o /dev/null -w "%{http_code}" https://docs-staging.sovereignos.dev
 
 ## Monitoring
 
-| Service | Where |
-|---------|-------|
-| API, Workers, Gateway | Railway Dashboard → Service → Logs |
-| Web, Docs | Vercel Dashboard → Deployments → Logs |
-| Database | Railway Dashboard → Postgres → Metrics |
-| Redis | Railway Dashboard → Redis → Metrics |
-| Workflows | Temporal Cloud UI or Railway Temporal UI |
-| Auth | WorkOS Dashboard → Events |
-| Billing | Stripe Dashboard → Events |
+| Service               | Where                                    |
+| --------------------- | ---------------------------------------- |
+| API, Workers, Gateway | Railway Dashboard → Service → Logs       |
+| Web, Docs             | Vercel Dashboard → Deployments → Logs    |
+| Database              | Railway Dashboard → Postgres → Metrics   |
+| Redis                 | Railway Dashboard → Redis → Metrics      |
+| Workflows             | Temporal Cloud UI or Railway Temporal UI |
+| Auth                  | WorkOS Dashboard → Events                |
+| Billing               | Stripe Dashboard → Events                |
 
 ---
 

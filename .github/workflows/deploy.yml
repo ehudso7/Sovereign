@@ -119,19 +119,19 @@ jobs:
         run: npm i -g @railway/cli
       - name: Deploy API
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN: ${{ inputs.environment == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_STAGING || secrets.RAILWAY_TOKEN }}
         run: railway up --service sovereign-api --detach
       - name: Deploy Worker Orchestrator
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN: ${{ inputs.environment == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_STAGING || secrets.RAILWAY_TOKEN }}
         run: railway up --service sovereign-worker-orchestrator --detach
       - name: Deploy Worker Browser
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN: ${{ inputs.environment == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_STAGING || secrets.RAILWAY_TOKEN }}
         run: railway up --service sovereign-worker-browser --detach
       - name: Deploy Gateway MCP
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN: ${{ inputs.environment == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_STAGING || secrets.RAILWAY_TOKEN }}
         run: railway up --service sovereign-gateway-mcp --detach
       - name: Wait for detached Railway deploys to settle
         env:
@@ -170,7 +170,7 @@ jobs:
         run: pnpm build --filter=@sovereign/db...
       - name: Run database migrations
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ inputs.environment == 'production' && secrets.DATABASE_URL_PRODUCTION || secrets.DATABASE_URL_STAGING || secrets.DATABASE_URL }}
         run: pnpm db:migrate
       - name: Save migration evidence
         run: |
