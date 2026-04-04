@@ -64,7 +64,7 @@ function SignInContent() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[rgb(var(--color-bg-primary))]">
+    <>
       {/* Background decoration */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-40 -top-40 h-80 w-80 rounded-full bg-[rgb(var(--color-brand)/0.06)] blur-3xl" />
@@ -352,20 +352,20 @@ function SignInContent() {
           Secured by SOVEREIGN Agent OS
         </p>
       </div>
-    </main>
+    </>
   );
 }
 
 export default function SignInPage() {
   return (
-    <Suspense
-      fallback={
-        <main className="flex min-h-screen flex-col items-center justify-center bg-[rgb(var(--color-bg-primary))]">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[rgb(var(--color-bg-primary))]">
+      <Suspense
+        fallback={
           <p className="text-sm text-[rgb(var(--color-text-tertiary))]">Loading...</p>
-        </main>
-      }
-    >
-      <SignInContent />
-    </Suspense>
+        }
+      >
+        <SignInContent />
+      </Suspense>
+    </main>
   );
 }
