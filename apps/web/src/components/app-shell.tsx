@@ -26,6 +26,7 @@ import {
   IconSupport,
   IconAdmin,
   IconOnboarding,
+  IconProjects,
   IconSearch,
   IconSun,
   IconMoon,
@@ -62,6 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Build",
     items: [
+      { label: "Projects", href: "/projects", icon: IconProjects },
       { label: "Agents", href: "/agents", icon: IconAgents },
       { label: "Runs", href: "/runs", icon: IconRuns },
       { label: "Connectors", href: "/connectors", icon: IconConnectors },
