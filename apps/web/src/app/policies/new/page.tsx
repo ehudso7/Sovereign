@@ -50,12 +50,6 @@ export default function NewPolicyPage() {
         setRulesError("Rules must be a JSON array of objects with actionPattern.");
         return false;
       }
-      for (const rule of parsed) {
-        if (!rule.actionPattern || typeof rule.actionPattern !== "string") {
-          setRulesError("Each rule must have an actionPattern string.");
-          return false;
-        }
-      }
       setRulesError(null);
       return true;
     } catch {

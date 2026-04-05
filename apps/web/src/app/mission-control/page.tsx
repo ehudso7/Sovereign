@@ -42,6 +42,7 @@ interface Overview {
     status: string;
     error?: { message: string; code?: string };
     createdAt: string;
+    completedAt?: string;
   }[];
 }
 
@@ -226,16 +227,16 @@ export default function MissionControlPage() {
                 <span className="stat-label">Error Rate</span>
                 <div className="flex items-center gap-2">
                   <span className="stat-value">
-                    {failureRate.toFixed(1)}%
+                    {(overview.failureRate ?? 0).toFixed(1)}%
                   </span>
-                  {failureRate > 5 ? (
+                  {(overview.failureRate ?? 0) > 5 ? (
                     <IconArrowUp size={14} className="text-[rgb(var(--color-error))]" />
                   ) : (
                     <IconArrowDown size={14} className="text-[rgb(var(--color-success))]" />
                   )}
                 </div>
                 <span className="text-xs text-[rgb(var(--color-text-tertiary))]">
-                  {failureRate > 5 ? "above threshold" : "healthy"}
+                  {(overview.failureRate ?? 0) > 5 ? "above threshold" : "healthy"}
                 </span>
               </div>
               <div className="stat-card">
@@ -253,7 +254,7 @@ export default function MissionControlPage() {
                 <h2 className="section-title">Run Status Breakdown</h2>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
-                {(["completed", "running", "queued", "failed", "cancelled", "paused"] as const).map((status) => (
+                {(["running", "queued", "completed", "failed", "cancelled", "paused"] as const).map((status) => (
                   <div
                     key={status}
                     className="flex flex-col gap-1.5 rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3"
@@ -353,9 +354,9 @@ export default function MissionControlPage() {
                     <div className="flex items-center gap-2">
                       <span
                         className={
-                          failureRate < 5
+                          (overview.failureRate ?? 0) < 5
                             ? "status-dot-success-pulse"
-                            : failureRate < 15
+                            : (overview.failureRate ?? 0) < 15
                               ? "status-dot-warning"
                               : "status-dot-error"
                         }
@@ -366,16 +367,16 @@ export default function MissionControlPage() {
                     </div>
                     <span
                       className={
-                        failureRate < 5
+                        (overview.failureRate ?? 0) < 5
                           ? "badge-success"
-                          : failureRate < 15
+                          : (overview.failureRate ?? 0) < 15
                             ? "badge-warning"
                             : "badge-error"
                       }
                     >
-                      {failureRate < 5
+                      {(overview.failureRate ?? 0) < 5
                         ? "Healthy"
-                        : failureRate < 15
+                        : (overview.failureRate ?? 0) < 15
                           ? "Degraded"
                           : "Unhealthy"}
                     </span>
@@ -459,16 +460,16 @@ export default function MissionControlPage() {
                         <span className="status-dot-error mt-1.5 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-[rgb(var(--color-text-primary))] group-hover:text-[rgb(var(--color-error))] transition-colors">
-                            {f.id.slice(0, 12) + "..."}
+                            {f.agentId ? f.agentId.slice(0, 12) + "..." : f.id.slice(0, 12) + "..."}
                           </p>
-                          {f.error && (
+                          {f.error?.message && (
                             <p className="mt-0.5 truncate text-xs text-[rgb(var(--color-text-tertiary))]">
                               {f.error.message}
                             </p>
                           )}
                           <div className="mt-1 flex items-center gap-1 text-xs text-[rgb(var(--color-text-tertiary))]">
                             <IconClock size={12} />
-                            {new Date(f.createdAt).toLocaleString()}
+                            {new Date(f.completedAt ?? f.createdAt).toLocaleString()}
                           </div>
                         </div>
                       </Link>

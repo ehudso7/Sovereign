@@ -42,20 +42,18 @@ interface MemoryUsageSummary {
   memoriesWritten: number;
 }
 
-interface RunObject {
-  id: string;
-  agentId: string;
-  status: string;
-  tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number };
-  costCents?: number;
-  error?: { message: string; code?: string };
-  createdAt: string;
-  startedAt?: string;
-  completedAt?: string;
-}
-
 interface MCRunDetail {
-  run: RunObject;
+  run: {
+    id: string;
+    agentId: string;
+    status: string;
+    tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+    costCents?: number;
+    error?: { message: string; code?: string };
+    createdAt: string;
+    startedAt?: string;
+    completedAt?: string;
+  };
   steps: RunStep[];
   browserSessions: BrowserSession[];
   toolUsage: ToolUsageSummary[];
@@ -197,9 +195,7 @@ export default function MCRunDetailPage() {
     );
   }
 
-  const run = detail?.run;
-
-  if (!detail || !run) {
+  if (!detail) {
     return (
       <AppShell>
         <div className="empty-state">
@@ -218,6 +214,8 @@ export default function MCRunDetailPage() {
       </AppShell>
     );
   }
+
+  const run = detail.run;
 
   return (
     <AppShell>
@@ -266,7 +264,7 @@ export default function MCRunDetailPage() {
         <div className="page-header flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="page-title">
-              {run.agentId}
+              Run {run.id.slice(0, 8)}
             </h1>
             <p className="page-description">
               <code className="rounded bg-[rgb(var(--color-bg-tertiary))] px-1.5 py-0.5 text-xs text-[rgb(var(--color-text-secondary))]">
@@ -371,7 +369,7 @@ export default function MCRunDetailPage() {
               Error
             </p>
             <pre className="mt-2 whitespace-pre-wrap text-sm text-[rgb(var(--color-error)/0.8)]">
-              {run.error.message}
+              {typeof run.error === "string" ? run.error : run.error.message}
             </pre>
           </div>
         )}
