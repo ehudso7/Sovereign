@@ -143,6 +143,7 @@ export class PgBillingService {
     private readonly spendAlertRepo: SpendAlertRepo,
     private readonly auditEmitter: AuditEmitter,
     private readonly provider: BillingProvider = new LocalBillingProvider(),
+    private readonly orgRepo?: { update(id: OrgId, input: { plan?: string }): Promise<unknown> },
   ) {}
 
   // =========================================================================
@@ -204,6 +205,11 @@ export class PgBillingService {
         plan: newPlan, updatedBy: userId,
       });
       if (!account) return err(AppError.notFound("BillingAccount"));
+
+      // Sync plan to the organization record so auth/me and settings reflect it
+      if (this.orgRepo) {
+        await this.orgRepo.update(orgId, { plan: newPlan });
+      }
 
       await this.auditEmitter.emit({
         orgId, actorId: userId, actorType: "user",

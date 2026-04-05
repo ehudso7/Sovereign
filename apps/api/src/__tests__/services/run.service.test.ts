@@ -340,17 +340,18 @@ describe("RunService", () => {
   // ---------------------------------------------------------------------------
 
   describe("cancelRun", () => {
-    it("cancels a queued run", async () => {
+    it("cancels a queued run (no workflow = immediate cancelled)", async () => {
       const created = await runService.createRun(publishedAgentId, orgId, ownerId);
       expect(created.ok).toBe(true);
       if (!created.ok) return;
 
       const result = await runService.cancelRun(created.value.id, orgId, ownerId);
       expect(result.ok).toBe(true);
-      if (result.ok) expect(result.value.status).toBe("cancelling");
+      // Runs without a Temporal workflow go directly to "cancelled"
+      if (result.ok) expect(result.value.status).toBe("cancelled");
     });
 
-    it("cancels a running run", async () => {
+    it("cancels a running run (no workflow = immediate cancelled)", async () => {
       const created = await runService.createRun(publishedAgentId, orgId, ownerId);
       expect(created.ok).toBe(true);
       if (!created.ok) return;
@@ -361,7 +362,8 @@ describe("RunService", () => {
 
       const result = await runService.cancelRun(created.value.id, orgId, ownerId);
       expect(result.ok).toBe(true);
-      if (result.ok) expect(result.value.status).toBe("cancelling");
+      // Runs without a Temporal workflow go directly to "cancelled"
+      if (result.ok) expect(result.value.status).toBe("cancelled");
     });
 
     it("rejects when run is already completed", async () => {

@@ -293,7 +293,8 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     const spendAlertRepo = new PgSpendAlertRepo(tenantDb);
     const auditRepo = new PgAuditRepo(tenantDb);
     const auditEmitter = new PgAuditEmitter(auditRepo);
-    return new PgBillingService(billingAccountRepo, usageEventRepo, invoiceRepo, spendAlertRepo, auditEmitter);
+    const billingOrgRepo = new PgOrgRepo(unscopedDb);
+    return new PgBillingService(billingAccountRepo, usageEventRepo, invoiceRepo, spendAlertRepo, auditEmitter, undefined, billingOrgRepo);
   };
 
   // Factory for org-scoped onboarding service

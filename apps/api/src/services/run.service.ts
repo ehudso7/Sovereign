@@ -286,7 +286,12 @@ export class PgRunService implements RunService {
       );
     }
 
-    const updated = await this.runRepo.updateStatus(runId, orgId, targetStatus);
+    // If there's no Temporal workflow managing this run (e.g. run was queued
+    // but never dispatched), go directly to "cancelled" instead of "cancelling"
+    const hasWorkflow = !!run.temporalWorkflowId;
+    const finalStatus: RunStatus = hasWorkflow ? targetStatus : "cancelled";
+
+    const updated = await this.runRepo.updateStatus(runId, orgId, finalStatus);
     if (!updated) return err(AppError.internal("Failed to cancel run"));
 
     await this.audit.emit({
@@ -296,7 +301,7 @@ export class PgRunService implements RunService {
       action: "run.cancelled",
       resourceType: "run",
       resourceId: runId,
-      metadata: { previousStatus: run.status },
+      metadata: { previousStatus: run.status, hasWorkflow },
     });
 
     return ok(updated);

@@ -63,7 +63,7 @@ export class PgOrgRepo implements OrgRepo {
     return row ? toOrg(row) : null;
   }
 
-  async update(id: OrgId, input: { name?: string; settings?: Record<string, unknown> }): Promise<Organization | null> {
+  async update(id: OrgId, input: { name?: string; settings?: Record<string, unknown>; plan?: string }): Promise<Organization | null> {
     const sets: string[] = [];
     const params: unknown[] = [];
     let idx = 1;
@@ -75,6 +75,10 @@ export class PgOrgRepo implements OrgRepo {
     if (input.settings !== undefined) {
       sets.push(`settings = $${idx++}`);
       params.push(JSON.stringify(input.settings));
+    }
+    if (input.plan !== undefined) {
+      sets.push(`plan = $${idx++}`);
+      params.push(input.plan);
     }
     if (sets.length === 0) return this.getById(id);
 

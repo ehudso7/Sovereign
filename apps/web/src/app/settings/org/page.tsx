@@ -13,6 +13,7 @@ export default function OrgSettingsPage() {
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [billingPlan, setBillingPlan] = useState<string | null>(null);
   const canEdit = role === "org_owner" || role === "org_admin";
 
   useEffect(() => {
@@ -22,6 +23,14 @@ export default function OrgSettingsPage() {
   useEffect(() => {
     if (org) setName(org.name);
   }, [org]);
+
+  // Fetch the actual billing plan to ensure consistency
+  useEffect(() => {
+    if (!token) return;
+    apiFetch<{ plan: string }>("/api/v1/billing/account", { token }).then((r) => {
+      if (r.ok) setBillingPlan(r.data.plan);
+    });
+  }, [token]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,7 +154,7 @@ export default function OrgSettingsPage() {
                   Plan
                 </label>
                 <div className="flex h-10 items-center gap-2 rounded-lg border border-[rgb(var(--color-border-primary))] bg-[rgb(var(--color-bg-secondary))] px-3">
-                  <span className="badge-info">{(org?.plan ?? "free").replace(/^\w/, (c: string) => c.toUpperCase())}</span>
+                  <span className="badge-info">{((billingPlan ?? org?.plan ?? "free")).replace(/^\w/, (c: string) => c.toUpperCase())}</span>
                   <a href="/billing" className="text-xs font-medium text-[rgb(var(--color-brand))] hover:underline">Manage plan</a>
                 </div>
               </div>
