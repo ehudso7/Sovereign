@@ -51,8 +51,8 @@ export default function NewDealPage() {
       body: JSON.stringify({
         name,
         stage,
-        valueCents: valueCents ? Number(valueCents) : undefined,
-        probability: probability ? Number(probability) : undefined,
+        valueCents: valueCents ? Math.min(parseInt(valueCents, 10), Number.MAX_SAFE_INTEGER) : undefined,
+        probability: probability ? parseInt(probability, 10) : undefined,
       }),
     });
     setSubmitting(false);
@@ -169,6 +169,8 @@ export default function NewDealPage() {
               <input
                 id="valueCents"
                 type="number"
+                min="0"
+                max="9007199254740991"
                 value={valueCents}
                 onChange={(e) => setValueCents(e.target.value)}
                 className="input"

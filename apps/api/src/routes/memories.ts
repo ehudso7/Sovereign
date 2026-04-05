@@ -15,7 +15,7 @@ import { authenticate, requirePermission } from "../middleware/auth.js";
 
 const createMemorySchema = z.object({
   scopeType: z.enum(["org", "project", "agent", "user"]),
-  scopeId: z.string().min(1),
+  scopeId: z.string().uuid(),
   kind: z.enum(["semantic", "episodic", "procedural"]),
   title: z.string().min(1).max(500),
   summary: z.string().min(1).max(2000),

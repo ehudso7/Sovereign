@@ -48,6 +48,13 @@ export default function CreateMemoryPage() {
     setSubmitting(true);
     setError(null);
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (scopeId && !uuidRegex.test(scopeId)) {
+      setError("Scope ID must be a valid UUID");
+      setSubmitting(false);
+      return;
+    }
+
     const result = await apiFetch<{ id: string }>("/api/v1/memories", {
       method: "POST",
       token,
