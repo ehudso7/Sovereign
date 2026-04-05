@@ -45,19 +45,13 @@ export default function NewDealPage() {
     }
 
     setSubmitting(true);
-    const parsedValue = valueCents ? parseInt(valueCents, 10) : undefined;
-    if (parsedValue !== undefined && (isNaN(parsedValue) || parsedValue > 9007199254740991 || parsedValue < 0)) {
-      setError("Value must be a whole number between 0 and 9,007,199,254,740,991");
-      setSubmitting(false);
-      return;
-    }
     const result = await apiFetch("/api/v1/revenue/deals", {
       method: "POST",
       token: token ?? undefined,
       body: JSON.stringify({
         name,
         stage,
-        valueCents: valueCents ? Math.min(parseInt(valueCents, 10), Number.MAX_SAFE_INTEGER) : undefined,
+        valueCents: valueCents ? parseInt(valueCents, 10) : undefined,
         probability: probability ? parseInt(probability, 10) : undefined,
       }),
     });
@@ -176,13 +170,12 @@ export default function NewDealPage() {
                 id="valueCents"
                 type="number"
                 min="0"
-                max="9007199254740991"
+                max="99999999999"
+                step="1"
                 value={valueCents}
                 onChange={(e) => setValueCents(e.target.value)}
                 className="input"
                 placeholder="100000"
-                min="0"
-                max="99999999999"
               />
             </div>
 

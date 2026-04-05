@@ -18,7 +18,23 @@ const POLICY_TYPES = [
   "content_filter",
 ] as const;
 
+const POLICY_TYPE_LABELS: Record<string, string> = {
+  access_control: "Access Control",
+  deny: "Deny",
+  require_approval: "Require Approval",
+  quarantine: "Quarantine",
+  budget_cap: "Budget Cap",
+  content_filter: "Content Filter",
+};
+
 const ENFORCEMENT_MODES = ["allow", "deny", "require_approval", "quarantine"] as const;
+
+const ENFORCEMENT_MODE_LABELS: Record<string, string> = {
+  allow: "Allow",
+  deny: "Deny",
+  require_approval: "Require Approval",
+  quarantine: "Quarantine",
+};
 
 const SCOPE_TYPES = ["org", "project", "agent", "connector", "browser", "memory", "run"] as const;
 

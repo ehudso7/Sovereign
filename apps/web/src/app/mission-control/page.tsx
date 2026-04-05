@@ -43,7 +43,7 @@ interface Overview {
     error?: { message: string; code?: string };
     createdAt: string;
     completedAt?: string;
-  }[];
+  }>;
 }
 
 function formatMs(ms: number | null | undefined): string {
@@ -229,16 +229,16 @@ export default function MissionControlPage() {
                 <span className="stat-label">Error Rate</span>
                 <div className="flex items-center gap-2">
                   <span className="stat-value">
-                    {(overview.failureRate ?? 0).toFixed(1)}%
+                    {failureRate.toFixed(1)}%
                   </span>
-                  {(overview.failureRate ?? 0) > 5 ? (
+                  {failureRate > 5 ? (
                     <IconArrowUp size={14} className="text-[rgb(var(--color-error))]" />
                   ) : (
                     <IconArrowDown size={14} className="text-[rgb(var(--color-success))]" />
                   )}
                 </div>
                 <span className="text-xs text-[rgb(var(--color-text-tertiary))]">
-                  {(overview.failureRate ?? 0) > 5 ? "above threshold" : "healthy"}
+                  {failureRate > 5 ? "above threshold" : "healthy"}
                 </span>
               </div>
               <div className="stat-card">
@@ -356,9 +356,9 @@ export default function MissionControlPage() {
                     <div className="flex items-center gap-2">
                       <span
                         className={
-                          (overview.failureRate ?? 0) < 5
+                          failureRate < 5
                             ? "status-dot-success-pulse"
-                            : (overview.failureRate ?? 0) < 15
+                            : failureRate < 15
                               ? "status-dot-warning"
                               : "status-dot-error"
                         }
@@ -369,16 +369,16 @@ export default function MissionControlPage() {
                     </div>
                     <span
                       className={
-                        (overview.failureRate ?? 0) < 5
+                        failureRate < 5
                           ? "badge-success"
-                          : (overview.failureRate ?? 0) < 15
+                          : failureRate < 15
                             ? "badge-warning"
                             : "badge-error"
                       }
                     >
-                      {(overview.failureRate ?? 0) < 5
+                      {failureRate < 5
                         ? "Healthy"
-                        : (overview.failureRate ?? 0) < 15
+                        : failureRate < 15
                           ? "Degraded"
                           : "Unhealthy"}
                     </span>
