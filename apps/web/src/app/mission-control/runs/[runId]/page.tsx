@@ -33,32 +33,34 @@ interface BrowserSession {
 
 interface ToolUsageSummary {
   toolName: string;
-  callCount: number;
-  avgLatencyMs: number;
+  count: number;
+  totalLatencyMs: number;
 }
 
 interface MemoryUsageSummary {
-  retrievedCount: number;
-  writtenCount: number;
+  memoriesRetrieved: number;
+  memoriesWritten: number;
 }
 
 interface MCRunDetail {
-  id: string;
-  agentId: string;
-  agentName?: string;
-  status: string;
-  durationMs?: number;
-  queueWaitMs?: number;
-  tokenUsage?: { prompt: number; completion: number; total: number };
-  estimatedCostUsd?: number;
-  error?: string;
+  run: {
+    id: string;
+    agentId: string;
+    status: string;
+    tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+    costCents?: number;
+    error?: { message: string; code?: string };
+    createdAt: string;
+    startedAt?: string;
+    completedAt?: string;
+  };
   steps: RunStep[];
   browserSessions: BrowserSession[];
   toolUsage: ToolUsageSummary[];
   memoryUsage: MemoryUsageSummary;
-  createdAt: string;
-  startedAt?: string;
-  completedAt?: string;
+  timeline: RunStep[];
+  queueWaitMs: number | null;
+  durationMs: number | null;
 }
 
 function statusBadgeClass(status: string): string {
@@ -151,7 +153,7 @@ export default function MCRunDetailPage() {
   const params = useParams();
   const runId = params.runId as string;
 
-  const [run, setRun] = useState<MCRunDetail | null>(null);
+  const [detail, setDetail] = useState<MCRunDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -172,7 +174,7 @@ export default function MCRunDetailPage() {
     );
 
     if (result.ok) {
-      setRun(result.data);
+      setDetail(result.data);
     } else {
       setError(result.error.message);
     }
@@ -193,7 +195,7 @@ export default function MCRunDetailPage() {
     );
   }
 
-  if (!run) {
+  if (!detail) {
     return (
       <AppShell>
         <div className="empty-state">
@@ -212,6 +214,8 @@ export default function MCRunDetailPage() {
       </AppShell>
     );
   }
+
+  const run = detail.run;
 
   return (
     <AppShell>
@@ -260,7 +264,7 @@ export default function MCRunDetailPage() {
         <div className="page-header flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="page-title">
-              {run.agentName ?? run.agentId}
+              Run {run.id.slice(0, 8)}
             </h1>
             <p className="page-description">
               <code className="rounded bg-[rgb(var(--color-bg-tertiary))] px-1.5 py-0.5 text-xs text-[rgb(var(--color-text-secondary))]">
@@ -285,7 +289,7 @@ export default function MCRunDetailPage() {
                 Agent
               </dt>
               <dd className="mt-1 text-[rgb(var(--color-text-primary))]">
-                {run.agentName ?? run.agentId}
+                {run.agentId}
               </dd>
             </div>
             <div>
@@ -294,7 +298,7 @@ export default function MCRunDetailPage() {
               </dt>
               <dd className="mt-1 flex items-center gap-1.5 text-[rgb(var(--color-text-primary))]">
                 <IconClock size={12} className="text-[rgb(var(--color-text-tertiary))]" />
-                {formatDuration(run.durationMs)}
+                {formatDuration(detail.durationMs)}
               </dd>
             </div>
             <div>
@@ -302,28 +306,28 @@ export default function MCRunDetailPage() {
                 Queue Wait
               </dt>
               <dd className="mt-1 text-[rgb(var(--color-text-primary))]">
-                {formatDuration(run.queueWaitMs)}
+                {formatDuration(detail.queueWaitMs)}
               </dd>
             </div>
             {run.tokenUsage && (
               <div className="col-span-2 sm:col-span-1">
                 <dt className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--color-text-tertiary))]">
-                  Tokens (P / C / T)
+                  Tokens (In / Out / Total)
                 </dt>
                 <dd className="mt-1 text-[rgb(var(--color-text-primary))]">
-                  {run.tokenUsage.prompt.toLocaleString()} /{" "}
-                  {run.tokenUsage.completion.toLocaleString()} /{" "}
-                  {run.tokenUsage.total.toLocaleString()}
+                  {run.tokenUsage.inputTokens.toLocaleString()} /{" "}
+                  {run.tokenUsage.outputTokens.toLocaleString()} /{" "}
+                  {run.tokenUsage.totalTokens.toLocaleString()}
                 </dd>
               </div>
             )}
-            {run.estimatedCostUsd != null && (
+            {run.costCents != null && (
               <div>
                 <dt className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--color-text-tertiary))]">
                   Est. Cost
                 </dt>
                 <dd className="mt-1 font-medium text-[rgb(var(--color-text-primary))]">
-                  ${run.estimatedCostUsd.toFixed(4)}
+                  ${(run.costCents / 100).toFixed(4)}
                 </dd>
               </div>
             )}
@@ -365,7 +369,7 @@ export default function MCRunDetailPage() {
               Error
             </p>
             <pre className="mt-2 whitespace-pre-wrap text-sm text-[rgb(var(--color-error)/0.8)]">
-              {run.error}
+              {typeof run.error === "string" ? run.error : run.error.message}
             </pre>
           </div>
         )}
@@ -375,7 +379,7 @@ export default function MCRunDetailPage() {
           <div className="section-header mb-4">
             <h2 className="section-title">Timeline</h2>
           </div>
-          {run.steps.length === 0 ? (
+          {detail.steps.length === 0 ? (
             <div className="empty-state">
               <IconRuns size={40} className="empty-state-icon" />
               <p className="empty-state-title">No steps recorded</p>
@@ -385,7 +389,7 @@ export default function MCRunDetailPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {run.steps.map((step, index) => (
+              {detail.steps.map((step, index) => (
                 <div key={step.id} className="card card-hover p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -432,7 +436,7 @@ export default function MCRunDetailPage() {
           <div className="section-header mb-4">
             <h2 className="section-title">Browser Sessions</h2>
           </div>
-          {run.browserSessions.length === 0 ? (
+          {detail.browserSessions.length === 0 ? (
             <div className="empty-state">
               <IconBrowser size={40} className="empty-state-icon" />
               <p className="empty-state-title">No browser sessions</p>
@@ -442,7 +446,7 @@ export default function MCRunDetailPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {run.browserSessions.map((session) => (
+              {detail.browserSessions.map((session) => (
                 <Link
                   key={session.id}
                   href={`/browser-sessions/${session.id}`}
@@ -485,7 +489,7 @@ export default function MCRunDetailPage() {
           <div className="section-header mb-4">
             <h2 className="section-title">Tool Usage</h2>
           </div>
-          {run.toolUsage.length === 0 ? (
+          {detail.toolUsage.length === 0 ? (
             <div className="empty-state">
               <IconRuns size={40} className="empty-state-icon" />
               <p className="empty-state-title">No tools used</p>
@@ -504,16 +508,16 @@ export default function MCRunDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {run.toolUsage.map((tool) => (
+                  {detail.toolUsage.map((tool) => (
                     <tr key={tool.toolName} className="table-row">
                       <td className="px-4 py-3 text-sm font-medium text-[rgb(var(--color-text-primary))]">
                         {tool.toolName}
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-[rgb(var(--color-text-secondary))]">
-                        {tool.callCount}
+                        {tool.count}
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-[rgb(var(--color-text-secondary))]">
-                        {formatDuration(tool.avgLatencyMs)}
+                        {formatDuration(tool.count > 0 ? Math.round(tool.totalLatencyMs / tool.count) : 0)}
                       </td>
                     </tr>
                   ))}
@@ -542,7 +546,7 @@ export default function MCRunDetailPage() {
                     Retrieved
                   </p>
                   <p className="text-lg font-semibold text-[rgb(var(--color-text-primary))]">
-                    {run.memoryUsage.retrievedCount}
+                    {detail.memoryUsage.memoriesRetrieved}
                   </p>
                 </div>
               </div>
@@ -558,7 +562,7 @@ export default function MCRunDetailPage() {
                     Written
                   </p>
                   <p className="text-lg font-semibold text-[rgb(var(--color-text-primary))]">
-                    {run.memoryUsage.writtenCount}
+                    {detail.memoryUsage.memoriesWritten}
                   </p>
                 </div>
               </div>

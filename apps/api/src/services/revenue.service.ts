@@ -417,28 +417,53 @@ export class PgRevenueService {
 
       const channel = input.channel ?? "email";
       const contactName = input.contactName ?? "there";
-      const accountName = input.accountName ?? "";
+
+      // Derive accountName from input or from linked entity context
+      let accountName = input.accountName ?? "";
+      if (!accountName && input.linkedEntityType === "account" && input.linkedEntityId) {
+        const account = await this.accountRepo.getById(input.linkedEntityId as CrmAccountId, orgId);
+        if (account) accountName = account.name;
+      }
 
       // Generate draft content (deterministic for dev/CI, production would use AI runtime)
+      // The user-provided context is treated as instructions to shape the outreach tone,
+      // NOT pasted verbatim into the body.
       const subject = channel === "email"
         ? `Following up — ${accountName || "our conversation"}`
         : undefined;
 
+      // Determine tone/urgency from context
+      const contextStr = contextParts.join(". ");
+      const isFollowUp = contextStr.length > 0;
+      const mentionsUrgency = /urgent|asap|quick|soon|deadline/i.test(contextStr);
+      const mentionsHesitation = /hesitant|on the edge|unsure|considering|fence/i.test(contextStr);
+
+      let openingLine: string;
+      let closingLine: string;
+
+      if (mentionsHesitation) {
+        openingLine = `I've been thinking about our recent conversation${accountName ? ` regarding ${accountName}` : ""} and wanted to share a few additional thoughts that might be helpful.`;
+        closingLine = "I'd love to walk you through the details whenever works best for you — no pressure at all.";
+      } else if (mentionsUrgency) {
+        openingLine = `I wanted to quickly follow up${accountName ? ` on ${accountName}` : ""} as I know timing is important here.`;
+        closingLine = "Could we find a few minutes this week to finalize the details?";
+      } else if (isFollowUp) {
+        openingLine = `Based on our recent interactions${accountName ? ` regarding ${accountName}` : ""}, I wanted to follow up.`;
+        closingLine = "Would you have time for a brief conversation this week?";
+      } else {
+        openingLine = "I wanted to reach out and connect.";
+        closingLine = "Would you have time for a brief conversation this week?";
+      }
+
       const body = [
         `Hi ${contactName},`,
         "",
-        contextParts.length > 0
-          ? `Based on our recent interactions${accountName ? ` regarding ${accountName}` : ""}, I wanted to follow up.`
-          : `I wanted to reach out and connect.`,
+        openingLine,
         "",
-        contextParts.length > 0
-          ? `Context: ${contextParts.join(". ")}`
-          : "",
-        "",
-        "Would you have time for a brief conversation this week?",
+        closingLine,
         "",
         "Best regards",
-      ].filter(line => line !== undefined).join("\n");
+      ].join("\n");
 
       const draft = await this.draftRepo.create({
         orgId, linkedEntityType: input.linkedEntityType,

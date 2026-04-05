@@ -26,9 +26,24 @@ export default function NewDealPage() {
 
   if (isLoading || !user) return null;
 
+  const MAX_VALUE_CENTS = 999_999_999_99; // ~$10B
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (valueCents) {
+      const parsed = Number(valueCents);
+      if (!Number.isFinite(parsed) || !Number.isSafeInteger(parsed) || parsed < 0) {
+        setError("Value must be a valid positive whole number.");
+        return;
+      }
+      if (parsed > MAX_VALUE_CENTS) {
+        setError(`Value cannot exceed ${MAX_VALUE_CENTS.toLocaleString()} cents (~$${(MAX_VALUE_CENTS / 100).toLocaleString()}).`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     const result = await apiFetch("/api/v1/revenue/deals", {
       method: "POST",
@@ -36,8 +51,8 @@ export default function NewDealPage() {
       body: JSON.stringify({
         name,
         stage,
-        valueCents: valueCents ? parseInt(valueCents, 10) : undefined,
-        probability: probability ? parseInt(probability, 10) : undefined,
+        valueCents: valueCents ? Number(valueCents) : undefined,
+        probability: probability ? Number(probability) : undefined,
       }),
     });
     setSubmitting(false);
@@ -158,6 +173,8 @@ export default function NewDealPage() {
                 onChange={(e) => setValueCents(e.target.value)}
                 className="input"
                 placeholder="100000"
+                min="0"
+                max="99999999999"
               />
             </div>
 
