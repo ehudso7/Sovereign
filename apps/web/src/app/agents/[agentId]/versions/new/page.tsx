@@ -118,13 +118,17 @@ export default function CreateVersionPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Instructions</label>
+            <label className="block text-sm font-medium text-gray-700">
+              Instructions <span className="text-red-500">*</span>
+            </label>
+            <p className="text-xs text-gray-400">Required for publishing. Define the agent&apos;s behavior and system prompt.</p>
             <textarea
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
               className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm"
               rows={8}
-              placeholder="System instructions for the agent"
+              required
+              placeholder="You are a helpful assistant that..."
             />
           </div>
 
