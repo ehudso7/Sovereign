@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
+import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
@@ -218,18 +219,54 @@ function SearchBar({ collapsed }: { collapsed: boolean }) {
 // Main AppShell
 // ---------------------------------------------------------------------------
 
+interface AlertNotification {
+  id: string;
+  title: string;
+  severity: string;
+  status: string;
+  createdAt: string;
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, org, signOut } = useAuth();
+  const { user, org, token, signOut } = useAuth();
   const { isDark, toggle } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
+  const [alerts, setAlerts] = useState<AlertNotification[]>([]);
+  const [alertCount, setAlertCount] = useState(0);
 
   // Close mobile nav on route change
   const pathname = usePathname();
   useEffect(() => {
     setMobileOpen(false);
+    setBellOpen(false);
   }, [pathname]);
+
+  // Fetch recent alerts for bell
+  useEffect(() => {
+    if (!token) return;
+    const load = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL || ""}/api/v1/mission-control/alerts?status=open&limit=10`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (res.ok) {
+          const body = await res.json();
+          const items = body.data ?? [];
+          setAlerts(items.slice(0, 5));
+          setAlertCount(items.length);
+        }
+      } catch {
+        // silently ignore - bell just won't show alerts
+      }
+    };
+    load();
+    const interval = setInterval(load, 60_000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[rgb(var(--color-bg-primary))]">
@@ -397,14 +434,62 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
             </button>
-            <Link
-              href="/mission-control/alerts"
-              className="relative rounded-md p-2 text-[rgb(var(--color-text-tertiary))] transition-colors hover:bg-[rgb(var(--color-bg-tertiary))] hover:text-[rgb(var(--color-text-primary))]"
-              title="Alerts"
-            >
-              <IconBell size={18} />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[rgb(var(--color-error))]" />
-            </Link>
+            <div className="relative">
+              <button
+                onClick={() => setBellOpen(!bellOpen)}
+                className="relative rounded-md p-2 text-[rgb(var(--color-text-tertiary))] transition-colors hover:bg-[rgb(var(--color-bg-tertiary))] hover:text-[rgb(var(--color-text-primary))]"
+              >
+                <IconBell size={18} />
+                {alertCount > 0 && (
+                  <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[rgb(var(--color-error))]" />
+                )}
+              </button>
+              {bellOpen && (
+                <div className="absolute right-0 top-full mt-1 w-80 rounded-lg border border-[rgb(var(--color-border-primary))] bg-[rgb(var(--color-bg-primary))] shadow-lg z-50">
+                  <div className="flex items-center justify-between border-b border-[rgb(var(--color-border-primary))] px-4 py-3">
+                    <span className="text-sm font-semibold text-[rgb(var(--color-text-primary))]">Notifications</span>
+                    {alertCount > 0 && (
+                      <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[rgb(var(--color-error))] px-1.5 text-xs font-bold text-white">
+                        {alertCount}
+                      </span>
+                    )}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {alerts.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-sm text-[rgb(var(--color-text-tertiary))]">
+                        No open alerts
+                      </div>
+                    ) : (
+                      alerts.map((a) => (
+                        <Link
+                          key={a.id}
+                          href="/mission-control/alerts"
+                          onClick={() => setBellOpen(false)}
+                          className="flex items-start gap-3 border-b border-[rgb(var(--color-border-secondary))] px-4 py-3 transition-colors hover:bg-[rgb(var(--color-bg-secondary))] last:border-b-0"
+                        >
+                          <span className={`mt-1 shrink-0 ${a.severity === "critical" ? "status-dot-error" : "status-dot-warning"}`} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-[rgb(var(--color-text-primary))] truncate">{a.title}</p>
+                            <p className="text-xs text-[rgb(var(--color-text-tertiary))]">
+                              {new Date(a.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                  <div className="border-t border-[rgb(var(--color-border-primary))]">
+                    <Link
+                      href="/mission-control/alerts"
+                      onClick={() => setBellOpen(false)}
+                      className="block px-4 py-2.5 text-center text-xs font-medium text-[rgb(var(--color-brand))] transition-colors hover:bg-[rgb(var(--color-bg-secondary))]"
+                    >
+                      View all alerts
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

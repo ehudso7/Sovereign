@@ -18,23 +18,7 @@ const POLICY_TYPES = [
   "content_filter",
 ] as const;
 
-const POLICY_TYPE_LABELS: Record<string, string> = {
-  access_control: "Access Control",
-  deny: "Deny",
-  require_approval: "Require Approval",
-  quarantine: "Quarantine",
-  budget_cap: "Budget Cap",
-  content_filter: "Content Filter",
-};
-
 const ENFORCEMENT_MODES = ["allow", "deny", "require_approval", "quarantine"] as const;
-
-const ENFORCEMENT_MODE_LABELS: Record<string, string> = {
-  allow: "Allow",
-  deny: "Deny",
-  require_approval: "Require Approval",
-  quarantine: "Quarantine",
-};
 
 const SCOPE_TYPES = ["org", "project", "agent", "connector", "browser", "memory", "run"] as const;
 
@@ -52,7 +36,7 @@ export default function NewPolicyPage() {
   const [scopeType, setScopeType] = useState<string>(SCOPE_TYPES[0]);
   const [scopeId, setScopeId] = useState("");
   const [priority, setPriority] = useState(0);
-  const [rulesText, setRulesText] = useState('[\n  { "actionPattern": "*" }\n]');
+  const [rulesText, setRulesText] = useState('[{"actionPattern": "*"}]');
   const [rulesError, setRulesError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -65,14 +49,8 @@ export default function NewPolicyPage() {
     try {
       const parsed = JSON.parse(text);
       if (!Array.isArray(parsed)) {
-        setRulesError("Rules must be a JSON array of rule objects.");
+        setRulesError("Rules must be a JSON array of objects with actionPattern.");
         return false;
-      }
-      for (const rule of parsed) {
-        if (!rule.actionPattern || typeof rule.actionPattern !== "string") {
-          setRulesError('Each rule must have an "actionPattern" string field.');
-          return false;
-        }
       }
       setRulesError(null);
       return true;
@@ -252,8 +230,8 @@ export default function NewPolicyPage() {
                 validateRules(e.target.value);
               }}
               rows={6}
-              className={`input w-full font-mono text-sm ${rulesError ? "border-[rgb(var(--color-error))]" : ""}`}
-              placeholder='[{ "actionPattern": "*" }]'
+              className={`w-full rounded border px-3 py-2 font-mono text-sm focus:outline-none ${rulesError ? "border-red-300 focus:border-red-500" : "border-gray-300 focus:border-gray-500"}`}
+              placeholder='[{"actionPattern": "*"}]'
             />
             {rulesError && <p className="mt-1 text-xs text-[rgb(var(--color-error))]">{rulesError}</p>}
             <p className="mt-1 text-xs text-[rgb(var(--color-text-tertiary))]">

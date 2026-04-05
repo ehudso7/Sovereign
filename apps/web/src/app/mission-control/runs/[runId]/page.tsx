@@ -44,16 +44,30 @@ interface ToolUsageItem {
   totalLatencyMs: number;
 }
 
-interface Run {
-  id: string;
-  agentId: string;
-  status: string;
-  error?: string;
-  tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number };
-  costCents?: number;
-  createdAt: string;
-  startedAt?: string;
-  completedAt?: string;
+interface MemoryUsageSummary {
+  memoriesRetrieved: number;
+  memoriesWritten: number;
+}
+
+interface MCRunDetail {
+  run: {
+    id: string;
+    agentId: string;
+    status: string;
+    tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+    costCents?: number;
+    error?: { message: string; code?: string };
+    createdAt: string;
+    startedAt?: string;
+    completedAt?: string;
+  };
+  steps: RunStep[];
+  browserSessions: BrowserSession[];
+  toolUsage: ToolUsageSummary[];
+  memoryUsage: MemoryUsageSummary;
+  timeline: RunStep[];
+  queueWaitMs: number | null;
+  durationMs: number | null;
 }
 
 interface RunDetailResponse {
@@ -157,7 +171,7 @@ export default function MCRunDetailPage() {
   const params = useParams();
   const runId = params.runId as string;
 
-  const [detail, setDetail] = useState<RunDetailResponse | null>(null);
+  const [detail, setDetail] = useState<MCRunDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -219,7 +233,7 @@ export default function MCRunDetailPage() {
     );
   }
 
-  const { run, steps, browserSessions, toolUsage, memoryUsage, timeline, queueWaitMs, durationMs } = detail;
+  const run = detail.run;
 
   return (
     <AppShell>
@@ -268,7 +282,7 @@ export default function MCRunDetailPage() {
         <div className="page-header flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="page-title">
-              {run.agentId}
+              Run {run.id.slice(0, 8)}
             </h1>
             <p className="page-description">
               <code className="rounded bg-[rgb(var(--color-bg-tertiary))] px-1.5 py-0.5 text-xs text-[rgb(var(--color-text-secondary))]">
@@ -302,7 +316,7 @@ export default function MCRunDetailPage() {
               </dt>
               <dd className="mt-1 flex items-center gap-1.5 text-[rgb(var(--color-text-primary))]">
                 <IconClock size={12} className="text-[rgb(var(--color-text-tertiary))]" />
-                {formatDuration(durationMs)}
+                {formatDuration(detail.durationMs)}
               </dd>
             </div>
             <div>
@@ -310,7 +324,7 @@ export default function MCRunDetailPage() {
                 Queue Wait
               </dt>
               <dd className="mt-1 text-[rgb(var(--color-text-primary))]">
-                {formatDuration(queueWaitMs)}
+                {formatDuration(detail.queueWaitMs)}
               </dd>
             </div>
             {run.tokenUsage && (
@@ -373,7 +387,7 @@ export default function MCRunDetailPage() {
               Error
             </p>
             <pre className="mt-2 whitespace-pre-wrap text-sm text-[rgb(var(--color-error)/0.8)]">
-              {run.error}
+              {typeof run.error === "string" ? run.error : run.error.message}
             </pre>
           </div>
         )}
@@ -383,7 +397,7 @@ export default function MCRunDetailPage() {
           <div className="section-header mb-4">
             <h2 className="section-title">Timeline</h2>
           </div>
-          {timeline.length === 0 ? (
+          {detail.steps.length === 0 ? (
             <div className="empty-state">
               <IconRuns size={40} className="empty-state-icon" />
               <p className="empty-state-title">No steps recorded</p>
@@ -393,7 +407,7 @@ export default function MCRunDetailPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {timeline.map((step, index) => (
+              {detail.steps.map((step, index) => (
                 <div key={step.id} className="card card-hover p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -440,7 +454,7 @@ export default function MCRunDetailPage() {
           <div className="section-header mb-4">
             <h2 className="section-title">Browser Sessions</h2>
           </div>
-          {browserSessions.length === 0 ? (
+          {detail.browserSessions.length === 0 ? (
             <div className="empty-state">
               <IconBrowser size={40} className="empty-state-icon" />
               <p className="empty-state-title">No browser sessions</p>
@@ -450,7 +464,7 @@ export default function MCRunDetailPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {browserSessions.map((session) => (
+              {detail.browserSessions.map((session) => (
                 <Link
                   key={session.id}
                   href={`/browser-sessions/${session.id}`}
@@ -493,7 +507,7 @@ export default function MCRunDetailPage() {
           <div className="section-header mb-4">
             <h2 className="section-title">Tool Usage</h2>
           </div>
-          {toolUsage.length === 0 ? (
+          {detail.toolUsage.length === 0 ? (
             <div className="empty-state">
               <IconRuns size={40} className="empty-state-icon" />
               <p className="empty-state-title">No tools used</p>
@@ -512,7 +526,7 @@ export default function MCRunDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {toolUsage.map((tool) => (
+                  {detail.toolUsage.map((tool) => (
                     <tr key={tool.toolName} className="table-row">
                       <td className="px-4 py-3 text-sm font-medium text-[rgb(var(--color-text-primary))]">
                         {tool.toolName}
@@ -550,7 +564,7 @@ export default function MCRunDetailPage() {
                     Retrieved
                   </p>
                   <p className="text-lg font-semibold text-[rgb(var(--color-text-primary))]">
-                    {memoryUsage.memoriesRetrieved}
+                    {detail.memoryUsage.memoriesRetrieved}
                   </p>
                 </div>
               </div>
@@ -566,7 +580,7 @@ export default function MCRunDetailPage() {
                     Written
                   </p>
                   <p className="text-lg font-semibold text-[rgb(var(--color-text-primary))]">
-                    {memoryUsage.memoriesWritten}
+                    {detail.memoryUsage.memoriesWritten}
                   </p>
                 </div>
               </div>
