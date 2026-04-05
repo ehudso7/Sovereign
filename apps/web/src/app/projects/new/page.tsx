@@ -6,46 +6,23 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
 import Link from "next/link";
-import { IconAgents, IconChevronRight } from "@/components/icons";
+import { IconChevronRight } from "@/components/icons";
 
-interface Project {
-  id: string;
-  name: string;
-  slug: string;
-}
-
-export default function CreateAgentPage() {
+export default function CreateProjectPage() {
   const { user, role, token, isLoading } = useAuth();
   const router = useRouter();
-  const [projects, setProjects] = useState<Project[]>([]);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
-  const [projectId, setProjectId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const canCreate = role === "org_owner" || role === "org_admin";
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push("/auth/sign-in");
-    }
-    if (!isLoading && user && !canCreate) {
-      router.push("/agents");
-    }
+    if (!isLoading && !user) router.push("/auth/sign-in");
+    if (!isLoading && user && !canCreate) router.push("/projects");
   }, [isLoading, user, canCreate, router]);
-
-  useEffect(() => {
-    if (token) {
-      apiFetch<Project[]>("/api/v1/projects", { token }).then((result) => {
-        if (result.ok) {
-          setProjects(result.data);
-          if (result.data.length > 0) setProjectId(result.data[0]!.id);
-        }
-      });
-    }
-  }, [token]);
 
   const handleNameChange = (value: string) => {
     setName(value);
@@ -59,24 +36,23 @@ export default function CreateAgentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token || !projectId) return;
+    if (!token) return;
 
     setSubmitting(true);
     setError(null);
 
-    const result = await apiFetch<{ id: string }>("/api/v1/agents", {
+    const result = await apiFetch<{ id: string }>("/api/v1/projects", {
       method: "POST",
       token,
       body: JSON.stringify({
         name,
         slug,
         description: description || undefined,
-        projectId,
       }),
     });
 
     if (result.ok) {
-      router.push(`/agents/${result.data.id}`);
+      router.push(`/projects/${result.data.id}`);
     } else {
       setError(result.error.message);
       setSubmitting(false);
@@ -106,14 +82,13 @@ export default function CreateAgentPage() {
           </div>
           <p className="empty-state-title">Permission Denied</p>
           <p className="empty-state-description">
-            You do not have permission to create agents. Contact your
-            organization admin for access.
+            You do not have permission to create projects.
           </p>
           <Link
-            href="/agents"
+            href="/projects"
             className="mt-2 text-sm font-medium text-[rgb(var(--color-brand))] transition-colors hover:text-[rgb(var(--color-brand-dark))]"
           >
-            Back to Agents
+            Back to Projects
           </Link>
         </div>
       </AppShell>
@@ -125,18 +100,18 @@ export default function CreateAgentPage() {
       <div className="space-y-6">
         {/* Breadcrumb */}
         <nav className="breadcrumb">
-          <Link href="/agents">Agents</Link>
+          <Link href="/projects">Projects</Link>
           <IconChevronRight size={12} className="breadcrumb-separator" />
           <span className="text-[rgb(var(--color-text-primary))]">
-            Create Agent
+            Create Project
           </span>
         </nav>
 
         {/* Page Header */}
         <div className="page-header">
-          <h1 className="page-title">Create Agent</h1>
+          <h1 className="page-title">Create Project</h1>
           <p className="page-description">
-            Configure a new AI agent for your project
+            Projects organize your agents, runs, and resources
           </p>
         </div>
 
@@ -164,57 +139,16 @@ export default function CreateAgentPage() {
         {/* Form Card */}
         <div className="card max-w-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Project */}
-            <div className="space-y-1.5">
-              <label
-                htmlFor="project"
-                className="block text-sm font-medium text-[rgb(var(--color-text-primary))]"
-              >
-                Project
-              </label>
-              <p className="text-xs text-[rgb(var(--color-text-tertiary))]">
-                Select the project this agent belongs to
-              </p>
-              {projects.length === 0 ? (
-                <div className="rounded-lg border border-[rgb(var(--color-warning)/0.3)] bg-[rgb(var(--color-warning)/0.08)] px-4 py-3">
-                  <p className="text-sm text-[rgb(var(--color-text-secondary))]">
-                    You need a project first.{" "}
-                    <Link
-                      href="/projects/new"
-                      className="font-medium text-[rgb(var(--color-brand))] hover:text-[rgb(var(--color-brand-dark))]"
-                    >
-                      Create a project
-                    </Link>{" "}
-                    to get started.
-                  </p>
-                </div>
-              ) : (
-                <select
-                  id="project"
-                  value={projectId}
-                  onChange={(e) => setProjectId(e.target.value)}
-                  className="input"
-                  required
-                >
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
             {/* Name */}
             <div className="space-y-1.5">
               <label
                 htmlFor="name"
                 className="block text-sm font-medium text-[rgb(var(--color-text-primary))]"
               >
-                Name
+                Project Name
               </label>
               <p className="text-xs text-[rgb(var(--color-text-tertiary))]">
-                A human-readable name for this agent
+                A human-readable name for this project
               </p>
               <input
                 id="name"
@@ -224,7 +158,7 @@ export default function CreateAgentPage() {
                 className="input"
                 required
                 maxLength={255}
-                placeholder="e.g., Customer Support Bot"
+                placeholder="e.g., Customer Support"
               />
             </div>
 
@@ -249,7 +183,7 @@ export default function CreateAgentPage() {
                 required
                 maxLength={63}
                 pattern="[a-z0-9-]+"
-                placeholder="customer-support-bot"
+                placeholder="customer-support"
               />
             </div>
 
@@ -271,7 +205,7 @@ export default function CreateAgentPage() {
                 className="input min-h-[80px] resize-y"
                 rows={3}
                 maxLength={2000}
-                placeholder="Describe what this agent does..."
+                placeholder="Describe what this project is for..."
               />
             </div>
 
@@ -279,7 +213,7 @@ export default function CreateAgentPage() {
             <div className="flex items-center gap-3 border-t border-[rgb(var(--color-border-primary))] pt-6">
               <button
                 type="submit"
-                disabled={submitting || !projectId || !name || !slug}
+                disabled={submitting || !name || !slug}
                 className="inline-flex items-center gap-2 rounded-lg bg-[rgb(var(--color-brand))] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-[rgb(var(--color-brand-dark))] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting ? (
@@ -306,14 +240,11 @@ export default function CreateAgentPage() {
                     Creating...
                   </>
                 ) : (
-                  <>
-                    <IconAgents size={16} />
-                    Create Agent
-                  </>
+                  "Create Project"
                 )}
               </button>
               <Link
-                href="/agents"
+                href="/projects"
                 className="rounded-lg border border-[rgb(var(--color-border-primary))] bg-[rgb(var(--color-bg-primary))] px-5 py-2.5 text-sm font-medium text-[rgb(var(--color-text-secondary))] transition-colors hover:bg-[rgb(var(--color-bg-secondary))] hover:text-[rgb(var(--color-text-primary))]"
               >
                 Cancel

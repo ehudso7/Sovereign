@@ -24,7 +24,7 @@ interface Progress {
 }
 
 const STEP_LINKS: Record<string, string> = {
-  project_created: "/dashboard",
+  project_created: "/projects/new",
   agent_created: "/agents/new",
   agent_published: "/agents",
   run_completed: "/runs",
