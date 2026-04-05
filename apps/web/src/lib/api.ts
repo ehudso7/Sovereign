@@ -43,8 +43,9 @@ export async function apiFetch<T>(
 ): Promise<ApiResult<T>> {
   const { token, ...fetchOptions } = options;
   const csrfToken = readCookie(CSRF_COOKIE);
+  const hasBody = !!fetchOptions.body;
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(hasBody ? { "Content-Type": "application/json" } : {}),
     ...(token && token !== COOKIE_SESSION_TOKEN_MARKER ? { Authorization: `Bearer ${token}` } : {}),
     ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
     ...(fetchOptions.headers as Record<string, string> ?? {}),
