@@ -16,6 +16,11 @@ export default function NewDealPage() {
   const [valueCents, setValueCents] = useState("");
   const [probability, setProbability] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  const suggestProbability = (s: string) => {
+    const map: Record<string, string> = { discovery: "10", qualification: "25", proposal: "50", negotiation: "75", closed_won: "100", closed_lost: "0" };
+    setProbability(map[s] ?? "");
+  };
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -181,15 +186,26 @@ export default function NewDealPage() {
 
             {/* Probability */}
             <div className="space-y-1.5">
-              <label
-                htmlFor="probability"
-                className="block text-sm font-medium text-[rgb(var(--color-text-primary))]"
-              >
-                Probability (%)
-                <span className="ml-1 text-xs font-normal text-[rgb(var(--color-text-tertiary))]">
-                  (optional)
-                </span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="probability"
+                  className="block text-sm font-medium text-[rgb(var(--color-text-primary))]"
+                >
+                  Probability (%)
+                  <span className="ml-1 text-xs font-normal text-[rgb(var(--color-text-tertiary))]">
+                    (optional)
+                  </span>
+                </label>
+                {!probability && (
+                  <button
+                    type="button"
+                    onClick={() => suggestProbability(stage)}
+                    className="rounded-md bg-[rgb(var(--color-brand))] px-2.5 py-1 text-xs font-medium text-white transition-colors hover:opacity-90"
+                  >
+                    Suggest from stage
+                  </button>
+                )}
+              </div>
               <input
                 id="probability"
                 type="number"

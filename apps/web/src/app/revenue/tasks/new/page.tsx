@@ -113,15 +113,26 @@ export default function NewTaskPage() {
 
             {/* Description */}
             <div className="space-y-1.5">
-              <label
-                htmlFor="description"
-                className="block text-sm font-medium text-[rgb(var(--color-text-primary))]"
-              >
-                Description
-                <span className="ml-1 text-xs font-normal text-[rgb(var(--color-text-tertiary))]">
-                  (optional)
-                </span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="description"
+                  className="block text-sm font-medium text-[rgb(var(--color-text-primary))]"
+                >
+                  Description
+                  <span className="ml-1 text-xs font-normal text-[rgb(var(--color-text-tertiary))]">
+                    (optional)
+                  </span>
+                </label>
+                {title && !description && (
+                  <button
+                    type="button"
+                    onClick={() => setDescription(`Action items for: ${title}\n\n1. Review current status\n2. Take necessary action\n3. Update stakeholders on outcome`)}
+                    className="rounded-md bg-[rgb(var(--color-brand))] px-2.5 py-1 text-xs font-medium text-white transition-colors hover:opacity-90"
+                  >
+                    Suggest
+                  </button>
+                )}
+              </div>
               <textarea
                 id="description"
                 value={description}

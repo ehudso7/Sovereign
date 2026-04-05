@@ -145,7 +145,8 @@ export default function OrgSettingsPage() {
                   Plan
                 </label>
                 <div className="flex h-10 items-center gap-2 rounded-lg border border-[rgb(var(--color-border-primary))] bg-[rgb(var(--color-bg-secondary))] px-3">
-                  <span className="badge-info">{org?.plan ?? "free"}</span>
+                  <span className="badge-info">{(org?.plan ?? "free").replace(/^\w/, (c: string) => c.toUpperCase())}</span>
+                  <a href="/billing" className="text-xs font-medium text-[rgb(var(--color-brand))] hover:underline">Manage plan</a>
                 </div>
               </div>
             </div>

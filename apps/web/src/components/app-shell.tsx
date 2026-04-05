@@ -380,7 +380,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <div className="border-b border-white/10 px-3 py-2">
                     <div className="text-xs text-white">{user?.email}</div>
                     <div className="text-[10px] text-[rgb(var(--color-sidebar-text))]">
-                      {org?.plan ?? "Free"} plan
+                      {(org?.plan ?? "free").replace(/^\w/, (c: string) => c.toUpperCase())} plan
                     </div>
                   </div>
                   <button

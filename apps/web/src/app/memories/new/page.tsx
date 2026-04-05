@@ -116,7 +116,18 @@ export default function CreateMemoryPage() {
               className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Summary</label>
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">Summary</label>
+              {content && !summary && (
+                <button
+                  type="button"
+                  onClick={() => setSummary(content.length > 120 ? content.slice(0, 117) + "..." : content)}
+                  className="rounded bg-indigo-600 px-2 py-0.5 text-xs text-white hover:bg-indigo-700"
+                >
+                  Auto-fill from content
+                </button>
+              )}
+            </div>
             <input type="text" value={summary} onChange={(e) => setSummary(e.target.value)}
               className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm" />
           </div>
