@@ -55,6 +55,29 @@ export default function NewPolicyPage() {
   const [rulesText, setRulesText] = useState('[{"actionPattern": "*"}]');
   const [rulesError, setRulesError] = useState<string | null>(null);
 
+  const generateRules = () => {
+    const ruleMap: Record<string, string> = {
+      access_control: '[{"actionPattern": "tool.*", "conditions": {"requireAuth": true}}]',
+      deny: '[{"actionPattern": "tool.external.*", "conditions": {"blocked": true}}]',
+      require_approval: '[{"actionPattern": "run.create", "conditions": {"costAboveCents": 1000}}]',
+      quarantine: '[{"actionPattern": "output.*", "conditions": {"contentType": "sensitive"}}]',
+      budget_cap: '[{"actionPattern": "run.*", "conditions": {"maxCostCents": 10000, "maxTokens": 1000000}}]',
+      content_filter: '[{"actionPattern": "output.*", "conditions": {"filterPII": true, "filterSecrets": true}}]',
+    };
+    setRulesText(ruleMap[policyType] ?? '[{"actionPattern": "*"}]');
+    if (!description && name) {
+      const descMap: Record<string, string> = {
+        access_control: `Controls access to resources within ${scopeType} scope`,
+        deny: `Blocks specified actions within ${scopeType} scope`,
+        require_approval: `Requires human approval before execution within ${scopeType} scope`,
+        quarantine: `Quarantines flagged content for review within ${scopeType} scope`,
+        budget_cap: `Enforces spending and token limits within ${scopeType} scope`,
+        content_filter: `Filters sensitive content from agent outputs within ${scopeType} scope`,
+      };
+      setDescription(descMap[policyType] ?? "");
+    }
+  };
+
   useEffect(() => {
     if (!isLoading && !user) {
       router.push("/auth/sign-in");
@@ -236,9 +259,18 @@ export default function NewPolicyPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[rgb(var(--color-text-primary))]">
-              Rules (JSON Array) <span className="text-[rgb(var(--color-text-tertiary))]">(optional)</span>
-            </label>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="block text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                Rules (JSON Array) <span className="text-[rgb(var(--color-text-tertiary))]">(optional)</span>
+              </label>
+              <button
+                type="button"
+                onClick={generateRules}
+                className="rounded-md bg-[rgb(var(--color-brand))] px-2.5 py-1 text-xs font-medium text-white transition-colors hover:opacity-90"
+              >
+                Auto-Generate Rules
+              </button>
+            </div>
             <textarea
               value={rulesText}
               onChange={(e) => {
