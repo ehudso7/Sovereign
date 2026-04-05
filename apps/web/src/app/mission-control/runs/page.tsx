@@ -16,10 +16,11 @@ import {
 interface MCRun {
   id: string;
   agentId: string;
-  agentName?: string;
   status: string;
   createdAt: string;
-  durationMs?: number;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  error?: { code: string; message: string } | null;
 }
 
 const STATUS_FILTERS = [
@@ -158,7 +159,6 @@ function MCRunsListContent() {
     ? runs.filter((r) => {
         const q = searchQuery.toLowerCase();
         return (
-          r.agentName?.toLowerCase().includes(q) ||
           r.agentId.toLowerCase().includes(q) ||
           r.id.toLowerCase().includes(q)
         );
@@ -330,7 +330,7 @@ function MCRunsListContent() {
                             </div>
                             <div className="min-w-0">
                               <p className="truncate text-sm font-medium text-[rgb(var(--color-text-primary))]">
-                                {run.agentName ?? run.agentId}
+                                {run.agentId}
                               </p>
                               <p className="truncate text-xs text-[rgb(var(--color-text-tertiary))]">
                                 {run.id}
@@ -347,7 +347,11 @@ function MCRunsListContent() {
                         <td className="hidden px-4 py-3.5 md:table-cell">
                           <div className="flex items-center gap-1.5 text-xs text-[rgb(var(--color-text-secondary))]">
                             <IconClock size={12} />
-                            {formatDuration(run.durationMs)}
+                            {formatDuration(
+                              run.startedAt && run.completedAt
+                                ? new Date(run.completedAt).getTime() - new Date(run.startedAt).getTime()
+                                : undefined,
+                            )}
                           </div>
                         </td>
                         <td className="hidden px-4 py-3.5 text-xs text-[rgb(var(--color-text-tertiary))] lg:table-cell">

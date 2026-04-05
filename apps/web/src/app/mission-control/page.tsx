@@ -36,7 +36,7 @@ interface Overview {
   runsWithBrowser: number;
   runsWithMemory: number;
   openAlerts: number;
-  recentFailures: {
+  recentFailures: Array<{
     id: string;
     agentId: string;
     status: string;
@@ -46,7 +46,8 @@ interface Overview {
   }[];
 }
 
-function formatMs(ms: number): string {
+function formatMs(ms: number | null | undefined): string {
+  if (ms == null) return "--";
   if (ms < 1000) return `${Math.round(ms)}ms`;
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
   return `${(ms / 60000).toFixed(1)}m`;
@@ -60,6 +61,7 @@ function statusForRunStatus(status: string): string {
     failed: "status-dot-error",
     cancelled: "status-dot-neutral",
     pending_approval: "status-dot-warning",
+    paused: "status-dot-warning",
   };
   return map[status] ?? "status-dot-neutral";
 }
@@ -342,7 +344,7 @@ export default function MissionControlPage() {
               </div>
             </div>
 
-            {/* ── System Health + Recent Alerts ── */}
+            {/* ── System Health + Recent Failures ── */}
             <div className="grid gap-6 lg:grid-cols-2">
               {/* System Health Cards */}
               <div className="card">
@@ -428,7 +430,7 @@ export default function MissionControlPage() {
                 </div>
               </div>
 
-              {/* Recent Alerts / Failures */}
+              {/* Recent Failures */}
               <div className="card">
                 <div className="section-header mb-4">
                   <h2 className="section-title">Recent Failures</h2>

@@ -17,7 +17,7 @@ interface Policy {
   scopeId: string | null;
   status: string;
   priority: number;
-  rules: Record<string, unknown>;
+  rules: Array<{ actionPattern: string; conditions?: Record<string, unknown> }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -53,7 +53,7 @@ export default function PolicyDetailPage() {
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editPriority, setEditPriority] = useState(0);
-  const [editRulesText, setEditRulesText] = useState("{}");
+  const [editRulesText, setEditRulesText] = useState("[]");
   const [editRulesError, setEditRulesError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -97,7 +97,17 @@ export default function PolicyDetailPage() {
 
   const validateRules = (text: string): boolean => {
     try {
-      JSON.parse(text);
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) {
+        setEditRulesError("Rules must be a JSON array of rule objects.");
+        return false;
+      }
+      for (const rule of parsed) {
+        if (!rule.actionPattern || typeof rule.actionPattern !== "string") {
+          setEditRulesError('Each rule must have an "actionPattern" string field.');
+          return false;
+        }
+      }
       setEditRulesError(null);
       return true;
     } catch {

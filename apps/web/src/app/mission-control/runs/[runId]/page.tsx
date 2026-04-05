@@ -14,12 +14,15 @@ import {
   IconChevronRight,
 } from "@/components/icons";
 
+/* ── Types matching the API response from mission-control.service.ts ── */
+
 interface RunStep {
   id: string;
   type: string;
   toolName?: string;
   status: string;
   latencyMs?: number;
+  stepNumber: number;
   startedAt?: string;
   completedAt?: string;
   error?: string;
@@ -28,10 +31,14 @@ interface RunStep {
 interface BrowserSession {
   id: string;
   status: string;
+  browserType: string;
+  currentUrl: string | null;
+  humanTakeover: boolean;
   createdAt: string;
+  endedAt: string | null;
 }
 
-interface ToolUsageSummary {
+interface ToolUsageItem {
   toolName: string;
   count: number;
   totalLatencyMs: number;
@@ -58,6 +65,17 @@ interface MCRunDetail {
   browserSessions: BrowserSession[];
   toolUsage: ToolUsageSummary[];
   memoryUsage: MemoryUsageSummary;
+  timeline: RunStep[];
+  queueWaitMs: number | null;
+  durationMs: number | null;
+}
+
+interface RunDetailResponse {
+  run: Run;
+  steps: RunStep[];
+  browserSessions: BrowserSession[];
+  toolUsage: ToolUsageItem[];
+  memoryUsage: { memoriesRetrieved: number; memoriesWritten: number };
   timeline: RunStep[];
   queueWaitMs: number | null;
   durationMs: number | null;
@@ -168,7 +186,7 @@ export default function MCRunDetailPage() {
     setLoading(true);
     setError(null);
 
-    const result = await apiFetch<MCRunDetail>(
+    const result = await apiFetch<RunDetailResponse>(
       `/api/v1/mission-control/runs/${runId}`,
       { token },
     );
@@ -464,7 +482,7 @@ export default function MCRunDetailPage() {
                         {session.id}
                       </p>
                       <p className="text-xs text-[rgb(var(--color-text-tertiary))]">
-                        {new Date(session.createdAt).toLocaleString()}
+                        {session.browserType} &middot; {new Date(session.createdAt).toLocaleString()}
                       </p>
                     </div>
                   </div>

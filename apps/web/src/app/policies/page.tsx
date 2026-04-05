@@ -29,9 +29,10 @@ const statusBadgeClass: Record<string, string> = {
 };
 
 const enforcementBadgeClass: Record<string, string> = {
-  enforce: "badge-error",
-  warn: "badge-warning",
-  audit: "badge-info",
+  allow: "badge-success",
+  deny: "badge-error",
+  require_approval: "badge-warning",
+  quarantine: "badge-info",
 };
 
 const statusDotClass: Record<string, string> = {
@@ -135,7 +136,7 @@ function PoliciesListContent() {
   const counts = {
     total: policies.length,
     active: policies.filter((p) => p.status === "active").length,
-    enforce: policies.filter((p) => p.enforcementMode === "enforce").length,
+    enforce: policies.filter((p) => p.enforcementMode === "deny" || p.enforcementMode === "quarantine").length,
   };
 
   if (isLoading || !user) return null;

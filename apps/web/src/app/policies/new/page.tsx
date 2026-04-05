@@ -7,6 +7,8 @@ import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
 import Link from "next/link";
 
+/* ── Enums matching API validation in apps/api/src/routes/policies.ts ── */
+
 const POLICY_TYPES = [
   "access_control",
   "deny",
@@ -96,75 +98,75 @@ export default function NewPolicyPage() {
     <AppShell>
       <div className="space-y-6">
         <div>
-          <Link href="/policies" className="text-sm text-gray-500 hover:text-gray-700">
+          <Link href="/policies" className="text-sm text-[rgb(var(--color-text-tertiary))] hover:text-[rgb(var(--color-text-primary))] transition-colors">
             &larr; Back to Policies
           </Link>
         </div>
 
-        <h1 className="text-2xl font-bold">Create Policy</h1>
+        <h1 className="page-title">Create Policy</h1>
 
         {error && (
-          <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded-lg border border-[rgb(var(--color-error)/0.3)] bg-[rgb(var(--color-error-bg))] px-4 py-3 text-sm text-[rgb(var(--color-error))]">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 rounded border border-gray-200 p-6">
+        <form onSubmit={handleSubmit} className="card space-y-5 p-6">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Name <span className="text-red-500">*</span>
+            <label className="mb-1.5 block text-sm font-medium text-[rgb(var(--color-text-primary))]">
+              Name <span className="text-[rgb(var(--color-error))]">*</span>
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+              className="input w-full"
               placeholder="e.g. Block external tool access"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
+            <label className="mb-1.5 block text-sm font-medium text-[rgb(var(--color-text-primary))]">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+              className="input w-full"
               placeholder="Optional description"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Policy Type <span className="text-red-500">*</span>
+              <label className="mb-1.5 block text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                Policy Type <span className="text-[rgb(var(--color-error))]">*</span>
               </label>
               <select
                 value={policyType}
                 onChange={(e) => setPolicyType(e.target.value)}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+                className="input w-full"
               >
                 {POLICY_TYPES.map((t) => (
                   <option key={t} value={t}>
-                    {t}
+                    {POLICY_TYPE_LABELS[t] ?? t}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Enforcement Mode <span className="text-red-500">*</span>
+              <label className="mb-1.5 block text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                Enforcement Mode <span className="text-[rgb(var(--color-error))]">*</span>
               </label>
               <select
                 value={enforcementMode}
                 onChange={(e) => setEnforcementMode(e.target.value)}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+                className="input w-full"
               >
                 {ENFORCEMENT_MODES.map((m) => (
                   <option key={m} value={m}>
-                    {m}
+                    {ENFORCEMENT_MODE_LABELS[m] ?? m}
                   </option>
                 ))}
               </select>
@@ -173,13 +175,13 @@ export default function NewPolicyPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Scope Type <span className="text-red-500">*</span>
+              <label className="mb-1.5 block text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                Scope Type <span className="text-[rgb(var(--color-error))]">*</span>
               </label>
               <select
                 value={scopeType}
                 onChange={(e) => setScopeType(e.target.value)}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+                className="input w-full"
               >
                 {SCOPE_TYPES.map((s) => (
                   <option key={s} value={s}>
@@ -190,34 +192,36 @@ export default function NewPolicyPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Scope ID <span className="text-gray-400">(optional)</span>
+              <label className="mb-1.5 block text-sm font-medium text-[rgb(var(--color-text-primary))]">
+                Scope ID <span className="text-[rgb(var(--color-text-tertiary))]">(optional)</span>
               </label>
               <input
                 type="text"
                 value={scopeId}
                 onChange={(e) => setScopeId(e.target.value)}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+                className="input w-full"
                 placeholder="e.g. agent ID, connector ID"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Priority</label>
+            <label className="mb-1.5 block text-sm font-medium text-[rgb(var(--color-text-primary))]">Priority</label>
             <input
               type="number"
               value={priority}
               onChange={(e) => setPriority(Number(e.target.value))}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+              className="input w-full"
               placeholder="0"
+              min={0}
+              max={1000}
             />
-            <p className="mt-1 text-xs text-gray-400">Higher numbers run first.</p>
+            <p className="mt-1 text-xs text-[rgb(var(--color-text-tertiary))]">Higher numbers run first (0-1000).</p>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Rules (JSON) <span className="text-red-500">*</span>
+            <label className="mb-1.5 block text-sm font-medium text-[rgb(var(--color-text-primary))]">
+              Rules (JSON Array) <span className="text-[rgb(var(--color-text-tertiary))]">(optional)</span>
             </label>
             <textarea
               value={rulesText}
@@ -229,20 +233,23 @@ export default function NewPolicyPage() {
               className={`w-full rounded border px-3 py-2 font-mono text-sm focus:outline-none ${rulesError ? "border-red-300 focus:border-red-500" : "border-gray-300 focus:border-gray-500"}`}
               placeholder='[{"actionPattern": "*"}]'
             />
-            {rulesError && <p className="mt-1 text-xs text-red-600">{rulesError}</p>}
+            {rulesError && <p className="mt-1 text-xs text-[rgb(var(--color-error))]">{rulesError}</p>}
+            <p className="mt-1 text-xs text-[rgb(var(--color-text-tertiary))]">
+              Array of rule objects. Each rule needs an &quot;actionPattern&quot; (string) and optional &quot;conditions&quot; (object).
+            </p>
           </div>
 
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              disabled={submitting}
-              className="rounded bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-800 disabled:opacity-50"
+              disabled={submitting || !name}
+              className="rounded-md bg-[rgb(var(--color-brand))] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
             >
               {submitting ? "Creating..." : "Create Policy"}
             </button>
             <Link
               href="/policies"
-              className="rounded bg-gray-100 px-4 py-2 text-sm text-gray-700 hover:bg-gray-200"
+              className="rounded-md border border-[rgb(var(--color-border-primary))] bg-[rgb(var(--color-bg-primary))] px-4 py-2 text-sm font-medium text-[rgb(var(--color-text-secondary))] transition-colors hover:bg-[rgb(var(--color-bg-secondary))]"
             >
               Cancel
             </Link>
