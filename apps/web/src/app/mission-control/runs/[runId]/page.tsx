@@ -49,7 +49,7 @@ interface MemoryUsageSummary {
   memoriesWritten: number;
 }
 
-interface MCRunDetail {
+interface RunDetailResponse {
   run: {
     id: string;
     agentId: string;
@@ -63,19 +63,8 @@ interface MCRunDetail {
   };
   steps: RunStep[];
   browserSessions: BrowserSession[];
-  toolUsage: ToolUsageSummary[];
-  memoryUsage: MemoryUsageSummary;
-  timeline: RunStep[];
-  queueWaitMs: number | null;
-  durationMs: number | null;
-}
-
-interface RunDetailResponse {
-  run: Run;
-  steps: RunStep[];
-  browserSessions: BrowserSession[];
   toolUsage: ToolUsageItem[];
-  memoryUsage: { memoriesRetrieved: number; memoriesWritten: number };
+  memoryUsage: MemoryUsageSummary;
   timeline: RunStep[];
   queueWaitMs: number | null;
   durationMs: number | null;
@@ -171,7 +160,7 @@ export default function MCRunDetailPage() {
   const params = useParams();
   const runId = params.runId as string;
 
-  const [detail, setDetail] = useState<MCRunDetail | null>(null);
+  const [detail, setDetail] = useState<RunDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
