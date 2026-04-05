@@ -120,7 +120,21 @@ export async function runRoutes(server: FastifyInstance): Promise<void> {
       });
     }
 
-    return reply.status(200).send({ data: result.value, meta: meta(request.id) });
+    // Enrich runs with agent names
+    const agentService = services.agentStudioForOrg(request.session!.orgId);
+    const agentsResult = await agentService.listAgents(request.session!.orgId);
+    const agentNameMap = new Map<string, string>();
+    if (agentsResult.ok) {
+      for (const a of agentsResult.value) {
+        agentNameMap.set(a.id, a.name);
+      }
+    }
+    const enriched = result.value.map((r) => ({
+      ...r,
+      agentName: agentNameMap.get(r.agentId) ?? undefined,
+    }));
+
+    return reply.status(200).send({ data: enriched, meta: meta(request.id) });
   });
 
   // GET /api/v1/runs/:runId — get a single run
