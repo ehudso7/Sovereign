@@ -16,21 +16,31 @@ import {
 import Link from "next/link";
 
 interface Overview {
-  runCounts: Record<string, number>;
-  avgQueueWaitMs: number;
-  avgDurationMs: number;
-  failureRate: number;
-  tokenUsage: { prompt: number; completion: number; total: number };
-  estimatedCostUsd: number;
+  runs: {
+    total: number;
+    completed: number;
+    failed: number;
+    running: number;
+    queued: number;
+    cancelled: number;
+    paused: number;
+  };
+  avgQueueWaitMs: number | null;
+  avgDurationMs: number | null;
+  failureRate: number | null;
+  tokenUsage: { inputTokens: number; outputTokens: number; totalTokens: number };
+  estimatedCostCents: number;
   runsWithTools: number;
   runsWithBrowser: number;
   runsWithMemory: number;
   openAlerts: number;
   recentFailures: {
     id: string;
-    agentName?: string;
-    error?: string;
-    failedAt: string;
+    agentId: string;
+    status: string;
+    error?: { message: string; code?: string };
+    createdAt: string;
+    completedAt?: string;
   }[];
 }
 
@@ -94,11 +104,9 @@ export default function MissionControlPage() {
 
   if (isLoading || !user) return null;
 
-  const totalRuns = overview
-    ? Object.values(overview.runCounts).reduce((a, b) => a + b, 0)
-    : 0;
+  const totalRuns = overview ? overview.runs.total : 0;
   const activeRuns = overview
-    ? (overview.runCounts["running"] ?? 0) + (overview.runCounts["queued"] ?? 0)
+    ? (overview.runs.running ?? 0) + (overview.runs.queued ?? 0)
     : 0;
 
   return (
@@ -216,23 +224,23 @@ export default function MissionControlPage() {
                 <span className="stat-label">Error Rate</span>
                 <div className="flex items-center gap-2">
                   <span className="stat-value">
-                    {(overview.failureRate * 100).toFixed(1)}%
+                    {(overview.failureRate ?? 0).toFixed(1)}%
                   </span>
-                  {overview.failureRate > 0.05 ? (
+                  {(overview.failureRate ?? 0) > 5 ? (
                     <IconArrowUp size={14} className="text-[rgb(var(--color-error))]" />
                   ) : (
                     <IconArrowDown size={14} className="text-[rgb(var(--color-success))]" />
                   )}
                 </div>
                 <span className="text-xs text-[rgb(var(--color-text-tertiary))]">
-                  {overview.failureRate > 0.05 ? "above threshold" : "healthy"}
+                  {(overview.failureRate ?? 0) > 5 ? "above threshold" : "healthy"}
                 </span>
               </div>
               <div className="stat-card">
                 <span className="stat-label">Avg Latency</span>
-                <span className="stat-value">{formatMs(overview.avgDurationMs)}</span>
+                <span className="stat-value">{overview.avgDurationMs != null ? formatMs(overview.avgDurationMs) : "--"}</span>
                 <span className="text-xs text-[rgb(var(--color-text-tertiary))]">
-                  queue: {formatMs(overview.avgQueueWaitMs)}
+                  queue: {overview.avgQueueWaitMs != null ? formatMs(overview.avgQueueWaitMs) : "--"}
                 </span>
               </div>
             </div>
@@ -243,7 +251,7 @@ export default function MissionControlPage() {
                 <h2 className="section-title">Run Status Breakdown</h2>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
-                {Object.entries(overview.runCounts).map(([status, count]) => (
+                {(["running", "queued", "completed", "failed", "cancelled", "paused"] as const).map((status) => (
                   <div
                     key={status}
                     className="flex flex-col gap-1.5 rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3"
@@ -255,7 +263,7 @@ export default function MissionControlPage() {
                       </span>
                     </div>
                     <span className="text-xl font-semibold text-[rgb(var(--color-text-primary))]">
-                      {count.toLocaleString()}
+                      {(overview.runs[status] ?? 0).toLocaleString()}
                     </span>
                   </div>
                 ))}
@@ -269,26 +277,26 @@ export default function MissionControlPage() {
                 <div className="section-header mb-4">
                   <h2 className="section-title">Token Usage</h2>
                   <span className="text-sm font-semibold text-[rgb(var(--color-brand))]">
-                    ${overview.estimatedCostUsd.toFixed(2)}
+                    ${(overview.estimatedCostCents / 100).toFixed(2)}
                   </span>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3">
-                    <span className="text-sm text-[rgb(var(--color-text-secondary))]">Prompt</span>
+                    <span className="text-sm text-[rgb(var(--color-text-secondary))]">Input</span>
                     <span className="font-mono text-sm font-medium text-[rgb(var(--color-text-primary))]">
-                      {overview.tokenUsage.prompt.toLocaleString()}
+                      {overview.tokenUsage.inputTokens.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3">
-                    <span className="text-sm text-[rgb(var(--color-text-secondary))]">Completion</span>
+                    <span className="text-sm text-[rgb(var(--color-text-secondary))]">Output</span>
                     <span className="font-mono text-sm font-medium text-[rgb(var(--color-text-primary))]">
-                      {overview.tokenUsage.completion.toLocaleString()}
+                      {overview.tokenUsage.outputTokens.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between rounded-lg border border-[rgb(var(--color-border-secondary))] p-3">
                     <span className="text-sm font-medium text-[rgb(var(--color-text-primary))]">Total</span>
                     <span className="font-mono text-sm font-bold text-[rgb(var(--color-text-primary))]">
-                      {overview.tokenUsage.total.toLocaleString()}
+                      {overview.tokenUsage.totalTokens.toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -343,9 +351,9 @@ export default function MissionControlPage() {
                     <div className="flex items-center gap-2">
                       <span
                         className={
-                          overview.failureRate < 0.05
+                          (overview.failureRate ?? 0) < 5
                             ? "status-dot-success-pulse"
-                            : overview.failureRate < 0.15
+                            : (overview.failureRate ?? 0) < 15
                               ? "status-dot-warning"
                               : "status-dot-error"
                         }
@@ -356,16 +364,16 @@ export default function MissionControlPage() {
                     </div>
                     <span
                       className={
-                        overview.failureRate < 0.05
+                        (overview.failureRate ?? 0) < 5
                           ? "badge-success"
-                          : overview.failureRate < 0.15
+                          : (overview.failureRate ?? 0) < 15
                             ? "badge-warning"
                             : "badge-error"
                       }
                     >
-                      {overview.failureRate < 0.05
+                      {(overview.failureRate ?? 0) < 5
                         ? "Healthy"
-                        : overview.failureRate < 0.15
+                        : (overview.failureRate ?? 0) < 15
                           ? "Degraded"
                           : "Unhealthy"}
                     </span>
@@ -374,7 +382,7 @@ export default function MissionControlPage() {
                     <div className="flex items-center gap-2">
                       <span
                         className={
-                          overview.avgQueueWaitMs < 5000
+                          (overview.avgQueueWaitMs ?? 0) < 5000
                             ? "status-dot-success-pulse"
                             : "status-dot-warning"
                         }
@@ -385,10 +393,10 @@ export default function MissionControlPage() {
                     </div>
                     <span
                       className={
-                        overview.avgQueueWaitMs < 5000 ? "badge-success" : "badge-warning"
+                        (overview.avgQueueWaitMs ?? 0) < 5000 ? "badge-success" : "badge-warning"
                       }
                     >
-                      {formatMs(overview.avgQueueWaitMs)}
+                      {overview.avgQueueWaitMs != null ? formatMs(overview.avgQueueWaitMs) : "--"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between rounded-lg bg-[rgb(var(--color-bg-secondary))] p-3">
@@ -449,16 +457,16 @@ export default function MissionControlPage() {
                         <span className="status-dot-error mt-1.5 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-[rgb(var(--color-text-primary))] group-hover:text-[rgb(var(--color-error))] transition-colors">
-                            {f.agentName ?? f.id.slice(0, 12) + "..."}
+                            {f.agentId ? f.agentId.slice(0, 12) + "..." : f.id.slice(0, 12) + "..."}
                           </p>
-                          {f.error && (
+                          {f.error?.message && (
                             <p className="mt-0.5 truncate text-xs text-[rgb(var(--color-text-tertiary))]">
-                              {f.error}
+                              {f.error.message}
                             </p>
                           )}
                           <div className="mt-1 flex items-center gap-1 text-xs text-[rgb(var(--color-text-tertiary))]">
                             <IconClock size={12} />
-                            {new Date(f.failedAt).toLocaleString()}
+                            {new Date(f.completedAt ?? f.createdAt).toLocaleString()}
                           </div>
                         </div>
                       </Link>

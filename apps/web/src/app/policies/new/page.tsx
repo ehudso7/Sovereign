@@ -8,18 +8,17 @@ import { AppShell } from "@/components/app-shell";
 import Link from "next/link";
 
 const POLICY_TYPES = [
-  "tool_access",
-  "resource_access",
-  "data_classification",
-  "rate_limit",
-  "approval_required",
+  "access_control",
+  "deny",
+  "require_approval",
   "quarantine",
-  "custom",
+  "budget_cap",
+  "content_filter",
 ] as const;
 
-const ENFORCEMENT_MODES = ["enforce", "warn", "audit"] as const;
+const ENFORCEMENT_MODES = ["allow", "deny", "require_approval", "quarantine"] as const;
 
-const SCOPE_TYPES = ["global", "org", "agent", "connector", "user"] as const;
+const SCOPE_TYPES = ["org", "project", "agent", "connector", "browser", "memory", "run"] as const;
 
 export default function NewPolicyPage() {
   const { user, token, isLoading } = useAuth();
@@ -35,7 +34,7 @@ export default function NewPolicyPage() {
   const [scopeType, setScopeType] = useState<string>(SCOPE_TYPES[0]);
   const [scopeId, setScopeId] = useState("");
   const [priority, setPriority] = useState(0);
-  const [rulesText, setRulesText] = useState("{}");
+  const [rulesText, setRulesText] = useState('[{"actionPattern": "*"}]');
   const [rulesError, setRulesError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -46,7 +45,11 @@ export default function NewPolicyPage() {
 
   const validateRules = (text: string): boolean => {
     try {
-      JSON.parse(text);
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) {
+        setRulesError("Rules must be a JSON array of objects with actionPattern.");
+        return false;
+      }
       setRulesError(null);
       return true;
     } catch {
@@ -224,7 +227,7 @@ export default function NewPolicyPage() {
               }}
               rows={6}
               className={`w-full rounded border px-3 py-2 font-mono text-sm focus:outline-none ${rulesError ? "border-red-300 focus:border-red-500" : "border-gray-300 focus:border-gray-500"}`}
-              placeholder="{}"
+              placeholder='[{"actionPattern": "*"}]'
             />
             {rulesError && <p className="mt-1 text-xs text-red-600">{rulesError}</p>}
           </div>
