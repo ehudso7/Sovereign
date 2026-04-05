@@ -241,11 +241,12 @@ export default function AgentDetailPage() {
 
   const handlePublishLatest = async () => {
     if (!token || versions.length === 0) return;
-    const latestVersion = versions[0];
-    if (!latestVersion || latestVersion.published) return;
+    // Find the latest unpublished version (highest version number)
+    const latestUnpublished = [...versions].reverse().find((v) => !v.published);
+    if (!latestUnpublished) return;
     setError(null);
     const result = await apiFetch<AgentVersion>(
-      `/api/v1/agents/${agentId}/versions/${latestVersion.id}/publish`,
+      `/api/v1/agents/${agentId}/versions/${latestUnpublished.id}/publish`,
       { method: "POST", token },
     );
     if (result.ok) {
@@ -472,7 +473,7 @@ export default function AgentDetailPage() {
                     onClick={handlePublishLatest}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-[rgb(var(--color-success))] px-3.5 py-2 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:opacity-90"
                   >
-                    Publish v{versions[0]?.version ?? 1}
+                    Publish v{versions[versions.length - 1]?.version ?? 1}
                   </button>
                 )}
                 {canPublish && agent.status === "published" && (
