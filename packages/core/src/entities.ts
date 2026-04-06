@@ -34,6 +34,9 @@ import type {
   UsageEventId,
   InvoiceId,
   SpendAlertId,
+  TerminalSessionId,
+  AgentChatSessionId,
+  AgentChatMessageId,
 } from "./types.js";
 import type { MembershipId, InvitationId, OrgRole } from "./auth.js";
 
@@ -1021,4 +1024,68 @@ export interface PlanDefinition {
   readonly allowances: readonly PlanAllowance[];
   readonly overageAllowed: boolean;
   readonly isPublic: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Terminal Session (Phase 15)
+// ---------------------------------------------------------------------------
+
+export type TerminalSessionStatus = "provisioning" | "active" | "idle" | "closed" | "failed";
+
+export interface TerminalSession {
+  readonly id: TerminalSessionId;
+  readonly orgId: OrgId;
+  readonly userId: UserId;
+  readonly projectId: ProjectId | null;
+  readonly status: TerminalSessionStatus;
+  readonly containerId: string | null;
+  readonly startedAt: ISODateString;
+  readonly lastActive: ISODateString;
+  readonly closedAt: ISODateString | null;
+  readonly metadata: Record<string, unknown>;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+// ---------------------------------------------------------------------------
+// Agent Chat Session (Phase 15)
+// ---------------------------------------------------------------------------
+
+export type AgentChatProvider = "openai" | "anthropic" | "google" | "deepseek" | "custom";
+export type AgentChatSessionStatus = "active" | "closed";
+
+export interface AgentChatSession {
+  readonly id: AgentChatSessionId;
+  readonly orgId: OrgId;
+  readonly userId: UserId;
+  readonly provider: AgentChatProvider;
+  readonly model: string;
+  readonly terminalSessionId: TerminalSessionId | null;
+  readonly status: AgentChatSessionStatus;
+  readonly messageCount: number;
+  readonly totalTokens: number;
+  readonly metadata: Record<string, unknown>;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+// ---------------------------------------------------------------------------
+// Agent Chat Message (Phase 15)
+// ---------------------------------------------------------------------------
+
+export type AgentChatMessageRole = "user" | "assistant" | "system";
+
+export interface AgentChatMessage {
+  readonly id: AgentChatMessageId;
+  readonly orgId: OrgId;
+  readonly chatSessionId: AgentChatSessionId;
+  readonly role: AgentChatMessageRole;
+  readonly content: string;
+  readonly provider: string;
+  readonly model: string;
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly latencyMs: number | null;
+  readonly metadata: Record<string, unknown>;
+  readonly createdAt: ISODateString;
 }

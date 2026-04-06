@@ -68,6 +68,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: "Runs", href: "/runs", icon: IconRuns },
       { label: "Connectors", href: "/connectors", icon: IconConnectors },
       { label: "Skills", href: "/skills", icon: IconSkills },
+      { label: "Terminal", href: "/terminal", icon: IconBrowser },
       { label: "Browser", href: "/browser-sessions", icon: IconBrowser },
       { label: "Memory", href: "/memories", icon: IconMemory },
     ],

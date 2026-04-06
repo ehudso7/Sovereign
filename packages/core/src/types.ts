@@ -69,6 +69,12 @@ export const toBillingAccountId = (id: string): BillingAccountId => id as Billin
 export const toUsageEventId = (id: string): UsageEventId => id as UsageEventId;
 export const toInvoiceId = (id: string): InvoiceId => id as InvoiceId;
 export const toSpendAlertId = (id: string): SpendAlertId => id as SpendAlertId;
+export type TerminalSessionId = Brand<string, "TerminalSessionId">;
+export type AgentChatSessionId = Brand<string, "AgentChatSessionId">;
+export type AgentChatMessageId = Brand<string, "AgentChatMessageId">;
+export const toTerminalSessionId = (id: string): TerminalSessionId => id as TerminalSessionId;
+export const toAgentChatSessionId = (id: string): AgentChatSessionId => id as AgentChatSessionId;
+export const toAgentChatMessageId = (id: string): AgentChatMessageId => id as AgentChatMessageId;
 
 // ---------------------------------------------------------------------------
 // Tenant context – threaded through every request

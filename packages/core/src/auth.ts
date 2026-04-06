@@ -120,7 +120,13 @@ export type Permission =
   | "onboarding:write"
   | "docs:read"
   | "support:read"
-  | "admin:read";
+  | "admin:read"
+  | "terminal:read"
+  | "terminal:create"
+  | "terminal:admin"
+  | "agent_provider:read"
+  | "agent_provider:configure"
+  | "agent_chat:use";
 
 const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   org_owner: [
@@ -183,6 +189,12 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "docs:read",
     "support:read",
     "admin:read",
+    "terminal:read",
+    "terminal:create",
+    "terminal:admin",
+    "agent_provider:read",
+    "agent_provider:configure",
+    "agent_chat:use",
   ],
   org_admin: [
     "org:read",
@@ -238,6 +250,12 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "docs:read",
     "support:read",
     "admin:read",
+    "terminal:read",
+    "terminal:create",
+    "terminal:admin",
+    "agent_provider:read",
+    "agent_provider:configure",
+    "agent_chat:use",
   ],
   org_member: [
     "org:read",
@@ -261,6 +279,10 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "billing:read",
     "onboarding:read",
     "docs:read",
+    "terminal:read",
+    "terminal:create",
+    "agent_provider:read",
+    "agent_chat:use",
   ],
   org_billing_admin: [
     "org:read",
@@ -283,6 +305,8 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "onboarding:read",
     "docs:read",
     "support:read",
+    "terminal:read",
+    "agent_provider:read",
   ],
   org_security_admin: [
     "org:read",
@@ -312,6 +336,8 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "docs:read",
     "support:read",
     "admin:read",
+    "terminal:read",
+    "agent_provider:read",
   ],
 };
 

@@ -56,6 +56,8 @@ import { PgOnboardingService } from "./onboarding.service.js";
 import { ObjectStorageService } from "./storage.service.js";
 import { WorkosAuthService } from "./workos-auth.service.js";
 import { BUILTIN_CONNECTORS, BUILTIN_SKILLS } from "@sovereign/gateway-mcp";
+import { TerminalSessionService } from "./terminal-session.service.js";
+import { AgentChatService } from "./agent-chat.service.js";
 
 export interface ServiceRegistry {
   auth: AuthService & { signInToOrg: PgAuthService["signInToOrg"] };
@@ -91,6 +93,10 @@ export interface ServiceRegistry {
   revenueForOrg: (orgId: OrgId) => PgRevenueService;
   billingForOrg: (orgId: OrgId) => PgBillingService;
   onboardingForOrg: (orgId: OrgId) => PgOnboardingService;
+  /** Get a terminal session service scoped to a specific org */
+  terminalSessionForOrg: (orgId: OrgId) => TerminalSessionService;
+  /** Get an agent chat service scoped to a specific org */
+  agentChatForOrg: (orgId: OrgId) => AgentChatService;
 }
 
 let _registry: ServiceRegistry | null = null;
@@ -314,6 +320,22 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     return new PgOnboardingService(agentRepo, runRepo, connectorInstallRepo, billingAccountRepo, policyRepo, membershipRepo, projectRepo, alertEventRepo, browserSessionRepo, auditEmitter, orgRepo);
   };
 
+  // Factory for org-scoped terminal session service
+  const terminalSessionForOrg = (orgId: OrgId): TerminalSessionService => {
+    const tenantDb = db.forTenant(orgId);
+    const auditRepo = new PgAuditRepo(tenantDb);
+    const auditEmitter = new PgAuditEmitter(auditRepo);
+    return new TerminalSessionService(orgId, auditEmitter);
+  };
+
+  // Factory for org-scoped agent chat service
+  const agentChatForOrg = (orgId: OrgId): AgentChatService => {
+    const tenantDb = db.forTenant(orgId);
+    const auditRepo = new PgAuditRepo(tenantDb);
+    const auditEmitter = new PgAuditEmitter(auditRepo);
+    return new AgentChatService(orgId, auditEmitter);
+  };
+
   // Default audit emitter uses unscoped DB for cross-org operations (like org.created)
   // Services that need org-scoped audit will use auditForOrg
   const defaultAuditRepo = new PgAuditRepo(db.forTenant("00000000-0000-0000-0000-000000000000" as OrgId));
@@ -379,6 +401,8 @@ export function initServices(authConfig: AuthConfig, db: DatabaseClient): Servic
     revenueForOrg,
     billingForOrg,
     onboardingForOrg,
+    terminalSessionForOrg,
+    agentChatForOrg,
   };
 
   // Seed catalog asynchronously (non-blocking, log errors)

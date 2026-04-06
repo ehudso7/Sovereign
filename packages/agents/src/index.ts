@@ -87,7 +87,7 @@ export interface ToolResult {
 // Agent model / entity
 // ---------------------------------------------------------------------------
 
-export type ModelProvider = "openai" | "anthropic" | "google" | "mistral" | "custom";
+export type ModelProvider = "openai" | "anthropic" | "google" | "mistral" | "deepseek" | "custom";
 
 export interface ModelConfig {
   readonly provider: ModelProvider;
@@ -210,3 +210,6 @@ export type {
 
 export { LocalExecutionProvider } from "./providers/local-provider.js";
 export { OpenAIExecutionProvider } from "./providers/openai-provider.js";
+export { AnthropicExecutionProvider } from "./providers/anthropic-provider.js";
+export { GeminiExecutionProvider } from "./providers/gemini-provider.js";
+export { DeepSeekExecutionProvider } from "./providers/deepseek-provider.js";
