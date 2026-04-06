@@ -120,19 +120,19 @@ jobs:
       - name: Deploy API
         env:
           RAILWAY_TOKEN: ${{ inputs.environment == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_STAGING || secrets.RAILWAY_TOKEN }}
-        run: railway up --service sovereign-api --detach
+        run: railway up --service @sovereign/api --detach
       - name: Deploy Worker Orchestrator
         env:
           RAILWAY_TOKEN: ${{ inputs.environment == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_STAGING || secrets.RAILWAY_TOKEN }}
-        run: railway up --service sovereign-worker-orchestrator --detach
+        run: railway up --service @sovereign/worker-orchestrator --detach
       - name: Deploy Worker Browser
         env:
           RAILWAY_TOKEN: ${{ inputs.environment == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_STAGING || secrets.RAILWAY_TOKEN }}
-        run: railway up --service sovereign-worker-browser --detach
+        run: railway up --service @sovereign/worker-browser --detach
       - name: Deploy Gateway MCP
         env:
           RAILWAY_TOKEN: ${{ inputs.environment == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_STAGING || secrets.RAILWAY_TOKEN }}
-        run: railway up --service sovereign-gateway-mcp --detach
+        run: railway up --service @sovereign/gateway-mcp --detach
       - name: Wait for detached Railway deploys to settle
         env:
           DEPLOY_SETTLE_SECONDS: ${{ inputs.environment == 'production' && '60' || '30' }}

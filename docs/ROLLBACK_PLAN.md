@@ -22,7 +22,7 @@ Frontend rollback:
 Backend rollback:
 
 1. Open Railway and select the target environment.
-2. For each backend service (`sovereign-api`, `sovereign-worker-orchestrator`, `sovereign-worker-browser`, `sovereign-gateway-mcp`), open `Deployments`.
+2. For each backend service (`@sovereign/api`, `@sovereign/worker-orchestrator`, `@sovereign/worker-browser`, `@sovereign/gateway-mcp`), open `Deployments`.
 3. Roll back each service to the last known good deployment.
 4. Verify `GET /health` returns `200` after the rollback.
 
@@ -47,10 +47,10 @@ pnpm --filter @sovereign/db migrate:status
 
 Vercel handles traffic switching when promoting a previous deployment. Railway rollback is per-service and should be performed in this order:
 
-1. `sovereign-gateway-mcp`
-2. `sovereign-worker-browser`
-3. `sovereign-worker-orchestrator`
-4. `sovereign-api`
+1. `@sovereign/gateway-mcp`
+2. `@sovereign/worker-browser`
+3. `@sovereign/worker-orchestrator`
+4. `@sovereign/api`
 
 ### 4. Worker/Orchestrator Rollback
 

@@ -87,10 +87,10 @@ If you keep deploy credentials at the repository level instead of as environment
 1. Create project on [railway.app](https://railway.app)
 2. Deploy from templates: **Postgres**, **Redis**
 3. Create services from GitHub repo:
-   - `sovereign-api` (Dockerfile: `infra/docker/Dockerfile.api`, port 3002, healthcheck `/health`)
-   - `sovereign-worker-orchestrator` (Dockerfile: `infra/docker/Dockerfile.worker-orchestrator`, no port)
-   - `sovereign-worker-browser` (Dockerfile: `infra/docker/Dockerfile.worker-browser`, no port)
-   - `sovereign-gateway-mcp` (Dockerfile: `infra/docker/Dockerfile.gateway-mcp`, port 3003, internal only)
+   - `@sovereign/api` (Dockerfile: `infra/docker/Dockerfile.api`, port 3002, healthcheck `/health`)
+   - `@sovereign/worker-orchestrator` (Dockerfile: `infra/docker/Dockerfile.worker-orchestrator`, no port)
+   - `@sovereign/worker-browser` (Dockerfile: `infra/docker/Dockerfile.worker-browser`, no port)
+   - `@sovereign/gateway-mcp` (Dockerfile: `infra/docker/Dockerfile.gateway-mcp`, port 3003, internal only)
 4. If not using Temporal Cloud, deploy Temporal from template
 5. Set shared variables per [ENVIRONMENT_MATRIX.md](./ENVIRONMENT_MATRIX.md)
 6. Railway auto-exposes: `DATABASE_URL`, `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `REDIS_URL`, `REDISHOST`, `REDISPORT`
