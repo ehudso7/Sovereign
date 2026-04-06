@@ -281,6 +281,51 @@ Full API-level end-to-end tests using Fastify `.inject()` against real PostgreSQ
 - State durability (app restart)
 - Deduplication under concurrent writes
 
+## Terminal Proxy Tests (Phase 15)
+
+### Session Manager Tests
+- Session creation, attach, reconnect, close, closeAll
+- Idle timeout behavior with timer mock
+- Output history append and trimming to 500 lines
+- Resize dimensions update
+- Session state serialization (getState)
+- WebSocket message routing to PTY bridge
+- Reconnect replays output history
+
+### PTY Bridge Tests
+- Command execution (echo, pwd, ls)
+- Blocked command rejection (rm -rf /, shutdown, etc.)
+- Timeout protection (30-second default)
+- Working directory tracking via cd
+- Environment variable isolation
+- Error handling for failed commands
+
+### Multi-Provider Agent Tests
+- Provider constructor validation (empty API key rejection)
+- Network error handling (fetch throws)
+- HTTP error handling (401, 500 responses)
+- Response parsing for each provider format:
+  - Anthropic Messages API (content blocks)
+  - Google Gemini API (candidates/parts)
+  - DeepSeek Chat API (choices/message)
+  - OpenAI Responses API (output/content)
+- LocalExecutionProvider deterministic output
+- Token usage tracking across providers
+
+### Terminal Route Tests (Service-Level Contract)
+- POST create session: correct defaults, active status
+- GET list sessions: user-scoped, status filter
+- GET session by ID: detail, not-found
+- POST close: transitions to closed, audit event
+- POST resize: metadata update
+- Tenant isolation: cross-org access blocked
+
+### Agent Chat Route Tests (Service-Level Contract)
+- GET agent-providers: returns all configured providers
+- POST agent-chat: message routing, response shape
+- GET chat history: empty for new, populated after chat
+- Provider fallback: uses LocalExecutionProvider when no API keys set
+
 ## Coverage Rules
 
 - New business logic code must include tests

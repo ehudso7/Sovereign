@@ -79,6 +79,14 @@ SOVEREIGN is a multi-tenant agent operating system built as a monorepo with clea
 - **Data**: Connector metadata, credential references
 - **Deployment**: Containerized
 
+### apps/terminal-proxy — Terminal Proxy Service (Phase 15)
+- **Tech**: Node.js, WebSocket (ws), TypeScript
+- **Responsibility**: WebSocket-to-PTY bridge for remote terminal sessions
+- **Features**: Session persistence, reconnection with output history replay, idle timeout, command execution with sanitization
+- **Auth**: Validates session tokens against API server
+- **Data**: In-memory session state with serializable snapshots
+- **Deployment**: Containerized, horizontally scalable per session count
+
 ### apps/docs — Documentation Site
 - **Tech**: Next.js or similar static site generator
 - **Responsibility**: User-facing documentation
@@ -109,10 +117,15 @@ SOVEREIGN is a multi-tenant agent operating system built as a monorepo with clea
 - Environment variable schemas
 
 ### packages/agents
-- Agent type definitions
-- Agent validation logic
-- Agent version management
-- Execution context builders
+- Agent type definitions and execution context builders
+- Agent validation logic and version management
+- **Multi-provider execution provider abstraction** (Phase 15):
+  - OpenAI (Responses API)
+  - Anthropic Claude (Messages API)
+  - Google Gemini (Gemini API)
+  - DeepSeek (Chat Completions API — OpenAI-compatible)
+  - Local deterministic provider (dev/CI)
+  - All providers implement `ExecutionProvider` interface with unified `execute()` contract
 
 ### packages/connectors
 - Connector type definitions

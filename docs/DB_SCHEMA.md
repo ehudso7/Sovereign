@@ -658,6 +658,65 @@ Key indexes (beyond PKs and FKs):
 - `memory_entries(memory_id, created_at)` — for temporal retrieval
 - `usage_events(org_id, recorded_at)` — for billing aggregation
 
+## Terminal and Agent Chat Tables (Phase 15)
+
+### terminal_sessions
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PK, DEFAULT gen_random_uuid() |
+| org_id | uuid | NOT NULL, FK → organizations(id) |
+| user_id | uuid | NOT NULL, FK → users(id) |
+| project_id | uuid | FK → projects(id) |
+| status | text | NOT NULL, DEFAULT 'provisioning', CHECK IN (provisioning, active, idle, closed, failed) |
+| container_id | text | |
+| started_at | timestamptz | NOT NULL, DEFAULT now() |
+| last_active | timestamptz | NOT NULL, DEFAULT now() |
+| closed_at | timestamptz | |
+| metadata | jsonb | NOT NULL, DEFAULT '{}' |
+| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | NOT NULL, DEFAULT now() |
+
+**RLS**: `terminal_sessions_org_isolation` — org_id = current_setting('app.current_org_id')
+**Indexes**: org_id, user_id, status, last_active
+
+### agent_chat_sessions
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PK, DEFAULT gen_random_uuid() |
+| org_id | uuid | NOT NULL, FK → organizations(id) |
+| user_id | uuid | NOT NULL, FK → users(id) |
+| provider | text | NOT NULL, CHECK IN (openai, anthropic, google, deepseek, custom) |
+| model | text | NOT NULL |
+| terminal_session_id | uuid | FK → terminal_sessions(id) |
+| status | text | NOT NULL, DEFAULT 'active', CHECK IN (active, closed) |
+| message_count | integer | NOT NULL, DEFAULT 0 |
+| total_tokens | integer | NOT NULL, DEFAULT 0 |
+| metadata | jsonb | NOT NULL, DEFAULT '{}' |
+| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | NOT NULL, DEFAULT now() |
+
+**RLS**: `agent_chat_sessions_org_isolation`
+**Indexes**: org_id, user_id, terminal_session_id
+
+### agent_chat_messages
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | uuid | PK, DEFAULT gen_random_uuid() |
+| org_id | uuid | NOT NULL, FK → organizations(id) |
+| chat_session_id | uuid | NOT NULL, FK → agent_chat_sessions(id) |
+| role | text | NOT NULL, CHECK IN (user, assistant, system) |
+| content | text | NOT NULL |
+| provider | text | NOT NULL |
+| model | text | NOT NULL |
+| input_tokens | integer | NOT NULL, DEFAULT 0 |
+| output_tokens | integer | NOT NULL, DEFAULT 0 |
+| latency_ms | integer | |
+| metadata | jsonb | NOT NULL, DEFAULT '{}' |
+| created_at | timestamptz | NOT NULL, DEFAULT now() |
+
+**RLS**: `agent_chat_messages_org_isolation`
+**Indexes**: chat_session_id, org_id, created_at
+
 ## Migration Strategy
 
 - All migrations are reversible (up + down)

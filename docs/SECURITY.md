@@ -305,6 +305,42 @@ All API responses include:
 2. **Security headers** — Added standard security headers to all API responses.
 3. **E2E security tests** — Added tenant isolation verification and error leakage tests to the E2E suite.
 
+## Terminal Proxy Security (Phase 15)
+
+### Session Isolation
+- Each terminal session is scoped to a single org and user via RLS
+- Session tokens are validated against the API server before WebSocket upgrade
+- Production mode requires valid authentication — no dev fallbacks
+- Sessions are bound to org_id; cross-tenant session access is impossible
+
+### Command Execution Security
+- PTY bridge runs commands in a sandboxed context with 30-second timeout
+- **Blocked commands**: `rm -rf /`, `mkfs`, `dd if=`, `:(){ :|:& };:`, `chmod -R 777 /`, `shutdown`, `reboot`, `halt`, `poweroff` — prevents destructive system-level operations
+- Command output is sanitized before storage — no credential leakage in history
+- Working directory isolation per session
+
+### API Key Security (Multi-Provider)
+- Provider API keys are stored as environment variables, never in database
+- API keys are never logged, included in audit events, or returned in API responses
+- Provider selection and model configuration are per-request — no stored credentials per org (Phase 15a)
+- LocalExecutionProvider used as fallback when no API keys are configured
+- All provider API calls use HTTPS with TLS
+
+### Terminal Session Audit
+- `terminal.session_created`, `terminal.session_closed` — lifecycle events
+- `agent_chat.message_sent` — tracks provider, model, and token usage (never message content)
+- `agent_provider.configured`, `agent_provider.removed` — configuration changes
+
+### Terminal Permissions
+| Permission | org_owner | org_admin | org_member | org_billing_admin | org_security_admin |
+|------------|-----------|-----------|------------|-------------------|---------------------|
+| terminal:read | ✅ | ✅ | ✅ | ✅ | ✅ |
+| terminal:create | ✅ | ✅ | ✅ | — | — |
+| terminal:admin | ✅ | ✅ | — | — | — |
+| agent_provider:read | ✅ | ✅ | ✅ | ✅ | ✅ |
+| agent_provider:configure | ✅ | ✅ | — | — | — |
+| agent_chat:use | ✅ | ✅ | ✅ | — | — |
+
 ## Security Review Cadence
 
 - Dependency audit: weekly (automated)

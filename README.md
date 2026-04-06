@@ -18,6 +18,8 @@ Production-grade multi-tenant agent operating system. One platform for agent cre
 | **Billing & Usage** | Plan catalog (free/team/enterprise), metering, invoices, spend alerts |
 | **Onboarding** | 8-step checklist derived from real platform state |
 | **Docs & Support** | In-app documentation, support diagnostics, admin overview |
+| **Mobile Terminal** | PWA-ready mobile terminal with WebSocket proxy, PTY bridge, touch-optimized command palette |
+| **Multi-Provider AI** | Unified AI agent routing — Anthropic Claude, OpenAI, Google Gemini, DeepSeek with per-org configuration |
 
 ## Quick Start
 
@@ -58,18 +60,19 @@ pnpm dev
 
 ```
 apps/
-  api/                  — Fastify API server (100+ endpoints)
-  web/                  — Next.js frontend (40+ pages)
+  api/                  — Fastify API server (110+ endpoints)
+  web/                  — Next.js frontend (45+ pages)
   worker-orchestrator/  — Temporal orchestration worker
   worker-browser/       — Playwright browser automation worker
   gateway-mcp/          — MCP connector gateway
+  terminal-proxy/       — WebSocket terminal proxy with PTY bridge
   docs/                 — Documentation site
 
 packages/
   core/        — Shared types, entities, branded IDs, Result pattern
   db/          — PostgreSQL client, 30+ repositories, 11 migrations
   config/      — Shared ESLint, TypeScript, env validation
-  agents/      — Agent runtime abstractions
+  agents/      — Multi-provider AI agent runtime (Claude, OpenAI, Gemini, DeepSeek)
   billing/     — Plan definitions and metering
   connectors/  — Connector abstractions
   crm/         — CRM sync adapter interface
@@ -85,17 +88,17 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
 
 | Suite | Tests |
 |-------|-------|
-| Unit | 649 |
+| Unit | 789 |
 | Integration (PostgreSQL) | 240 |
 | E2E | 43 |
-| **Total** | **932** |
+| **Total** | **1,072** |
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and service boundaries |
-| [ROADMAP.md](docs/ROADMAP.md) | Phase execution order (Phases 0-14, all complete) |
+| [ROADMAP.md](docs/ROADMAP.md) | Phase execution order (Phases 0-15, all complete) |
 | [API_SPEC.md](docs/API_SPEC.md) | API endpoint contract |
 | [DB_SCHEMA.md](docs/DB_SCHEMA.md) | Database schema and migrations |
 | [SECURITY.md](docs/SECURITY.md) | Security architecture and policies |

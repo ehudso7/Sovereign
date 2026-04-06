@@ -640,3 +640,114 @@ Response includes:
   }
 }
 ```
+
+---
+
+## Terminal Session Endpoints (Phase 15)
+
+### POST /api/v1/terminal-sessions
+Create a new terminal session.
+
+**Auth**: Required. Permission: `terminal:create`
+
+**Body**:
+```json
+{ "projectId": "uuid (optional)", "metadata": {} }
+```
+
+**Response**: `201` with `{ data: TerminalSession, meta }`
+
+### GET /api/v1/terminal-sessions
+List terminal sessions for the authenticated user.
+
+**Auth**: Required. Permission: `terminal:read`
+
+**Query**: `?status=active|provisioning|idle|closed|failed`
+
+**Response**: `200` with `{ data: TerminalSession[], meta }`
+
+### GET /api/v1/terminal-sessions/:sessionId
+Get terminal session detail.
+
+**Auth**: Required. Permission: `terminal:read`
+
+**Response**: `200` with `{ data: TerminalSession, meta }`
+
+### POST /api/v1/terminal-sessions/:sessionId/close
+Close a terminal session.
+
+**Auth**: Required. Permission: `terminal:create`
+
+**Response**: `200` with `{ data: TerminalSession, meta }`
+
+### POST /api/v1/terminal-sessions/:sessionId/resize
+Resize terminal dimensions.
+
+**Auth**: Required. Permission: `terminal:create`
+
+**Body**:
+```json
+{ "cols": 120, "rows": 40 }
+```
+
+**Response**: `200` with `{ data: TerminalSession, meta }`
+
+---
+
+## Agent Provider Endpoints (Phase 15)
+
+### GET /api/v1/agent-providers
+List available AI providers and their models.
+
+**Auth**: Required. Permission: `agent_provider:read`
+
+**Response**: `200` with array of providers, each containing:
+```json
+{
+  "id": "anthropic",
+  "name": "Anthropic Claude",
+  "models": [
+    { "id": "claude-sonnet-4-6", "name": "Claude Sonnet 4.6", "context": 200000 }
+  ],
+  "capabilities": ["coding", "reasoning", "long-context"]
+}
+```
+
+### POST /api/v1/agent-chat
+Send a message to an AI agent.
+
+**Auth**: Required. Permission: `agent_chat:use`
+
+**Body**:
+```json
+{
+  "provider": "anthropic|openai|google|deepseek|custom",
+  "model": "claude-sonnet-4-6",
+  "message": "Fix the failing test in auth.service.ts",
+  "sessionId": "uuid (optional, for continuing conversation)",
+  "terminalSessionId": "uuid (optional, links to terminal session)",
+  "terminalContext": "string (optional, recent terminal output for context)"
+}
+```
+
+**Response**: `200` with:
+```json
+{
+  "data": {
+    "sessionId": "uuid",
+    "response": "...",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "inputTokens": 150,
+    "outputTokens": 420,
+    "latencyMs": 1200
+  }
+}
+```
+
+### GET /api/v1/agent-chat/:sessionId/history
+Get chat message history for a session.
+
+**Auth**: Required. Permission: `agent_chat:use`
+
+**Response**: `200` with array of `{ role, content, provider, model, timestamp }`

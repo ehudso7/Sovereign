@@ -113,3 +113,17 @@ pnpm test:integration
 ```
 
 `TEST_DATABASE_URL` is preferred for test infrastructure. `DATABASE_URL` remains a supported fallback.
+
+## Phase 15: Mobile Terminal + Multi-Provider AI
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `TERMINAL_PROXY_PORT` | No | `8100` | Port for the terminal proxy WebSocket service |
+| `TERMINAL_IDLE_TIMEOUT_MS` | No | `1800000` | Terminal session idle timeout (30 min default) |
+| `ANTHROPIC_API_KEY` | No | — | Anthropic Claude API key for AI agent routing |
+| `GEMINI_API_KEY` | No | — | Google Gemini API key for AI agent routing |
+| `DEEPSEEK_API_KEY` | No | — | DeepSeek API key for AI agent routing |
+| `OPENAI_API_KEY` | No | — | OpenAI API key (shared with Phase 5 agent runtime) |
+| `SOVEREIGN_API_URL` | No | `http://localhost:3001` | API server URL for terminal proxy auth validation |
+
+**Note**: AI provider API keys are optional. When not set, the system falls back to `LocalExecutionProvider` (deterministic responses for dev/CI). At least one provider key must be configured for production AI agent functionality.
