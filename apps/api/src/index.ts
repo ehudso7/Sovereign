@@ -109,8 +109,11 @@ if (isDirectRun) {
   if (isProduction && !process.env.SOVEREIGN_SECRET_KEY) {
     throw new Error("SOVEREIGN_SECRET_KEY must be set in production. Refusing to start without encryption key.");
   }
-  if (isProduction && authMode !== "workos") {
-    throw new Error("AUTH_MODE must be set to workos in production. Refusing to start with local auth.");
+  if (isProduction && authMode !== "workos" && process.env.SOVEREIGN_ALLOW_LOCAL_AUTH !== "true") {
+    throw new Error(
+      "AUTH_MODE must be set to workos in production. " +
+      "Set SOVEREIGN_ALLOW_LOCAL_AUTH=true to override for staging/testing environments.",
+    );
   }
   if (authMode === "workos" && !process.env.WORKOS_API_KEY) {
     throw new Error("WORKOS_API_KEY must be set when AUTH_MODE=workos.");
