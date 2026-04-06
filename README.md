@@ -35,11 +35,19 @@ docker compose -f infra/docker/docker-compose.yml up -d
 # Copy environment variables
 cp .env.example .env.local
 
+# IMPORTANT: For local development without WorkOS SSO, ensure:
+#   AUTH_MODE=local
+# is set in .env.local (this is the default in .env.example).
+# This enables the bootstrap form to create your first admin account.
+
 # Run database migrations
 pnpm db:migrate
 
 # Start development
 pnpm dev
+
+# Visit http://localhost:3000 → Sign In → "New installation? Bootstrap first account"
+# to create your initial org and admin user.
 ```
 
 ## Commands

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { getApiBaseUrl } from "@/lib/api";
 
@@ -105,6 +106,19 @@ function SignInContent() {
       </div>
 
       <div className="relative z-10 w-full max-w-md px-4">
+        {/* Back to home */}
+        <Link
+          href="/"
+          className="mb-6 inline-flex items-center gap-1.5 text-sm text-[rgb(var(--color-text-tertiary))] transition-colors hover:text-[rgb(var(--color-text-primary))]"
+          aria-label="Back to home page"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+          Back to home
+        </Link>
+
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[rgb(var(--color-brand))]">
             <svg

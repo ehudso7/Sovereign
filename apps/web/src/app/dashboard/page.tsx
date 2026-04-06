@@ -74,7 +74,7 @@ function StatCard({
   icon: React.FC<{ size?: number }>;
 }) {
   return (
-    <div className="card-hover group flex items-start justify-between">
+    <div className="card-hover group flex items-start justify-between" role="status" aria-label={`${label}: ${value}`}>
       <div className="flex flex-col gap-1">
         <span className="stat-label">{label}</span>
         <span className="stat-value">{value}</span>
