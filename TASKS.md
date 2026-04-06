@@ -1371,3 +1371,40 @@ E2E tests (43 total across 3 suites):
 - [x] No new feature scope was added
 - [x] Lint, typecheck, build, unit, integration, and E2E all pass
 - [x] New docs: LAUNCH_CHECKLIST.md, ROLLBACK_PLAN.md, BACKUP_RESTORE.md, ENVIRONMENT.md, SUPPORT_ESCALATION.md, SLO.md
+
+### Phase 15 — Mobile Terminal with Multi-Provider AI Agent Access (In Progress)
+
+> ADR: docs/ADR/0002-mobile-terminal-multi-agent.md
+
+#### Phase 15a — Foundation
+- [x] ADR 0002 created and proposed
+- [x] Multi-provider execution providers (Anthropic Claude, Google Gemini, DeepSeek)
+- [x] xterm.js terminal emulator component in packages/ui
+- [x] Terminal proxy service scaffolding (apps/terminal-proxy)
+- [x] Mobile-responsive layout detection in apps/web
+- [x] PWA manifest and service worker
+- [x] Terminal session DB migration (012_phase15_terminal.sql)
+- [x] Terminal session data layer (repo + service)
+- [x] Terminal session and agent-chat API routes
+- [x] Mobile terminal page in apps/web
+
+#### Phase 15b — Terminal Core (Backlog)
+- [ ] WebSocket-to-PTY bridge with container/SSH session allocation
+- [ ] Session persistence and reconnection logic
+- [ ] Terminal proxy auth integration (existing session tokens)
+- [ ] Mobile keyboard optimization (common key shortcuts bar)
+
+#### Phase 15c — AI Agent Integration (Backlog)
+- [ ] Multi-provider agent chat panel
+- [ ] Terminal context injection into agent prompts
+- [ ] Command suggestion and approval flow
+- [ ] File diff viewer (mobile-optimized)
+- [ ] Provider configuration UI (API keys, model selection)
+
+#### Phase 15d — Polish and Hardening (Backlog)
+- [ ] Push notifications for long-running tasks
+- [ ] Offline mode (queued commands)
+- [ ] Touch gesture navigation
+- [ ] Load testing WebSocket connections
+- [ ] E2E tests for mobile flows
+- [ ] Security review of terminal proxy attack surface

@@ -37,6 +37,9 @@ export type {
   UsageEventId,
   InvoiceId,
   SpendAlertId,
+  TerminalSessionId,
+  AgentChatSessionId,
+  AgentChatMessageId,
   TenantContext,
   Ok,
   Err,
@@ -83,6 +86,9 @@ export {
   toUsageEventId,
   toInvoiceId,
   toSpendAlertId,
+  toTerminalSessionId,
+  toAgentChatSessionId,
+  toAgentChatMessageId,
   // Result helpers
   ok,
   err,
@@ -239,6 +245,13 @@ export type {
   SpendAlert,
   PlanAllowance,
   PlanDefinition,
+  TerminalSessionStatus,
+  TerminalSession,
+  AgentChatProvider,
+  AgentChatSessionStatus,
+  AgentChatSession,
+  AgentChatMessageRole,
+  AgentChatMessage,
 } from "./entities.js";
 
 export { RISKY_BROWSER_ACTIONS } from "./entities.js";

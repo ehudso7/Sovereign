@@ -1,0 +1,25 @@
+{
+  "name": "Sovereign Terminal",
+  "short_name": "Sovereign",
+  "description": "Mobile-first AI terminal for the Sovereign agent operating system",
+  "start_url": "/terminal",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#1e40af",
+  "categories": ["developer", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

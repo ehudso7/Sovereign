@@ -20,6 +20,8 @@ import { policyRoutes } from "./routes/policies.js";
 import { revenueRoutes } from "./routes/revenue.js";
 import { billingRoutes } from "./routes/billing.js";
 import { onboardingRoutes } from "./routes/onboarding.js";
+import { terminalSessionRoutes } from "./routes/terminal-sessions.js";
+import { agentChatRoutes } from "./routes/agent-chat.js";
 import { devRoutes } from "./routes/dev.js";
 import type { AuthConfig } from "@sovereign/core";
 import { registerCors } from "./lib/cors.js";
@@ -72,6 +74,8 @@ export function buildApp(authConfig: AuthConfig, db: DatabaseClient, opts?: { lo
   app.register(revenueRoutes);
   app.register(billingRoutes);
   app.register(onboardingRoutes);
+  app.register(terminalSessionRoutes);
+  app.register(agentChatRoutes);
 
   if (process.env.NODE_ENV !== "production") {
     app.register(devRoutes);
